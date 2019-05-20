@@ -2,7 +2,8 @@ use crate::state_machine::{CharacterSet, StateMachine};
 use serenity::{model::channel::Message, prelude::Context};
 use std::collections::HashMap;
 
-pub(crate) type CmdPtr = for<'m> fn(Args<'m>);
+pub(crate) type Result = std::result::Result<(), Box<std::error::Error>>;
+pub(crate) type CmdPtr = for<'m> fn(Args<'m>) -> Result;
 
 pub struct Args<'m> {
     pub cx: Context,
@@ -54,7 +55,9 @@ impl Commands {
                 msg,
                 params: cmd.params,
             };
-            (cmd.handler)(args);
+            if let Err(e) = (cmd.handler)(args) {
+                println!("{}", e);
+            }
         }
     }
 }

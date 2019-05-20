@@ -1,7 +1,7 @@
 mod commands;
 mod state_machine;
 
-use commands::{Args, Commands};
+use commands::{Args, Commands, Result};
 use serenity::{model::prelude::*, prelude::*, Client};
 
 struct Dispatcher {
@@ -24,13 +24,21 @@ impl EventHandler for Dispatcher {
     }
 }
 
-fn assign_talk_role<'m>(args: Args<'m>) {
-    dbg!("assign_talk_role invoked");
-}
+fn assign_talk_role<'m>(args: Args<'m>) -> Result {
+    if let Some(ref guild) = args.msg.guild(&args.cx) {
+        let role_id = guild
+            .read()
+            .role_by_name("talk")
+            .ok_or("unable to retrieve role")?
+            .id;
 
-fn ban<'m>(args: Args<'m>) {
-    println!("{}", args.params.get("user").unwrap());
-    dbg!("ban invoked");
+        args.msg
+            .member(&args.cx)
+            .ok_or("unable to retrieve member")?
+            .add_role(&args.cx, role_id)?;
+    }
+
+    Ok(())
 }
 
 fn main() {
@@ -38,7 +46,6 @@ fn main() {
     let mut cmds = Commands::new();
 
     cmds.add("?talk", assign_talk_role);
-    cmds.add("!ban {user} [reason]", ban);
 
     let mut client = Client::new(&token, Dispatcher::new(cmds)).unwrap();
 
