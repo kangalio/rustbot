@@ -25,17 +25,29 @@ impl EventHandler for Dispatcher {
 }
 
 fn assign_talk_role<'m>(args: Args<'m>) -> Result {
-    if let Some(ref guild) = args.msg.guild(&args.cx) {
-        let role_id = guild
-            .read()
-            .role_by_name("talk")
-            .ok_or("unable to retrieve role")?
-            .id;
+    let mut is_welcome_channel = false;
 
-        args.msg
-            .member(&args.cx)
-            .ok_or("unable to retrieve member")?
-            .add_role(&args.cx, role_id)?;
+    // Check if the channel the message is coming from is the welcome channel
+    let channel = args.msg.channel(&args.cx);
+    channel.map(|chan| {
+        if let Some(guild_chan) = chan.guild() {
+            is_welcome_channel = guild_chan.read().name() == "welcome";
+        }
+    });
+
+    if is_welcome_channel {
+        if let Some(ref guild) = args.msg.guild(&args.cx) {
+            let role_id = guild
+                .read()
+                .role_by_name("talk")
+                .ok_or("unable to retrieve role")?
+                .id;
+
+            args.msg
+                .member(&args.cx)
+                .ok_or("unable to retrieve member")?
+                .add_role(&args.cx, role_id)?;
+        }
     }
 
     Ok(())
