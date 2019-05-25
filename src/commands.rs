@@ -29,14 +29,18 @@ impl Commands {
         command
             .split(' ')
             .filter(|segment| segment.len() > 0)
-            .for_each(|segment| {
+            .enumerate()
+            .for_each(|(i, segment)| {
                 if segment.starts_with("[") && segment.ends_with("]") {
-                    state = add_multi_part_dynamic_segment(&mut self.state_machine, state);
+                    state = add_space(&mut self.state_machine, state, i);
+                    state = add_quoted_dynamic_segment(&mut self.state_machine, state);
                     param_names.push(&segment[1..segment.len() - 1]);
                 } else if segment.starts_with("{") && segment.ends_with("}") {
+                    state = add_space(&mut self.state_machine, state, i);
                     state = add_dynamic_segment(&mut self.state_machine, state);
                     param_names.push(&segment[1..segment.len() - 1]);
                 } else {
+                    state = add_space(&mut self.state_machine, state, i);
                     segment.chars().for_each(|ch| {
                         state = self.state_machine.add(state, CharacterSet::from_char(ch))
                     });
@@ -62,8 +66,16 @@ impl Commands {
     }
 }
 
+#[inline]
+fn add_space(state_machine: &mut StateMachine, mut state: usize, i: usize) -> usize {
+    if i > 0 {
+        state = state_machine.add(state, CharacterSet::from_char(' '));
+    }
+    state
+}
+
+#[inline]
 fn add_dynamic_segment(state_machine: &mut StateMachine, mut state: usize) -> usize {
-    state = state_machine.add(state, CharacterSet::from_char(' '));
     let mut char_set = CharacterSet::any();
     char_set.remove(' ');
     state = state_machine.add(state, char_set);
@@ -74,8 +86,8 @@ fn add_dynamic_segment(state_machine: &mut StateMachine, mut state: usize) -> us
     state
 }
 
-fn add_multi_part_dynamic_segment(state_machine: &mut StateMachine, mut state: usize) -> usize {
-    state = state_machine.add(state, CharacterSet::from_char(' '));
+#[inline]
+fn add_quoted_dynamic_segment(state_machine: &mut StateMachine, mut state: usize) -> usize {
     state = state_machine.add(state, CharacterSet::from_char('"'));
     state = state_machine.add(state, CharacterSet::any());
     state_machine.add_next_state(state, state);
