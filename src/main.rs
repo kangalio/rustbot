@@ -1,5 +1,12 @@
+#[macro_use]
+extern crate diesel;
+
+mod api;
 mod commands;
 mod state_machine;
+mod tags;
+mod db;
+mod schema;
 
 use commands::{Args, Commands, Result};
 use serenity::{model::prelude::*, prelude::*, Client};
@@ -24,18 +31,28 @@ impl EventHandler for Dispatcher {
     }
 }
 
+fn main() {
+    let token = std::env::var("DISCORD_TOKEN").expect("env var not set");
+    let mut cmds = Commands::new();
+
+    // Talk Role
+    cmds.add("?talk", assign_talk_role);
+
+    // Tags
+    cmds.add("?tag {key}", tags::get);
+    cmds.add("?tag delete {key}", tags::delete);
+    cmds.add("?tag create {key} [value]", tags::post);
+
+    let mut client = Client::new(&token, Dispatcher::new(cmds)).unwrap();
+
+    if let Err(e) = client.start() {
+        println!("{}", e);
+    }
+}
+
+/// Assign the talk role to the user that requested it.  
 fn assign_talk_role<'m>(args: Args<'m>) -> Result {
-    let mut is_welcome_channel = false;
-
-    // Check if the channel the message is coming from is the welcome channel
-    let channel = args.msg.channel(&args.cx);
-    channel.map(|chan| {
-        if let Some(guild_chan) = chan.guild() {
-            is_welcome_channel = guild_chan.read().name() == "welcome";
-        }
-    });
-
-    if is_welcome_channel {
+    if api::channel_name_is(&args, "welcome") {
         if let Some(ref guild) = args.msg.guild(&args.cx) {
             let role_id = guild
                 .read()
@@ -51,17 +68,4 @@ fn assign_talk_role<'m>(args: Args<'m>) -> Result {
     }
 
     Ok(())
-}
-
-fn main() {
-    let token = std::env::var("DISCORD_TOKEN").expect("env var not set");
-    let mut cmds = Commands::new();
-
-    cmds.add("?talk", assign_talk_role);
-
-    let mut client = Client::new(&token, Dispatcher::new(cmds)).unwrap();
-
-    if let Err(e) = client.start() {
-        println!("{}", e);
-    }
 }

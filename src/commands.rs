@@ -53,13 +53,13 @@ impl Commands {
     }
 
     pub(crate) fn execute<'m>(&'m self, cx: Context, msg: Message) {
-        if let Some(cmd) = self.state_machine.process(&msg.content.clone()) {
+        if let Some(matched) = self.state_machine.process(&msg.content.clone()) {
             let args = Args {
                 cx,
                 msg,
-                params: cmd.params,
+                params: matched.params,
             };
-            if let Err(e) = (cmd.handler)(args) {
+            if let Err(e) = (matched.handler)(args) {
                 println!("{}", e);
             }
         }

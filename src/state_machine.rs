@@ -151,7 +151,7 @@ impl Traversal {
     }
 }
 
-pub struct Match<'m> {
+pub(crate) struct Match<'m> {
     pub handler: &'m CmdPtr,
     pub params: HashMap<&'m str, &'m str>,
 }
