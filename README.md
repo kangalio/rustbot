@@ -80,3 +80,8 @@ Delete a tag
 ```
 ?tag delete {key}
 ```
+
+Get all tags
+```
+?tags
+```
