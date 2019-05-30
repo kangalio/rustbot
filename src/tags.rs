@@ -57,3 +57,22 @@ pub fn get<'m>(args: Args<'m>) -> Result {
     Ok(())
 }
 
+/// Retrieve all tags
+pub fn get_all<'m>(args: Args<'m>) -> Result {
+    let conn = database_connection()?;
+
+    let results = tags::table
+        .load::<(i32, String, String)>(&conn)?;
+
+    if results.is_empty() {
+        api::send_reply(&args, "No tags found")?;
+    } else {
+        let tags = &results.iter().fold(String::new(), |prev, row| {
+            prev + &row.1 + ": " + &row.2 + "\n"
+        });
+
+        api::send_reply(&args, &format!("```\n{}```", &tags))?;
+    }
+
+    Ok(())
+}

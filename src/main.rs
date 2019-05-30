@@ -42,6 +42,7 @@ fn main() {
     cmds.add("?tag {key}", tags::get);
     cmds.add("?tag delete {key}", tags::delete);
     cmds.add("?tag create {key} [value]", tags::post);
+    cmds.add("?tags", tags::get_all);
 
     let mut client = Client::new(&token, Dispatcher::new(cmds)).unwrap();
 
