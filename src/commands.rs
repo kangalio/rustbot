@@ -2,6 +2,7 @@ use crate::state_machine::{CharacterSet, StateMachine};
 use serenity::{model::channel::Message, prelude::Context};
 use std::collections::HashMap;
 
+const PREFIX: &'static str = "?";
 pub(crate) type Result = std::result::Result<(), Box<std::error::Error>>;
 pub(crate) type CmdPtr = for<'m> fn(Args<'m>) -> Result;
 
@@ -53,16 +54,21 @@ impl Commands {
     }
 
     pub(crate) fn execute<'m>(&'m self, cx: Context, msg: Message) {
-        if let Some(matched) = self.state_machine.process(&msg.content.clone()) {
-            let args = Args {
-                cx,
-                msg,
-                params: matched.params,
-            };
-            if let Err(e) = (matched.handler)(args) {
-                println!("{}", e);
+        &msg.member(&cx).map(|member| {
+            if member.user.read().name != crate::BOT_NAME && &msg.content[..1] == PREFIX {
+                let message = &msg.content.clone();
+                self.state_machine.process(&message).map(|matched| {
+                    let args = Args {
+                        cx,
+                        msg,
+                        params: matched.params,
+                    };
+                    if let Err(e) = (matched.handler)(args) {
+                        println!("{}", e);
+                    }
+                });
             }
-        }
+        });
     }
 }
 

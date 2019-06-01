@@ -230,6 +230,10 @@ impl StateMachine {
         for (i, ch) in input.chars().enumerate() {
             let next_traversals = self.process_char(traversals, ch, i);
             traversals = next_traversals;
+
+            if traversals.is_empty() {
+                return None;
+            }
         }
 
         let traversals = traversals
@@ -271,8 +275,27 @@ impl StateMachine {
     fn process_char(&self, traversals: Vec<Traversal>, ch: char, pos: usize) -> Vec<Traversal> {
         let mut ret = Vec::with_capacity(traversals.len());
 
-        traversals.into_iter().for_each(|traversal| {
+        for mut traversal in traversals.into_iter() {
             let current_state = &self.states[traversal.current_state];
+
+            let mut count = 0;
+            let mut state_index = 0;
+
+            current_state.next_states.iter().for_each(|index| {
+                let next_state = &self.states[*index];
+
+                if next_state.expected.contains(ch) {
+                    count += 1;
+                    state_index = *index;
+                }
+            });
+
+            if count == 1 {
+                traversal.current_state = state_index;
+                self.extract_parse_info(&mut traversal, current_state.index, state_index, pos);
+                ret.push(traversal);
+                continue;
+            }
 
             current_state.next_states.iter().for_each(|index| {
                 let next_state = &self.states[*index];
@@ -284,7 +307,7 @@ impl StateMachine {
                     ret.push(copy);
                 }
             });
-        });
+        }
         ret
     }
 

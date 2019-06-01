@@ -27,6 +27,7 @@ pub fn post<'m>(args: Args<'m>) -> Result {
         .params
         .get("key")
         .ok_or("Unable to retrieve param: key")?;
+
     let value = args
         .params
         .get("value")
@@ -35,6 +36,7 @@ pub fn post<'m>(args: Args<'m>) -> Result {
     diesel::insert_into(tags::table)
         .values((tags::key.eq(key), tags::value.eq(value)))
         .execute(&conn)?;
+
     Ok(())
 }
 
@@ -61,8 +63,7 @@ pub fn get<'m>(args: Args<'m>) -> Result {
 pub fn get_all<'m>(args: Args<'m>) -> Result {
     let conn = database_connection()?;
 
-    let results = tags::table
-        .load::<(i32, String, String)>(&conn)?;
+    let results = tags::table.load::<(i32, String, String)>(&conn)?;
 
     if results.is_empty() {
         api::send_reply(&args, "No tags found")?;

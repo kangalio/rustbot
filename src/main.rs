@@ -1,12 +1,14 @@
 #[macro_use]
 extern crate diesel;
 
+pub(crate) const BOT_NAME: &'static str = "RustBot";
+
 mod api;
 mod commands;
-mod state_machine;
-mod tags;
 mod db;
 mod schema;
+mod state_machine;
+mod tags;
 
 use commands::{Args, Commands, Result};
 use serenity::{model::prelude::*, prelude::*, Client};
@@ -15,6 +17,9 @@ struct Dispatcher {
     cmds: Commands,
 }
 
+/// # Dispatcher
+///
+/// This is the event handler for all messages.   
 impl Dispatcher {
     fn new(cmds: Commands) -> Self {
         Self { cmds }
