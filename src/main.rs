@@ -11,7 +11,8 @@ mod state_machine;
 mod tags;
 
 use commands::{Args, Commands, Result};
-use serenity::{model::prelude::*, prelude::*, Client};
+use serenity::{model::prelude::*, prelude::*, utils::parse_username, Client};
+use std::str::FromStr;
 
 struct Dispatcher {
     cmds: Commands,
@@ -49,6 +50,16 @@ fn main() {
     cmds.add("?tag create {key} [value]", tags::post);
     cmds.add("?tags", tags::get_all);
 
+    // Slow mode.
+    // 0 seconds disables slowmode
+    cmds.add("?slowmode {channel} {seconds}", slow_mode);
+
+    // Kick
+    cmds.add("?kick {user}", kick);
+
+    // Ban
+    cmds.add("?ban {user}", ban);
+
     let mut client = Client::new(&token, Dispatcher::new(cmds)).unwrap();
 
     if let Err(e) = client.start() {
@@ -73,5 +84,50 @@ fn assign_talk_role<'m>(args: Args<'m>) -> Result {
         }
     }
 
+    Ok(())
+}
+
+/// Set slow mode for a channel.  
+///
+/// A `seconds` value of 0 will disable slowmode
+fn slow_mode<'m>(args: Args<'m>) -> Result {
+    let seconds = &args.params.get("seconds").ok_or("unable to retrieve seconds param")?.parse::<u64>()?;
+    let channel_name = &args.params.get("channel").ok_or("unable to retrieve channel param")?;
+
+    ChannelId::from_str(channel_name)?.edit(&args.cx, |c| { c.slow_mode_rate(*seconds) })?;
+    Ok(())
+}
+
+/// Kick a user from the guild.  
+///
+/// Requires the kick members permission
+fn kick<'m>(args: Args<'m>) -> Result {
+    if let Some(guild) = args.msg.guild(&args.cx) {
+        let user_id = parse_username(
+            &args
+                .params
+                .get("user")
+                .ok_or("unable to retrieve user param")?,
+        )
+        .ok_or("unable to retrieve user id")?;
+        guild.read().kick(&args.cx, UserId::from(user_id))?
+    }
+    Ok(())
+}
+
+/// Ban an user from the guild.  
+///
+/// Requires the ban members permission
+fn ban<'m>(args: Args<'m>) -> Result {
+    if let Some(guild) = args.msg.guild(&args.cx) {
+        let user_id = parse_username(
+            &args
+                .params
+                .get("user")
+                .ok_or("unable to retrieve user param")?,
+        )
+        .ok_or("unable to retrieve user id")?;
+        guild.read().ban(&args.cx, UserId::from(user_id), &"all")?
+    }
     Ok(())
 }
