@@ -1,8 +1,6 @@
 #[macro_use]
 extern crate diesel;
 
-pub(crate) const BOT_NAME: &'static str = "RustBot";
-
 mod api;
 mod commands;
 mod db;
@@ -91,10 +89,18 @@ fn assign_talk_role<'m>(args: Args<'m>) -> Result {
 ///
 /// A `seconds` value of 0 will disable slowmode
 fn slow_mode<'m>(args: Args<'m>) -> Result {
-    let seconds = &args.params.get("seconds").ok_or("unable to retrieve seconds param")?.parse::<u64>()?;
-    let channel_name = &args.params.get("channel").ok_or("unable to retrieve channel param")?;
+    let seconds = &args
+        .params
+        .get("seconds")
+        .ok_or("unable to retrieve seconds param")?
+        .parse::<u64>()?;
 
-    ChannelId::from_str(channel_name)?.edit(&args.cx, |c| { c.slow_mode_rate(*seconds) })?;
+    let channel_name = &args
+        .params
+        .get("channel")
+        .ok_or("unable to retrieve channel param")?;
+
+    ChannelId::from_str(channel_name)?.edit(&args.cx, |c| c.slow_mode_rate(*seconds))?;
     Ok(())
 }
 
@@ -103,14 +109,28 @@ fn slow_mode<'m>(args: Args<'m>) -> Result {
 /// Requires the kick members permission
 fn kick<'m>(args: Args<'m>) -> Result {
     if let Some(guild) = args.msg.guild(&args.cx) {
-        let user_id = parse_username(
-            &args
-                .params
-                .get("user")
-                .ok_or("unable to retrieve user param")?,
-        )
-        .ok_or("unable to retrieve user id")?;
-        guild.read().kick(&args.cx, UserId::from(user_id))?
+        let role_id = guild
+            .read()
+            .role_by_name("mod")
+            .ok_or("unable to retrieve role")?
+            .id;
+
+        if args
+            .msg
+            .member
+            .ok_or("unable to retrieve member")?
+            .roles
+            .contains(&role_id)
+        {
+            let user_id = parse_username(
+                &args
+                    .params
+                    .get("user")
+                    .ok_or("unable to retrieve user param")?,
+            )
+            .ok_or("unable to retrieve user id")?;
+            guild.read().kick(&args.cx, UserId::from(user_id))?
+        }
     }
     Ok(())
 }
@@ -120,14 +140,28 @@ fn kick<'m>(args: Args<'m>) -> Result {
 /// Requires the ban members permission
 fn ban<'m>(args: Args<'m>) -> Result {
     if let Some(guild) = args.msg.guild(&args.cx) {
-        let user_id = parse_username(
-            &args
-                .params
-                .get("user")
-                .ok_or("unable to retrieve user param")?,
-        )
-        .ok_or("unable to retrieve user id")?;
-        guild.read().ban(&args.cx, UserId::from(user_id), &"all")?
+        let role_id = guild
+            .read()
+            .role_by_name("mod")
+            .ok_or("unable to retrieve role")?
+            .id;
+
+        if args
+            .msg
+            .member
+            .ok_or("unable to retrieve member")?
+            .roles
+            .contains(&role_id)
+        {
+            let user_id = parse_username(
+                &args
+                    .params
+                    .get("user")
+                    .ok_or("unable to retrieve user param")?,
+            )
+            .ok_or("unable to retrieve user id")?;
+            guild.read().ban(&args.cx, UserId::from(user_id), &"all")?
+        }
     }
     Ok(())
 }
