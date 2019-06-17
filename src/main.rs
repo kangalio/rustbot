@@ -35,8 +35,12 @@ impl EventHandler for Dispatcher {
     }
 }
 
-fn main() {
-    let token = std::env::var("DISCORD_TOKEN").expect("env var not set");
+fn app() -> Result {
+    let token = std::env::var("DISCORD_TOKEN")
+        .map_err(|_| "missing environment variable: DISCORD_TOKEN")?;
+
+    let _ = db::run_migrations()?;
+
     let mut cmds = Commands::new();
 
     // Talk Role
@@ -59,9 +63,15 @@ fn main() {
     cmds.add("?ban {user}", ban);
 
     let mut client = Client::new(&token, Dispatcher::new(cmds)).unwrap();
+    client.start()?;
 
-    if let Err(e) = client.start() {
-        println!("{}", e);
+    Ok(())
+}
+
+fn main() {
+    if let Err(err) = app() {
+        eprintln!("error: {}", err);
+        std::process::exit(1);
     }
 }
 
