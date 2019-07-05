@@ -30,11 +30,11 @@ impl CharacterSet {
         let val = ch as u32 - 1;
 
         match val {
-            0...63 => {
+            0..=63 => {
                 let bit = 1 << val;
                 self.low_mask = self.low_mask | bit;
             }
-            64...127 => {
+            64..=127 => {
                 let bit = 1 << val - 64;
                 self.high_mask = self.high_mask | bit;
             }
@@ -47,11 +47,11 @@ impl CharacterSet {
         let val = ch as u32 - 1;
 
         match val {
-            0...63 => {
+            0..=63 => {
                 let bit = 1 << val;
                 self.low_mask = self.low_mask & !bit;
             }
-            64...127 => {
+            64..=127 => {
                 let bit = 1 << val - 64;
                 self.high_mask = self.high_mask & !bit;
             }
@@ -64,11 +64,11 @@ impl CharacterSet {
         let val = ch as u32 - 1;
 
         match val {
-            0...63 => {
+            0..=63 => {
                 let bit = 1 << val;
                 self.low_mask & bit != 0
             }
-            64...127 => {
+            64..=127 => {
                 // flip a bit within 0 - 63
                 let bit = 1 << val - 64;
                 self.high_mask & bit != 0
@@ -171,6 +171,7 @@ impl StateMachine {
         }
     }
 
+    /// Add a state to the state machine.  
     pub(crate) fn add(&mut self, index: usize, expected: CharacterSet) -> usize {
         for &next_index in &self.states[index].next_states {
             let state = &self.states[next_index];
@@ -184,6 +185,7 @@ impl StateMachine {
         state
     }
 
+    /// Add a next state to the next_states of an existing state in the state machine.  
     pub(crate) fn add_next_state(&mut self, index: usize, next_index: usize) {
         let next_states = &mut self.states[index].next_states;
 
@@ -202,28 +204,36 @@ impl StateMachine {
         index
     }
 
+    /// Set the `is_final_state` flag on a state to true.  
     pub(crate) fn set_final_state(&mut self, index: usize) {
         self.states[index].is_final_state = true;
     }
 
+    /// Set the handler function for a state.  
     pub(crate) fn set_handler(&mut self, index: usize, handler: CmdPtr) {
         let state = &mut self.states[index];
         state.handler = Some(handler);
     }
 
+    /// Set the expected parameter keys for the params map.  
     pub(crate) fn set_param_names(&mut self, index: usize, names: Vec<&'static str>) {
         let state = &mut self.states[index];
         state.param_names = Some(names);
     }
 
+    /// Mark that the index in the state machine is a state to start parsing a dynamic
+    /// segment.  
     pub(crate) fn start_parse(&mut self, index: usize) {
         self.start_parse[index] = true;
     }
 
+    /// Mark that the index in the state machine is a state to stop parsing a dynamic
+    /// segment.  
     pub(crate) fn end_parse(&mut self, index: usize) {
         self.end_parse[index] = true;
     }
 
+    /// Run the input through the state machine, optionally returning a handler and params.  
     pub(crate) fn process<'m>(&'m self, input: &'m str) -> Option<Match<'m>> {
         let mut traversals = vec![Traversal::new()];
 

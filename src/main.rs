@@ -8,9 +8,11 @@ mod schema;
 mod state_machine;
 mod tags;
 
-use commands::{Args, Commands, Result};
+use commands::{Args, Commands};
 use serenity::{model::prelude::*, prelude::*, utils::parse_username, Client};
 use std::str::FromStr;
+
+type Result = crate::commands::Result<()>;
 
 struct Dispatcher {
     cmds: Commands,
@@ -99,18 +101,20 @@ fn assign_talk_role<'m>(args: Args<'m>) -> Result {
 ///
 /// A `seconds` value of 0 will disable slowmode
 fn slow_mode<'m>(args: Args<'m>) -> Result {
-    let seconds = &args
-        .params
-        .get("seconds")
-        .ok_or("unable to retrieve seconds param")?
-        .parse::<u64>()?;
+    if api::is_mod(&args)? {
+        let seconds = &args
+            .params
+            .get("seconds")
+            .ok_or("unable to retrieve seconds param")?
+            .parse::<u64>()?;
 
-    let channel_name = &args
-        .params
-        .get("channel")
-        .ok_or("unable to retrieve channel param")?;
+        let channel_name = &args
+            .params
+            .get("channel")
+            .ok_or("unable to retrieve channel param")?;
 
-    ChannelId::from_str(channel_name)?.edit(&args.cx, |c| c.slow_mode_rate(*seconds))?;
+        ChannelId::from_str(channel_name)?.edit(&args.cx, |c| c.slow_mode_rate(*seconds))?;
+    }
     Ok(())
 }
 
@@ -118,27 +122,16 @@ fn slow_mode<'m>(args: Args<'m>) -> Result {
 ///
 /// Requires the kick members permission
 fn kick<'m>(args: Args<'m>) -> Result {
-    if let Some(guild) = args.msg.guild(&args.cx) {
-        let role_id = guild
-            .read()
-            .role_by_name("mod")
-            .ok_or("unable to retrieve role")?
-            .id;
+    if api::is_mod(&args)? {
+        let user_id = parse_username(
+            &args
+                .params
+                .get("user")
+                .ok_or("unable to retrieve user param")?,
+        )
+        .ok_or("unable to retrieve user id")?;
 
-        if args
-            .msg
-            .member
-            .ok_or("unable to retrieve member")?
-            .roles
-            .contains(&role_id)
-        {
-            let user_id = parse_username(
-                &args
-                    .params
-                    .get("user")
-                    .ok_or("unable to retrieve user param")?,
-            )
-            .ok_or("unable to retrieve user id")?;
+        if let Some(guild) = args.msg.guild(&args.cx) {
             guild.read().kick(&args.cx, UserId::from(user_id))?
         }
     }
@@ -149,27 +142,16 @@ fn kick<'m>(args: Args<'m>) -> Result {
 ///
 /// Requires the ban members permission
 fn ban<'m>(args: Args<'m>) -> Result {
-    if let Some(guild) = args.msg.guild(&args.cx) {
-        let role_id = guild
-            .read()
-            .role_by_name("mod")
-            .ok_or("unable to retrieve role")?
-            .id;
+    if api::is_mod(&args)? {
+        let user_id = parse_username(
+            &args
+                .params
+                .get("user")
+                .ok_or("unable to retrieve user param")?,
+        )
+        .ok_or("unable to retrieve user id")?;
 
-        if args
-            .msg
-            .member
-            .ok_or("unable to retrieve member")?
-            .roles
-            .contains(&role_id)
-        {
-            let user_id = parse_username(
-                &args
-                    .params
-                    .get("user")
-                    .ok_or("unable to retrieve user param")?,
-            )
-            .ok_or("unable to retrieve user id")?;
+        if let Some(guild) = args.msg.guild(&args.cx) {
             guild.read().ban(&args.cx, UserId::from(user_id), &"all")?
         }
     }

@@ -1,13 +1,13 @@
 use diesel::prelude::*;
-use std::result::Result as StdResult;
+use crate::commands::Result;
 
-pub(crate) fn database_connection() -> StdResult<SqliteConnection, Box<std::error::Error>> {
+pub(crate) fn database_connection() -> Result<SqliteConnection> {
     Ok(SqliteConnection::establish(&std::env::var(
         "DATABASE_URL",
     )?)?)
 }
 
-pub(crate) fn run_migrations() -> StdResult<(), Box<std::error::Error>> {
+pub(crate) fn run_migrations() -> Result<()> {
     let migrations_dir = std::env::var("MIGRATIONS_DIR")
         .map(|p| std::path::PathBuf::from(p))
         .unwrap_or_else(|_| std::path::PathBuf::from("migrations"));
