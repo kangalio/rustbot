@@ -1,5 +1,5 @@
-use diesel::prelude::*;
 use crate::commands::Result;
+use diesel::prelude::*;
 
 pub(crate) fn database_connection() -> Result<SqliteConnection> {
     Ok(SqliteConnection::establish(&std::env::var(
