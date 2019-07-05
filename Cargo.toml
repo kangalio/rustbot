@@ -10,6 +10,7 @@ license = "MIT"
 [dependencies]
 serenity = { version = "0.6.0-rc.0", features = ["cache", "model"] }
 diesel = { version = "1.4.0", features = ["sqlite", "chrono"] }
+diesel_migrations = { version = "1.4.0", features = ["sqlite"] }
 serde = "1.0"
 serde_derive = "1.0"
 serde_json = "1.0"

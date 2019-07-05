@@ -3,8 +3,8 @@ use serenity::{model::channel::Message, prelude::Context};
 use std::collections::HashMap;
 
 const PREFIX: &'static str = "?";
-pub(crate) type Result = std::result::Result<(), Box<std::error::Error>>;
-pub(crate) type CmdPtr = for<'m> fn(Args<'m>) -> Result;
+pub(crate) type Result<T> = std::result::Result<T, Box<dyn std::error::Error>>;
+pub(crate) type CmdPtr = for<'m> fn(Args<'m>) -> Result<()>;
 
 pub struct Args<'m> {
     pub cx: Context,
