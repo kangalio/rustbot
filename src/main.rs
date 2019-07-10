@@ -37,6 +37,43 @@ impl EventHandler for Dispatcher {
     }
 }
 
+struct Handler;
+
+impl RawEventHandler for Handler {
+    fn raw_event(&self, cx: Context, event: Event) {
+        match event {
+            Event::GuildCreate(ref ev) => {
+                &ev.guild
+                    .channels
+                    .iter()
+                    .filter(|(channel_id, _)| {
+                        channel_id.name(&cx).unwrap_or_else(|| String::new()) == "welcome"
+                    })
+                    .map(|(channel_id, guild_channel)| {
+                        channel_id
+                            .messages(&cx, |retriever| retriever.limit(10))
+                            .iter()
+                            .for_each(|vector| {
+                                vector
+                                    .iter()
+                                    .for_each(|msg| {
+                                        msg.delete(&cx);
+                                    })
+                            });
+                        channel_id
+                    })
+                    .for_each(|channel_id| {
+                        channel_id.say(&cx, "HELLO!");
+                    });
+            }
+            Event::ReactionAdd(ref ev) => {
+                dbg!(&ev);
+            }
+            _ => (),
+        }
+    }
+}
+
 fn app() -> Result {
     let token = std::env::var("DISCORD_TOKEN")
         .map_err(|_| "missing environment variable: DISCORD_TOKEN")?;
@@ -63,8 +100,9 @@ fn app() -> Result {
 
     // Ban
     cmds.add("?ban {user}", ban);
+    let dispatcher = Dispatcher::new(cmds);
 
-    let mut client = Client::new(&token, Dispatcher::new(cmds)).unwrap();
+    let mut client = Client::new_with_handlers(&token, Some(dispatcher), Some(Handler)).unwrap();
     client.start()?;
 
     Ok(())
