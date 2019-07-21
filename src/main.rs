@@ -4,73 +4,37 @@ extern crate diesel;
 mod api;
 mod commands;
 mod db;
+mod dispatcher;
 mod schema;
 mod state_machine;
 mod tags;
 
 use commands::{Args, Commands};
+use dispatcher::{EventDispatcher, MessageDispatcher};
 use serenity::{model::prelude::*, prelude::*, utils::parse_username, Client};
+use std::collections::HashMap;
 use std::str::FromStr;
 
 type Result = crate::commands::Result<()>;
 
-struct Dispatcher {
-    cmds: Commands,
+pub struct MessageStore;
+
+impl TypeMapKey for MessageStore {
+    type Value = HashMap<String, Message>;
 }
 
-/// # Dispatcher
-///
-/// This is the event handler for all messages.   
-impl Dispatcher {
-    fn new(cmds: Commands) -> Self {
-        Self { cmds }
-    }
-}
-
-impl EventHandler for Dispatcher {
-    fn message(&self, cx: Context, msg: Message) {
-        self.cmds.execute(cx, msg);
+impl MessageStore {
+    fn init(client: &mut Client) {
+        let mut data = client.data.write();
+        data.insert::<Self>(HashMap::new());
     }
 
-    fn ready(&self, _: Context, ready: Ready) {
-        println!("{} connected", ready.user.name);
-    }
-}
-
-struct Handler;
-
-impl RawEventHandler for Handler {
-    fn raw_event(&self, cx: Context, event: Event) {
-        match event {
-            Event::GuildCreate(ref ev) => {
-                &ev.guild
-                    .channels
-                    .iter()
-                    .filter(|(channel_id, _)| {
-                        channel_id.name(&cx).unwrap_or_else(|| String::new()) == "welcome"
-                    })
-                    .map(|(channel_id, guild_channel)| {
-                        channel_id
-                            .messages(&cx, |retriever| retriever.limit(10))
-                            .iter()
-                            .for_each(|vector| {
-                                vector
-                                    .iter()
-                                    .for_each(|msg| {
-                                        msg.delete(&cx);
-                                    })
-                            });
-                        channel_id
-                    })
-                    .for_each(|channel_id| {
-                        channel_id.say(&cx, "HELLO!");
-                    });
-            }
-            Event::ReactionAdd(ref ev) => {
-                dbg!(&ev);
-            }
-            _ => (),
-        }
+    fn save(cx: &Context, name: String, msg: Message) {
+        let mut data = cx.data.write();
+        let store = data
+            .get_mut::<MessageStore>()
+            .expect("Unable to access message store.  ");
+        store.insert(name, msg);
     }
 }
 
@@ -100,9 +64,11 @@ fn app() -> Result {
 
     // Ban
     cmds.add("?ban {user}", ban);
-    let dispatcher = Dispatcher::new(cmds);
 
-    let mut client = Client::new_with_handlers(&token, Some(dispatcher), Some(Handler)).unwrap();
+    let messages = MessageDispatcher::new(cmds);
+    let mut client =
+        Client::new_with_handlers(&token, Some(messages), Some(EventDispatcher)).unwrap();
+    MessageStore::init(&mut client);
     client.start()?;
 
     Ok(())
@@ -116,7 +82,7 @@ fn main() {
 }
 
 /// Assign the talk role to the user that requested it.  
-fn assign_talk_role<'m>(args: Args<'m>) -> Result {
+fn assign_talk_role(args: Args) -> Result {
     if api::channel_name_is(&args, "welcome") {
         if let Some(ref guild) = args.msg.guild(&args.cx) {
             let role_id = guild
@@ -138,7 +104,7 @@ fn assign_talk_role<'m>(args: Args<'m>) -> Result {
 /// Set slow mode for a channel.  
 ///
 /// A `seconds` value of 0 will disable slowmode
-fn slow_mode<'m>(args: Args<'m>) -> Result {
+fn slow_mode(args: Args) -> Result {
     if api::is_mod(&args)? {
         let seconds = &args
             .params
@@ -159,7 +125,7 @@ fn slow_mode<'m>(args: Args<'m>) -> Result {
 /// Kick a user from the guild.  
 ///
 /// Requires the kick members permission
-fn kick<'m>(args: Args<'m>) -> Result {
+fn kick(args: Args) -> Result {
     if api::is_mod(&args)? {
         let user_id = parse_username(
             &args
@@ -179,7 +145,7 @@ fn kick<'m>(args: Args<'m>) -> Result {
 /// Ban an user from the guild.  
 ///
 /// Requires the ban members permission
-fn ban<'m>(args: Args<'m>) -> Result {
+fn ban(args: Args) -> Result {
     if api::is_mod(&args)? {
         let user_id = parse_username(
             &args
