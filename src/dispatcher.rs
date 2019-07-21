@@ -1,5 +1,5 @@
-use serenity::{model::prelude::*, prelude::*, utils::parse_username, Client};
 use crate::commands::Commands;
+use serenity::{model::prelude::*, prelude::*, utils::parse_username, Client};
 
 pub(crate) struct MessageDispatcher {
     cmds: Commands,
@@ -44,7 +44,15 @@ impl RawEventHandler for EventDispatcher {
                     });
             }
             Event::ReactionAdd(ref ev) => {
-                if &ev.reaction.emoji == &ReactionType::from("✅") {
+                let data = cx.data.read();
+                let store = data
+                    .get::<crate::MessageStore>()
+                    .expect("Unable to access message store.  ");
+
+                if &ev.reaction.emoji == &ReactionType::from("✅")
+                    && store.get("welcome".into()).unwrap().id
+                        == *&ev.reaction.message(&cx).unwrap().id
+                {
                     let channel = ev.reaction.channel(&cx).unwrap();
                     let user_id = ev.reaction.user_id;
                     let guild = channel.guild().unwrap();
@@ -63,6 +71,7 @@ impl RawEventHandler for EventDispatcher {
 
                     let guild_clone = guild.read().guild(&cx).unwrap().clone();
                     let mut member = guild_clone.read().member(&cx, &user_id).unwrap().clone();
+
                     member.add_role(&cx, role_id).unwrap();
                 }
             }

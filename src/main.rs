@@ -32,7 +32,7 @@ impl MessageStore {
     fn save(cx: &Context, name: String, msg: Message) {
         let mut data = cx.data.write();
         let store = data
-            .get_mut::<MessageStore>()
+            .get_mut::<Self>()
             .expect("Unable to access message store.  ");
         store.insert(name, msg);
     }
