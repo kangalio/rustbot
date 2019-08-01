@@ -24,25 +24,11 @@ impl EventHandler for MessageDispatcher {
     }
 }
 
-const WELCOME_BILLBOARD: &'static str = "By joining this community, you agree to adhere to the CoC.  Click the :white_check_mark: to indicate you agree, otherwise you can leave this Discord.  ";
-
 pub(crate) struct EventDispatcher;
 
 impl RawEventHandler for EventDispatcher {
     fn raw_event(&self, cx: Context, event: Event) {
         match event {
-            Event::GuildCreate(ref ev) => {
-                &ev.guild
-                    .channels
-                    .iter()
-                    .filter(|(channel_id, _)| {
-                        channel_id.name(&cx).unwrap_or_else(|| String::new()) == "welcome"
-                    })
-                    .for_each(|(channel_id, _)| {
-                        let message = channel_id.say(&cx, WELCOME_BILLBOARD);
-                        crate::MessageStore::save(&cx, "welcome".into(), message.unwrap());
-                    });
-            }
             Event::ReactionAdd(ref ev) => {
                 let data = cx.data.read();
                 let store = data
@@ -50,16 +36,28 @@ impl RawEventHandler for EventDispatcher {
                     .expect("Unable to access message store.  ");
 
                 if &ev.reaction.emoji == &ReactionType::from("✅")
-                    && store.get("welcome".into()).unwrap().id
-                        == *&ev.reaction.message(&cx).unwrap().id
+                    && store
+                        .get("welcome".into())
+                        .expect("RawEventHandler: Unable to read from message store")
+                        .id
+                        == *&ev
+                            .reaction
+                            .message(&cx)
+                            .expect("RawEventHandler: Unable to access message")
+                            .id
                 {
-                    let channel = ev.reaction.channel(&cx).unwrap();
+                    let channel = ev
+                        .reaction
+                        .channel(&cx)
+                        .expect("RawEventHandler: Unable to access channel");
                     let user_id = ev.reaction.user_id;
-                    let guild = channel.guild().unwrap();
+                    let guild = channel
+                        .guild()
+                        .expect("RawEventHandler: Unable to access guild");
                     let role_id = guild
                         .read()
                         .guild(&cx)
-                        .unwrap()
+                        .expect("RawEventHandler: Unable to acquire read lock on guild")
                         .read()
                         .roles
                         .values()
@@ -67,12 +65,22 @@ impl RawEventHandler for EventDispatcher {
                         .collect::<Vec<&Role>>()
                         .pop()
                         .map(|role| role.id)
-                        .unwrap();
+                        .expect("RawEventHandler: Unable to access role");
 
-                    let guild_clone = guild.read().guild(&cx).unwrap().clone();
-                    let mut member = guild_clone.read().member(&cx, &user_id).unwrap().clone();
+                    let guild_clone = guild
+                        .read()
+                        .guild(&cx)
+                        .expect("RawEventHandler: Unable to acquire read lock clone on guild")
+                        .clone();
+                    let mut member = guild_clone
+                        .read()
+                        .member(&cx, &user_id)
+                        .expect("RawEventHandler: Unable to access member")
+                        .clone();
 
-                    member.add_role(&cx, role_id).unwrap();
+                    member
+                        .add_role(&cx, role_id)
+                        .expect("RawEventHandler: Unable to add role");
                 }
             }
             _ => (),

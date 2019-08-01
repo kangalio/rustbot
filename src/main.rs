@@ -65,6 +65,9 @@ fn app() -> Result {
     // Ban
     cmds.add("?ban {user}", ban);
 
+    // Post the welcome message to the welcome channel.
+    cmds.add("?CoC {channel}", welcome_message);
+
     let messages = MessageDispatcher::new(cmds);
     let mut client =
         Client::new_with_handlers(&token, Some(messages), Some(EventDispatcher)).unwrap();
@@ -158,6 +161,23 @@ fn ban(args: Args) -> Result {
         if let Some(guild) = args.msg.guild(&args.cx) {
             guild.read().ban(&args.cx, UserId::from(user_id), &"all")?
         }
+    }
+    Ok(())
+}
+
+/// Write the welcome message to the welcome channel.  
+fn welcome_message(args: Args) -> Result {
+    const WELCOME_BILLBOARD: &'static str = "By joining this community, you agree to adhere to the CoC.  Click the :white_check_mark: to indicate you agree, otherwise you can leave this Discord.  ";
+
+    if api::is_mod(&args)? {
+        let channel_name = &args
+            .params
+            .get("channel")
+            .ok_or("unable to retrieve channel param")?;
+
+        let channel_id = ChannelId::from_str(channel_name)?;
+        let message = channel_id.say(&args.cx, WELCOME_BILLBOARD)?;
+        MessageStore::save(&args.cx, "welcome".into(), message);
     }
     Ok(())
 }
