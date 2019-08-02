@@ -126,7 +126,9 @@ fn ban(args: Args) -> Result {
 
 /// Write the welcome message to the welcome channel.  
 fn welcome_message(args: Args) -> Result {
-    const WELCOME_BILLBOARD: &'static str = "By joining this community, you agree to adhere to the CoC.  Click the :white_check_mark: to indicate you agree, otherwise you can leave this Discord.  ";
+    const WELCOME_BILLBOARD: &'static str = "By participating in this community, you agree to follow the Rust Code of Conduct, as linked below. Please click the :white_check_mark: below to acknowledge, or otherwise you may leave this Discord.
+
+  https://www.rust-lang.org/policies/code-of-conduct  ";
 
     if api::is_mod(&args)? {
         let channel_name = &args
@@ -136,6 +138,8 @@ fn welcome_message(args: Args) -> Result {
 
         let channel_id = ChannelId::from_str(channel_name)?;
         let message = channel_id.say(&args.cx, WELCOME_BILLBOARD)?;
+        let white_check_mark = ReactionType::from("✅");
+        message.react(&args.cx, white_check_mark)?;
         dispatcher::MessageStore::save(&args.cx, "welcome".into(), (message, channel_id));
     }
     Ok(())

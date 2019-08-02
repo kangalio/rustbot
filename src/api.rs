@@ -6,7 +6,6 @@ pub(crate) fn send_reply(args: &Args, message: &str) -> Result<()> {
     Ok(())
 }
 
-
 /// Return whether or not the user is a mod.  
 pub(crate) fn is_mod(args: &Args) -> Result<bool> {
     let guild = args.msg.guild(&args.cx).ok_or("Unable to fetch guild")?;
