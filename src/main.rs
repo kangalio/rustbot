@@ -17,27 +17,6 @@ use std::str::FromStr;
 
 type Result = crate::commands::Result<()>;
 
-pub struct MessageStore;
-
-impl TypeMapKey for MessageStore {
-    type Value = HashMap<String, Message>;
-}
-
-impl MessageStore {
-    fn init(client: &mut Client) {
-        let mut data = client.data.write();
-        data.insert::<Self>(HashMap::new());
-    }
-
-    fn save(cx: &Context, name: String, msg: Message) {
-        let mut data = cx.data.write();
-        let store = data
-            .get_mut::<Self>()
-            .expect("Unable to access message store.  ");
-        store.insert(name, msg);
-    }
-}
-
 fn app() -> Result {
     let token = std::env::var("DISCORD_TOKEN")
         .map_err(|_| "missing environment variable: DISCORD_TOKEN")?;
@@ -45,9 +24,6 @@ fn app() -> Result {
     let _ = db::run_migrations()?;
 
     let mut cmds = Commands::new();
-
-    // Talk Role
-    cmds.add("?talk", assign_talk_role);
 
     // Tags
     cmds.add("?tag {key}", tags::get);
@@ -69,9 +45,12 @@ fn app() -> Result {
     cmds.add("?CoC {channel}", welcome_message);
 
     let messages = MessageDispatcher::new(cmds);
+
     let mut client =
         Client::new_with_handlers(&token, Some(messages), Some(EventDispatcher)).unwrap();
-    MessageStore::init(&mut client);
+
+    dispatcher::MessageStore::init(&mut client);
+
     client.start()?;
 
     Ok(())
@@ -82,26 +61,6 @@ fn main() {
         eprintln!("error: {}", err);
         std::process::exit(1);
     }
-}
-
-/// Assign the talk role to the user that requested it.  
-fn assign_talk_role(args: Args) -> Result {
-    if api::channel_name_is(&args, "welcome") {
-        if let Some(ref guild) = args.msg.guild(&args.cx) {
-            let role_id = guild
-                .read()
-                .role_by_name("talk")
-                .ok_or("unable to retrieve role")?
-                .id;
-
-            args.msg
-                .member(&args.cx)
-                .ok_or("unable to retrieve member")?
-                .add_role(&args.cx, role_id)?;
-        }
-    }
-
-    Ok(())
 }
 
 /// Set slow mode for a channel.  
@@ -177,7 +136,7 @@ fn welcome_message(args: Args) -> Result {
 
         let channel_id = ChannelId::from_str(channel_name)?;
         let message = channel_id.say(&args.cx, WELCOME_BILLBOARD)?;
-        MessageStore::save(&args.cx, "welcome".into(), message);
+        dispatcher::MessageStore::save(&args.cx, "welcome".into(), (message, channel_id));
     }
     Ok(())
 }
