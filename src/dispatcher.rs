@@ -1,27 +1,10 @@
-use crate::commands::Commands;
-use serenity::{model::prelude::*, prelude::*, utils::parse_username, Client};
-use std::collections::HashMap;
+use crate::{
+    cache::{MessageCache, RoleIdCache},
+    commands::Commands,
+};
+use serenity::{model::prelude::*, prelude::*};
 
-pub(crate) struct MessageStore;
-
-impl TypeMapKey for MessageStore {
-    type Value = HashMap<String, (Message, ChannelId)>;
-}
-
-impl MessageStore {
-    pub(crate) fn init(client: &mut Client) {
-        let mut data = client.data.write();
-        data.insert::<Self>(HashMap::new());
-    }
-
-    pub(crate) fn save(cx: &Context, name: String, msg: (Message, ChannelId)) {
-        let mut data = cx.data.write();
-        let store = data
-            .get_mut::<Self>()
-            .expect("Unable to access message store.  ");
-        store.insert(name, msg);
-    }
-}
+type Result = crate::commands::Result<()>;
 
 pub(crate) struct MessageDispatcher {
     cmds: Commands,
@@ -51,67 +34,59 @@ pub(crate) struct EventDispatcher;
 impl RawEventHandler for EventDispatcher {
     fn raw_event(&self, cx: Context, event: Event) {
         match event {
-            Event::ReactionAdd(ref ev) => assign_talk_role(cx, ev),
+            Event::ReactionAdd(ref ev) => {
+                if let Err(e) = assign_talk_role(&cx, ev) {
+                    println!("{}", e);
+                }
+            }
             _ => (),
         }
     }
 }
 
-fn assign_talk_role(cx: Context, ev: &ReactionAddEvent) {
+fn assign_talk_role(cx: &Context, ev: &ReactionAddEvent) -> Result {
     let data = cx.data.read();
     let reaction = &ev.reaction;
 
-    let store = data
-        .get::<MessageStore>()
-        .expect("RawEventHandler: Unable to access message store.  ");
+    if reaction.emoji == ReactionType::from("✅") {
+        let channel = reaction.channel(cx)?;
+        let channel_id = ChannelId::from(&channel);
 
-    let message = reaction
-        .message(&cx)
-        .expect("RawEventHandler: Unable to access message");
+        let message_store = data
+            .get::<MessageCache>()
+            .ok_or("Unable to access MessageCache")?;
 
-    let channel = reaction
-        .channel(&cx)
-        .expect("RawEventHandler: Unable to access channel");
+        let role_store = data
+            .get::<RoleIdCache>()
+            .ok_or("Unable to access RoleIdCache")?;
 
-    let channel_id = ChannelId::from(&channel);
+        let (cached_message, cached_channel_id) = message_store
+            .get("welcome".into())
+            .ok_or("Unable to read from MessageCache")?;
 
-    let (cached_message, cached_channel_id) = store
-        .get("welcome".into())
-        .expect("RawEventHandler: Unable to read from message store");
+        let message = reaction.message(cx)?;
 
-    let user_id = reaction.user_id;
+        if message.id == cached_message.id && channel_id == *cached_channel_id {
+            if let Some(talk_role) = role_store.get("talk".into()) {
+                let user_id = reaction.user_id;
 
-    let guild = channel
-        .guild()
-        .expect("RawEventHandler: Unable to access guild");
+                let guild = channel
+                    .guild()
+                    .ok_or("Unable to retrieve guild from channel")?;
 
-    if reaction.emoji == ReactionType::from("✅")
-        && message.id == cached_message.id
-        && channel_id == *cached_channel_id
-    {
-        let (role_id, mut member) = guild
-            .read()
-            .guild(&cx)
-            .map(|lock| {
-                let guild_handle = lock.read();
-                let role_id = guild_handle
-                    .roles
-                    .values()
-                    .filter(|value| value.name == "talk")
-                    .collect::<Vec<&Role>>()
-                    .pop()
-                    .map(|role| role.id)
-                    .expect("RawEventHandler: Unable to access role");
+                let mut member = guild
+                    .read()
+                    .guild(&cx)
+                    .ok_or("Unable to access guild")?
+                    .read()
+                    .member(cx, &user_id)?;
 
-                let member = guild_handle
-                    .member(&cx, &user_id)
-                    .expect("RawEventHandler: Unable to access member");
-                (role_id, member)
-            })
-            .expect("RawEventHandler: role_id unable to acquire read lock on guild");
+                member.add_role(&cx, talk_role)?;
 
-        member
-            .add_role(&cx, role_id)
-            .expect("RawEventHandler: Unable to add role");
+                // Requires ManageMessage permission
+                ev.reaction.delete(cx)?;
+            }
+        }
     }
+    Ok(())
 }

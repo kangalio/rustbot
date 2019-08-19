@@ -2,6 +2,7 @@
 extern crate diesel;
 
 mod api;
+mod cache;
 mod commands;
 mod db;
 mod dispatcher;
@@ -9,10 +10,10 @@ mod schema;
 mod state_machine;
 mod tags;
 
+use cache::{MessageCache, RoleIdCache};
 use commands::{Args, Commands};
 use dispatcher::{EventDispatcher, MessageDispatcher};
-use serenity::{model::prelude::*, prelude::*, utils::parse_username, Client};
-use std::collections::HashMap;
+use serenity::{model::prelude::*, utils::parse_username, Client};
 use std::str::FromStr;
 
 type Result = crate::commands::Result<()>;
@@ -44,12 +45,16 @@ fn app() -> Result {
     // Post the welcome message to the welcome channel.
     cmds.add("?CoC {channel}", welcome_message);
 
+    // Runtime initialization of the bot.
+    cmds.add("?healthcheck", health_check);
+
     let messages = MessageDispatcher::new(cmds);
 
     let mut client =
         Client::new_with_handlers(&token, Some(messages), Some(EventDispatcher)).unwrap();
 
-    dispatcher::MessageStore::init(&mut client);
+    MessageCache::init(&mut client);
+    RoleIdCache::init(&mut client);
 
     client.start()?;
 
@@ -61,6 +66,33 @@ fn main() {
         eprintln!("error: {}", err);
         std::process::exit(1);
     }
+}
+
+/// Run the health check on the bot.  
+fn health_check(args: Args) -> Result {
+    let guild = args.msg.guild(&args.cx).ok_or("Unable to fetch guild")?;
+
+    let read_lock = guild.read();
+
+    let mod_role = read_lock
+        .role_by_name("mod".into())
+        .ok_or("Unable to fetch mod role")?
+        .id;
+
+    if api::has_role(&args, &mod_role)? {
+        RoleIdCache::save(&args.cx, "mod", mod_role);
+
+        let talk_role = read_lock
+            .role_by_name("talk".into())
+            .ok_or("Unable to fetch talk role")?
+            .id;
+
+        RoleIdCache::save(&args.cx, "talk", talk_role);
+
+        api::send_reply(&args, "Healthy")?;
+    }
+
+    Ok(())
 }
 
 /// Set slow mode for a channel.  
@@ -140,7 +172,7 @@ fn welcome_message(args: Args) -> Result {
         let message = channel_id.say(&args.cx, WELCOME_BILLBOARD)?;
         let white_check_mark = ReactionType::from("✅");
         message.react(&args.cx, white_check_mark)?;
-        dispatcher::MessageStore::save(&args.cx, "welcome".into(), (message, channel_id));
+        MessageCache::save(&args.cx, "welcome", (message, channel_id));
     }
     Ok(())
 }
