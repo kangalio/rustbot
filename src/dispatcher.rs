@@ -34,6 +34,11 @@ pub(crate) struct EventDispatcher;
 impl RawEventHandler for EventDispatcher {
     fn raw_event(&self, cx: Context, event: Event) {
         match event {
+            Event::GuildCreate(ref ev) => {
+                if let Err(e) = init(ev) {
+                    println!("{}", e);
+                }
+            }
             Event::ReactionAdd(ref ev) => {
                 if let Err(e) = assign_talk_role(&cx, ev) {
                     println!("{}", e);
@@ -44,47 +49,60 @@ impl RawEventHandler for EventDispatcher {
     }
 }
 
+fn init(ev: &GuildCreateEvent) -> Result {
+    let guild = &ev.guild;
+
+    let mod_role = guild
+        .role_by_name("mod".into())
+        .ok_or("Unable to fetch mod role")?
+        .id;
+
+    RoleIdCache::save("mod", mod_role)?;
+
+    let talk_role = guild
+        .role_by_name("talk".into())
+        .ok_or("Unable to fetch talk role")?
+        .id;
+
+    RoleIdCache::save("talk", talk_role)?;
+    Ok(())
+}
+
 fn assign_talk_role(cx: &Context, ev: &ReactionAddEvent) -> Result {
-    let data = cx.data.read();
     let reaction = &ev.reaction;
 
     if reaction.emoji == ReactionType::from("✅") {
         let channel = reaction.channel(cx)?;
         let channel_id = ChannelId::from(&channel);
 
-        let message_store = data
-            .get::<MessageCache>()
-            .ok_or("Unable to access MessageCache")?;
+        if let Some((_, _, cached_message_id, cached_channel_id)) =
+            MessageCache::get_by_name("welcome")?
+        {
+            let message = reaction.message(cx)?;
 
-        let role_store = data
-            .get::<RoleIdCache>()
-            .ok_or("Unable to access RoleIdCache")?;
+            if message.id.0.to_string() == cached_message_id
+                && channel_id.0.to_string() == *cached_channel_id
+            {
+                if let Some((_, role_id, _)) = RoleIdCache::get_by_name("talk")? {
+                    let user_id = reaction.user_id;
 
-        let (cached_message, cached_channel_id) = message_store
-            .get("welcome".into())
-            .ok_or("Unable to read from MessageCache")?;
+                    let guild = channel
+                        .guild()
+                        .ok_or("Unable to retrieve guild from channel")?;
 
-        let message = reaction.message(cx)?;
+                    let mut member = guild
+                        .read()
+                        .guild(&cx)
+                        .ok_or("Unable to access guild")?
+                        .read()
+                        .member(cx, &user_id)?;
 
-        if message.id == cached_message.id && channel_id == *cached_channel_id {
-            if let Some(talk_role) = role_store.get("talk".into()) {
-                let user_id = reaction.user_id;
+                    use std::str::FromStr;
+                    member.add_role(&cx, RoleId::from(u64::from_str(&role_id)?))?;
 
-                let guild = channel
-                    .guild()
-                    .ok_or("Unable to retrieve guild from channel")?;
-
-                let mut member = guild
-                    .read()
-                    .guild(&cx)
-                    .ok_or("Unable to access guild")?
-                    .read()
-                    .member(cx, &user_id)?;
-
-                member.add_role(&cx, talk_role)?;
-
-                // Requires ManageMessage permission
-                ev.reaction.delete(cx)?;
+                    // Requires ManageMessage permission
+                    ev.reaction.delete(cx)?;
+                }
             }
         }
     }
