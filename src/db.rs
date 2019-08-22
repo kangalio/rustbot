@@ -1,8 +1,8 @@
 use crate::commands::Result;
 use diesel::prelude::*;
 
-pub(crate) fn database_connection() -> Result<SqliteConnection> {
-    Ok(SqliteConnection::establish(&std::env::var(
+pub(crate) fn database_connection() -> Result<PgConnection> {
+    Ok(PgConnection::establish(&std::env::var(
         "DATABASE_URL",
     )?)?)
 }

@@ -1,5 +1,5 @@
 use crate::{
-    cache::{MessageCache, RoleIdCache},
+    cache::{self, MessageCache, RoleIdCache},
     commands::Commands,
 };
 use serenity::{model::prelude::*, prelude::*};
@@ -57,14 +57,14 @@ fn init(ev: &GuildCreateEvent) -> Result {
         .ok_or("Unable to fetch mod role")?
         .id;
 
-    RoleIdCache::save("mod", mod_role)?;
-
     let talk_role = guild
         .role_by_name("talk".into())
         .ok_or("Unable to fetch talk role")?
         .id;
 
-    RoleIdCache::save("talk", talk_role)?;
+    cache::save_or_update_role("mod", mod_role)?;
+    cache::save_or_update_role("talk", talk_role)?;
+
     Ok(())
 }
 
@@ -74,16 +74,16 @@ fn assign_talk_role(cx: &Context, ev: &ReactionAddEvent) -> Result {
     if reaction.emoji == ReactionType::from("✅") {
         let channel = reaction.channel(cx)?;
         let channel_id = ChannelId::from(&channel);
+        let msg = MessageCache::get_by_name("welcome")?;
+        let role = RoleIdCache::get_by_name("talk")?;
 
-        if let Some((_, _, cached_message_id, cached_channel_id)) =
-            MessageCache::get_by_name("welcome")?
-        {
+        if let Some((_, _, cached_message_id, cached_channel_id)) = msg {
             let message = reaction.message(cx)?;
 
             if message.id.0.to_string() == cached_message_id
                 && channel_id.0.to_string() == *cached_channel_id
             {
-                if let Some((_, role_id, _)) = RoleIdCache::get_by_name("talk")? {
+                if let Some((_, role_id, _)) = role {
                     let user_id = reaction.user_id;
 
                     let guild = channel

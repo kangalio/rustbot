@@ -10,7 +10,6 @@ mod schema;
 mod state_machine;
 mod tags;
 
-use cache::MessageCache;
 use commands::{Args, Commands};
 use dispatcher::{EventDispatcher, MessageDispatcher};
 use serenity::{model::prelude::*, utils::parse_username, Client};
@@ -44,8 +43,6 @@ fn app() -> Result {
 
     // Post the welcome message to the welcome channel.
     cmds.add("?CoC {channel}", welcome_message);
-
-    cmds.add("?reset-welcome", reset_welcome_message);
 
     let messages = MessageDispatcher::new(cmds);
 
@@ -139,20 +136,9 @@ fn welcome_message(args: Args) -> Result {
 
         let channel_id = ChannelId::from_str(channel_name)?;
         let message = channel_id.say(&args.cx, WELCOME_BILLBOARD)?;
+        cache::save_or_update_message("welcome", message.id, channel_id)?;
         let white_check_mark = ReactionType::from("✅");
         message.react(&args.cx, white_check_mark)?;
-        MessageCache::save("welcome", message.id, channel_id)?;
     }
-    Ok(())
-}
-
-fn reset_welcome_message(args: Args) -> Result {
-    if api::is_mod(&args)? {
-        MessageCache::delete_by_name("welcome")?;
-    }
-    api::send_reply(
-        &args,
-        "welcome message reset, you can now create a new welcome message with the ?CoC command",
-    )?;
     Ok(())
 }
