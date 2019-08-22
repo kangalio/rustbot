@@ -34,11 +34,6 @@ pub(crate) struct EventDispatcher;
 impl RawEventHandler for EventDispatcher {
     fn raw_event(&self, cx: Context, event: Event) {
         match event {
-            Event::GuildCreate(ref ev) => {
-                if let Err(e) = init(ev) {
-                    println!("{}", e);
-                }
-            }
             Event::ReactionAdd(ref ev) => {
                 if let Err(e) = assign_talk_role(&cx, ev) {
                     println!("{}", e);
@@ -47,25 +42,6 @@ impl RawEventHandler for EventDispatcher {
             _ => (),
         }
     }
-}
-
-fn init(ev: &GuildCreateEvent) -> Result {
-    let guild = &ev.guild;
-
-    let mod_role = guild
-        .role_by_name("mod".into())
-        .ok_or("Unable to fetch mod role")?
-        .id;
-
-    let talk_role = guild
-        .role_by_name("talk".into())
-        .ok_or("Unable to fetch talk role")?
-        .id;
-
-    cache::save_or_update_role("mod", mod_role)?;
-    cache::save_or_update_role("talk", talk_role)?;
-
-    Ok(())
 }
 
 fn assign_talk_role(cx: &Context, ev: &ReactionAddEvent) -> Result {

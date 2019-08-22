@@ -50,14 +50,11 @@ impl MessageCache {
 pub(crate) struct RoleIdCache;
 
 impl RoleIdCache {
-    pub(crate) fn save(name: impl Into<String>, role_id: RoleId) -> Result<()> {
+    pub(crate) fn save(name: impl Into<String>, role_id: &str) -> Result<()> {
         let conn = database_connection()?;
 
         diesel::insert_into(roles::table)
-            .values((
-                roles::role.eq(role_id.0.to_string()),
-                roles::name.eq(name.into()),
-            ))
+            .values((roles::role.eq(role_id), roles::name.eq(name.into())))
             .execute(&conn)?;
         Ok(())
     }
@@ -72,24 +69,24 @@ impl RoleIdCache {
             .nth(0))
     }
 
-    pub(crate) fn update_by_id(id: i32, role: RoleId) -> Result<()> {
+    pub(crate) fn update_by_id(id: i32, role: &str) -> Result<()> {
         let conn = database_connection()?;
 
         diesel::update(roles::table.filter(roles::id.eq(id)))
-            .set(roles::role.eq(role.0.to_string()))
+            .set(roles::role.eq(role))
             .execute(&conn)?;
         Ok(())
     }
 }
 
-pub(crate) fn save_or_update_role(name: &str, role: RoleId) -> Result<()> {
+pub(crate) fn save_or_update_role(name: &str, role: String) -> Result<()> {
     match RoleIdCache::get_by_name(name)? {
         Some((id, role_id, _)) => {
-            if role_id != role.0.to_string() {
-                RoleIdCache::update_by_id(id, role)?;
+            if role_id != role {
+                RoleIdCache::update_by_id(id, &role)?;
             }
         }
-        None => RoleIdCache::save(name, role)?,
+        None => RoleIdCache::save(name, &role)?,
     };
     Ok(())
 }

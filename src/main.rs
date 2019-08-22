@@ -17,9 +17,21 @@ use std::str::FromStr;
 
 type Result = crate::commands::Result<()>;
 
+fn init_data() -> Result {
+    let mod_role = std::env::var("MOD_ID").map_err(|_| "MOD_ID env var not found")?;
+    let talk_role = std::env::var("TALK_ID").map_err(|_| "TALK_ID env var not found")?;
+
+    cache::save_or_update_role("mod", mod_role)?;
+    cache::save_or_update_role("talk", talk_role)?;
+
+    Ok(())
+}
+
 fn app() -> Result {
     let token = std::env::var("DISCORD_TOKEN")
         .map_err(|_| "missing environment variable: DISCORD_TOKEN")?;
+
+    let _ = init_data()?;
 
     let _ = db::run_migrations()?;
 
