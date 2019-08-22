@@ -56,11 +56,6 @@ the `Message` and `Context` types.
 
 # Features
 
-## Talk
-Assigns the `talk` role to the user that requests it.  
-```
-?talk
-```
 ## Tags
 Tags are a simple key value store.  
 
