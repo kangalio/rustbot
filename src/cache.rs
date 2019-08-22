@@ -4,7 +4,7 @@ use crate::{
     schema::{messages, roles},
 };
 use diesel::prelude::*;
-use serenity::{model::prelude::*}; 
+use serenity::model::prelude::*;
 
 pub(crate) struct MessageCache;
 
@@ -94,7 +94,11 @@ pub(crate) fn save_or_update_role(name: &str, role: RoleId) -> Result<()> {
     Ok(())
 }
 
-pub(crate) fn save_or_update_message(name: &str, message: MessageId, channel: ChannelId) -> Result<()> {
+pub(crate) fn save_or_update_message(
+    name: &str,
+    message: MessageId,
+    channel: ChannelId,
+) -> Result<()> {
     match MessageCache::get_by_name(name)? {
         Some((id, _name, msg, chan)) => {
             if msg != message.0.to_string() || chan != channel.0.to_string() {

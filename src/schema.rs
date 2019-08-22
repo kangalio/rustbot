@@ -23,8 +23,4 @@ table! {
     }
 }
 
-allow_tables_to_appear_in_same_query!(
-    messages,
-    roles,
-    tags,
-);
+allow_tables_to_appear_in_same_query!(messages, roles, tags,);
