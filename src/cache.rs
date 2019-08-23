@@ -1,7 +1,7 @@
 use crate::{
     commands::Result,
     db::database_connection,
-    schema::{users, messages, roles},
+    schema::{messages, roles, users},
 };
 use diesel::prelude::*;
 use serenity::model::prelude::*;
@@ -139,17 +139,14 @@ pub(crate) fn save_or_update_message(
     Ok(())
 }
 
-pub(crate) fn save_or_update_user(
-    name: &str,
-    user_id: &UserId,
-) -> Result<()> {
+pub(crate) fn save_or_update_user(name: &str, user_id: &UserId) -> Result<()> {
     let user_id = user_id.0.to_string();
     match UserIdCache::get_by_name(name)? {
         Some((id, cached_name, cached_user_id)) => {
             if name != cached_name || cached_user_id != user_id {
                 UserIdCache::update_by_id(id, name, &user_id)?;
             }
-        },
+        }
         None => UserIdCache::save(name, &user_id)?,
     };
     Ok(())

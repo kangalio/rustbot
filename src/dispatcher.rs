@@ -1,5 +1,5 @@
 use crate::{
-    cache::{self, UserIdCache, MessageCache, RoleIdCache},
+    cache::{self, MessageCache, RoleIdCache, UserIdCache},
     commands::Commands,
 };
 use serenity::{model::prelude::*, prelude::*};
