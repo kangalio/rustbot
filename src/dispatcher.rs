@@ -1,5 +1,5 @@
 use crate::{
-    cache::{self, MessageCache, RoleIdCache, UserIdCache},
+    cache::{MessageCache, RoleIdCache, UserIdCache},
     commands::Commands,
 };
 use serenity::{model::prelude::*, prelude::*};
@@ -34,11 +34,6 @@ pub(crate) struct EventDispatcher;
 impl RawEventHandler for EventDispatcher {
     fn raw_event(&self, cx: Context, event: Event) {
         match event {
-            Event::GuildCreate(ref ev) => {
-                if let Err(e) = init(&cx, ev) {
-                    println!("{}", e);
-                }
-            }
             Event::ReactionAdd(ref ev) => {
                 if let Err(e) = assign_talk_role(&cx, ev) {
                     println!("{}", e);
@@ -49,26 +44,22 @@ impl RawEventHandler for EventDispatcher {
     }
 }
 
-fn init(cx: &Context, ev: &GuildCreateEvent) -> Result {
-    Ok(())
-}
-
 fn assign_talk_role(cx: &Context, ev: &ReactionAddEvent) -> Result {
     let reaction = &ev.reaction;
 
-    if reaction.emoji == ReactionType::from("✅") {
-        let channel = reaction.channel(cx)?;
-        let channel_id = ChannelId::from(&channel);
-        let msg = MessageCache::get_by_name("welcome")?;
-        let role = RoleIdCache::get_by_name("talk")?;
-        let me = UserIdCache::get_by_name("me")?;
+    let channel = reaction.channel(cx)?;
+    let msg = MessageCache::get_by_name("welcome")?;
+    let channel_id = ChannelId::from(&channel);
+    let message = reaction.message(cx)?;
 
-        if let Some((_, _, cached_message_id, cached_channel_id)) = msg {
-            let message = reaction.message(cx)?;
+    if let Some((_, _, cached_message_id, cached_channel_id)) = msg {
+        if message.id.0.to_string() == cached_message_id
+            && channel_id.0.to_string() == *cached_channel_id
+        {
+            if reaction.emoji == ReactionType::from("✅") {
+                let role = RoleIdCache::get_by_name("talk")?;
+                let me = UserIdCache::get_by_name("me")?;
 
-            if message.id.0.to_string() == cached_message_id
-                && channel_id.0.to_string() == *cached_channel_id
-            {
                 if let Some((_, role_id, _)) = role {
                     let user_id = reaction.user_id;
 
@@ -87,12 +78,14 @@ fn assign_talk_role(cx: &Context, ev: &ReactionAddEvent) -> Result {
                     member.add_role(&cx, RoleId::from(u64::from_str(&role_id)?))?;
 
                     // Requires ManageMessage permission
-                    if let Some((_, user_name, user_id)) = me {
+                    if let Some((_, _, user_id)) = me {
                         if ev.reaction.user_id.0.to_string() != user_id {
                             ev.reaction.delete(cx)?;
                         }
                     }
                 }
+            } else {
+                ev.reaction.delete(cx)?;
             }
         }
     }
