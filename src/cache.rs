@@ -1,7 +1,7 @@
 use crate::{
     commands::Result,
     db::database_connection,
-    schema::{messages, roles},
+    schema::{users, messages, roles},
 };
 use diesel::prelude::*;
 use serenity::model::prelude::*;
@@ -79,6 +79,38 @@ impl RoleIdCache {
     }
 }
 
+pub(crate) struct UserIdCache;
+
+impl UserIdCache {
+    pub(crate) fn save(name: impl Into<String>, user_id: &str) -> Result<()> {
+        let conn = database_connection()?;
+
+        diesel::insert_into(users::table)
+            .values((users::user_id.eq(user_id), users::name.eq(name.into())))
+            .execute(&conn)?;
+        Ok(())
+    }
+
+    pub(crate) fn get_by_name(name: impl Into<String>) -> Result<Option<(i32, String, String)>> {
+        let conn = database_connection()?;
+
+        Ok(users::table
+            .filter(users::name.eq(name.into()))
+            .load::<(i32, String, String)>(&conn)?
+            .into_iter()
+            .nth(0))
+    }
+
+    pub(crate) fn update_by_id(id: i32, name: &str, user_id: &str) -> Result<()> {
+        let conn = database_connection()?;
+
+        diesel::update(users::table.filter(users::id.eq(id)))
+            .set((users::name.eq(name), users::user_id.eq(user_id)))
+            .execute(&conn)?;
+        Ok(())
+    }
+}
+
 pub(crate) fn save_or_update_role(name: &str, role: String) -> Result<()> {
     match RoleIdCache::get_by_name(name)? {
         Some((id, role_id, _)) => {
@@ -103,6 +135,22 @@ pub(crate) fn save_or_update_message(
             }
         }
         None => MessageCache::save(name, message, channel)?,
+    };
+    Ok(())
+}
+
+pub(crate) fn save_or_update_user(
+    name: &str,
+    user_id: &UserId,
+) -> Result<()> {
+    let user_id = user_id.0.to_string();
+    match UserIdCache::get_by_name(name)? {
+        Some((id, cached_name, cached_user_id)) => {
+            if name != cached_name || cached_user_id != user_id {
+                UserIdCache::update_by_id(id, name, &user_id)?;
+            }
+        },
+        None => UserIdCache::save(name, &user_id)?,
     };
     Ok(())
 }

@@ -1,5 +1,5 @@
 use crate::{
-    cache::{self, MessageCache, RoleIdCache},
+    cache::{self, UserIdCache, MessageCache, RoleIdCache},
     commands::Commands,
 };
 use serenity::{model::prelude::*, prelude::*};
@@ -34,6 +34,11 @@ pub(crate) struct EventDispatcher;
 impl RawEventHandler for EventDispatcher {
     fn raw_event(&self, cx: Context, event: Event) {
         match event {
+            Event::GuildCreate(ref ev) => {
+                if let Err(e) = init(&cx, ev) {
+                    println!("{}", e);
+                }
+            }
             Event::ReactionAdd(ref ev) => {
                 if let Err(e) = assign_talk_role(&cx, ev) {
                     println!("{}", e);
@@ -44,6 +49,10 @@ impl RawEventHandler for EventDispatcher {
     }
 }
 
+fn init(cx: &Context, ev: &GuildCreateEvent) -> Result {
+    Ok(())
+}
+
 fn assign_talk_role(cx: &Context, ev: &ReactionAddEvent) -> Result {
     let reaction = &ev.reaction;
 
@@ -52,6 +61,7 @@ fn assign_talk_role(cx: &Context, ev: &ReactionAddEvent) -> Result {
         let channel_id = ChannelId::from(&channel);
         let msg = MessageCache::get_by_name("welcome")?;
         let role = RoleIdCache::get_by_name("talk")?;
+        let me = UserIdCache::get_by_name("me")?;
 
         if let Some((_, _, cached_message_id, cached_channel_id)) = msg {
             let message = reaction.message(cx)?;
@@ -77,7 +87,11 @@ fn assign_talk_role(cx: &Context, ev: &ReactionAddEvent) -> Result {
                     member.add_role(&cx, RoleId::from(u64::from_str(&role_id)?))?;
 
                     // Requires ManageMessage permission
-                    ev.reaction.delete(cx)?;
+                    if let Some((_, user_name, user_id)) = me {
+                        if ev.reaction.user_id.0.to_string() != user_id {
+                            ev.reaction.delete(cx)?;
+                        }
+                    }
                 }
             }
         }

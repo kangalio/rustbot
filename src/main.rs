@@ -148,6 +148,8 @@ fn welcome_message(args: Args) -> Result {
 
         let channel_id = ChannelId::from_str(channel_name)?;
         let message = channel_id.say(&args.cx, WELCOME_BILLBOARD)?;
+        let bot_id = &message.author.id;
+        cache::save_or_update_user("me", bot_id)?;
         cache::save_or_update_message("welcome", message.id, channel_id)?;
         let white_check_mark = ReactionType::from("✅");
         message.react(&args.cx, white_check_mark)?;
