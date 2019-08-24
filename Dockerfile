@@ -12,7 +12,7 @@ RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y \
     curl \
     build-essential \
     pkg-config \
-    libsqlite3-dev \
+    libpq-dev \
     libssl-dev
 
 # Install the currently pinned toolchain with rustup
@@ -46,8 +46,7 @@ RUN find -name "*.rs" -exec touch {} \; && cargo build --release
 FROM ubuntu:bionic AS binary
 
 RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y \
-    libsqlite3-dev \
-    sqlite3 \
+    libpq-dev \
     ca-certificates
 
 COPY migrations /opt/migrations

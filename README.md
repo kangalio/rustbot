@@ -56,17 +56,10 @@ the `Message` and `Context` types.
 
 # Features
 
-## Talk
-Assigns the `talk` role to the user that requests it.  
-
-### Usage
-```
-?talk
-```
 ## Tags
 Tags are a simple key value store.  
 
-### Usage
+
 Lookup a tag
 ```
 ?tag {key}
@@ -99,3 +92,12 @@ Set slowmode for a channel.  0 seconds disables slowmode.
 ```
 ?slowmode {channel} {seconds}
 ```
+
+### Code of conduct welcome message
+Sets up the code of conduct message with reaction in the specified channel.
+Used for assigning talk roles.  
+```
+?CoC {channel}
+```
+
+
