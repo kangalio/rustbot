@@ -31,9 +31,9 @@ fn app() -> Result {
     let token = std::env::var("DISCORD_TOKEN")
         .map_err(|_| "missing environment variable: DISCORD_TOKEN")?;
 
-    let _ = init_data()?;
-
     let _ = db::run_migrations()?;
+
+    let _ = init_data()?;
 
     let mut cmds = Commands::new();
 
