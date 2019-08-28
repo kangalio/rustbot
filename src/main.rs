@@ -136,7 +136,7 @@ fn ban(args: Args) -> Result {
 
 /// Write the welcome message to the welcome channel.  
 fn welcome_message(args: Args) -> Result {
-    const WELCOME_BILLBOARD: &'static str = "By participating in this community, you agree to follow the Rust Code of Conduct, as linked below. Please click the :white_check_mark: below to acknowledge, or otherwise you may leave this Discord.
+    const WELCOME_BILLBOARD: &'static str = "By participating in this community, you agree to follow the Rust Code of Conduct, as linked below. Please click the :white_check_mark: below to acknowledge and gain access to the channels.
 
   https://www.rust-lang.org/policies/code-of-conduct  ";
 
