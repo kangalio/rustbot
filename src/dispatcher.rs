@@ -1,8 +1,8 @@
-use crate::{
-    cache::{MessageCache, RoleIdCache, UserIdCache},
-    commands::Commands,
-};
+use crate::commands::Commands;
 use serenity::{model::prelude::*, prelude::*};
+use crate::db::DB;
+use crate::schema::{messages, roles, users};
+use diesel::prelude::*;
 
 type Result = crate::commands::Result<()>;
 
@@ -48,19 +48,39 @@ fn assign_talk_role(cx: &Context, ev: &ReactionAddEvent) -> Result {
     let reaction = &ev.reaction;
 
     let channel = reaction.channel(cx)?;
-    let msg = MessageCache::get_by_name("welcome")?;
     let channel_id = ChannelId::from(&channel);
     let message = reaction.message(cx)?;
+
+    let conn = DB.get()?;
+
+    let (msg, talk_role, me) = conn
+        .build_transaction()
+        .read_only()
+        .run::<_, Box<dyn std::error::Error>, _>(|| {
+            let msg: Option<_> = messages::table
+                .filter(messages::name.eq("welcome"))
+                .first::<(i32, String, String, String)>(&conn)
+                .optional()?;
+
+            let role: Option<_> = roles::table
+                .filter(roles::name.eq("talk"))
+                .first::<(i32, String, String)>(&conn)
+                .optional()?;
+
+            let me: Option<_> = users::table
+                .filter(users::name.eq("me"))
+                .first::<(i32, String, String)>(&conn)
+                .optional()?;
+
+            Ok((msg, role, me))
+        })?;
 
     if let Some((_, _, cached_message_id, cached_channel_id)) = msg {
         if message.id.0.to_string() == cached_message_id
             && channel_id.0.to_string() == *cached_channel_id
         {
             if reaction.emoji == ReactionType::from("✅") {
-                let role = RoleIdCache::get_by_name("talk")?;
-                let me = UserIdCache::get_by_name("me")?;
-
-                if let Some((_, role_id, _)) = role {
+                if let Some((_, role_id, _)) = talk_role {
                     let user_id = reaction.user_id;
 
                     let guild = channel

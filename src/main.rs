@@ -2,7 +2,6 @@
 extern crate diesel;
 
 mod api;
-mod cache;
 mod commands;
 mod db;
 mod dispatcher;
@@ -10,7 +9,10 @@ mod schema;
 mod state_machine;
 mod tags;
 
+use crate::db::DB;
+use crate::schema::{messages, roles, users};
 use commands::{Args, Commands};
+use diesel::prelude::*;
 use dispatcher::{EventDispatcher, MessageDispatcher};
 use serenity::{model::prelude::*, utils::parse_username, Client};
 use std::str::FromStr;
@@ -21,8 +23,28 @@ fn init_data() -> Result {
     let mod_role = std::env::var("MOD_ID").map_err(|_| "MOD_ID env var not found")?;
     let talk_role = std::env::var("TALK_ID").map_err(|_| "TALK_ID env var not found")?;
 
-    cache::save_or_update_role("mod", mod_role)?;
-    cache::save_or_update_role("talk", talk_role)?;
+    let conn = DB.get()?;
+
+    let upsert_role = |role_id: &str, name: String| -> Result {
+        diesel::insert_into(roles::table)
+            .values((roles::role.eq(role_id), roles::name.eq(name)))
+            .on_conflict(roles::name)
+            .do_update()
+            .set(roles::role.eq(role_id))
+            .execute(&conn)?;
+
+        Ok(())
+    };
+
+    let _ = conn
+        .build_transaction()
+        .read_write()
+        .run::<_, Box<dyn std::error::Error>, _>(|| {
+            upsert_role("mod", mod_role)?;
+            upsert_role("talk", talk_role)?;
+
+            Ok(())
+        })?;
 
     Ok(())
 }
@@ -149,8 +171,41 @@ fn welcome_message(args: Args) -> Result {
         let channel_id = ChannelId::from_str(channel_name)?;
         let message = channel_id.say(&args.cx, WELCOME_BILLBOARD)?;
         let bot_id = &message.author.id;
-        cache::save_or_update_user("me", bot_id)?;
-        cache::save_or_update_message("welcome", message.id, channel_id)?;
+
+        let conn = DB.get()?;
+
+        let _ = conn
+            .build_transaction()
+            .read_write()
+            .run::<_, Box<dyn std::error::Error>, _>(|| {
+                let message_id = message.id.0.to_string();
+                let channel_id = channel_id.0.to_string();
+
+                diesel::insert_into(messages::table)
+                    .values((
+                        messages::name.eq("welcome"),
+                        messages::message.eq(&message_id),
+                        messages::channel.eq(&channel_id),
+                    ))
+                    .on_conflict(messages::name)
+                    .do_update()
+                    .set((
+                        messages::message.eq(&message_id),
+                        messages::channel.eq(&channel_id),
+                    ))
+                    .execute(&conn)?;
+
+                let user_id = &bot_id.to_string();
+
+                diesel::insert_into(users::table)
+                    .values((users::user_id.eq(user_id), users::name.eq("me")))
+                    .on_conflict(users::name)
+                    .do_update()
+                    .set((users::name.eq("me"), users::user_id.eq(user_id)))
+                    .execute(&conn)?;
+                Ok(())
+            })?;
+
         let white_check_mark = ReactionType::from("✅");
         message.react(&args.cx, white_check_mark)?;
     }
