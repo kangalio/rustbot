@@ -1,8 +1,8 @@
 use crate::{
     api,
     commands::{Args, Result},
-    schema::tags,
     db::DB,
+    schema::tags,
 };
 
 use diesel::prelude::*;

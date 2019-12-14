@@ -1,8 +1,8 @@
 use crate::commands::Commands;
-use serenity::{model::prelude::*, prelude::*};
 use crate::db::DB;
 use crate::schema::{messages, roles, users};
 use diesel::prelude::*;
+use serenity::{model::prelude::*, prelude::*};
 
 type Result = crate::commands::Result<()>;
 
