@@ -52,4 +52,5 @@ RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y \
 
 COPY --from=build /tmp/source/target/release/rustlang_discord_mod_bot /usr/local/bin/
 
+ENV RUST_LOG=info
 CMD rustlang_discord_mod_bot
