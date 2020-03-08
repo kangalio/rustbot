@@ -52,5 +52,4 @@ RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y \
 
 COPY --from=build /tmp/source/target/release/rustlang_discord_mod_bot /usr/local/bin/
 
-ENV MIGRATIONS_DIR=/opt/migrations
 CMD rustlang_discord_mod_bot
