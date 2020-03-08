@@ -1,6 +1,9 @@
 #[macro_use]
 extern crate diesel;
 
+#[macro_use]
+extern crate diesel_migrations;
+
 mod api;
 mod commands;
 mod db;
@@ -25,12 +28,12 @@ fn init_data() -> Result {
 
     let conn = DB.get()?;
 
-    let upsert_role = |role_id: &str, name: String| -> Result {
+    let upsert_role = |name: &str, role_id: &str| -> Result {
         diesel::insert_into(roles::table)
             .values((roles::role.eq(role_id), roles::name.eq(name)))
             .on_conflict(roles::name)
             .do_update()
-            .set(roles::role.eq(role_id))
+            .set((roles::role.eq(role_id), roles::name.eq(name)))
             .execute(&conn)?;
 
         Ok(())
@@ -40,8 +43,8 @@ fn init_data() -> Result {
         .build_transaction()
         .read_write()
         .run::<_, Box<dyn std::error::Error>, _>(|| {
-            upsert_role("mod", mod_role)?;
-            upsert_role("talk", talk_role)?;
+            upsert_role("mod", &mod_role)?;
+            upsert_role("talk", &talk_role)?;
 
             Ok(())
         })?;
@@ -63,6 +66,7 @@ fn app() -> Result {
     cmds.add("?tag {key}", tags::get);
     cmds.add("?tag delete {key}", tags::delete);
     cmds.add("?tag create {key} [value]", tags::post);
+    //cmds.add("?tag create {key} [value..]", tags::post);
     cmds.add("?tags", tags::get_all);
 
     // Slow mode.

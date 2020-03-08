@@ -15,15 +15,9 @@ lazy_static! {
 pub(crate) fn run_migrations() -> Result<()> {
     let conn = PgConnection::establish(&std::env::var("DATABASE_URL")?)?;
 
-    let migrations_dir = std::env::var("MIGRATIONS_DIR")
-        .map(|p| std::path::PathBuf::from(p))
-        .unwrap_or_else(|_| std::path::PathBuf::from("migrations"));
+    diesel_migrations::embed_migrations!();
 
-    diesel_migrations::run_pending_migrations_in_directory(
-        &conn,
-        &migrations_dir,
-        &mut std::io::sink(),
-    )?;
+    let _ = embedded_migrations::run_with_output(&conn, &mut std::io::stdout())?;
 
     Ok(())
 }
