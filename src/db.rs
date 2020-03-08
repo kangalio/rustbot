@@ -17,6 +17,7 @@ pub(crate) fn run_migrations() -> Result<()> {
 
     diesel_migrations::embed_migrations!();
 
+    info!("Running database migrations");
     let _ = embedded_migrations::run_with_output(&conn, &mut std::io::stdout())?;
 
     Ok(())

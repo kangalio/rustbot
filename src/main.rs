@@ -4,10 +4,13 @@ extern crate diesel;
 #[macro_use]
 extern crate diesel_migrations;
 
+#[macro_use]
+extern crate log;
+
 mod api;
 mod commands;
 mod db;
-mod dispatcher;
+mod events;
 mod schema;
 mod state_machine;
 mod tags;
@@ -16,13 +19,14 @@ use crate::db::DB;
 use crate::schema::{messages, roles, users};
 use commands::{Args, Commands};
 use diesel::prelude::*;
-use dispatcher::{EventDispatcher, MessageDispatcher};
+use events::{EventDispatcher, MessageDispatcher};
 use serenity::{model::prelude::*, utils::parse_username, Client};
 use std::str::FromStr;
 
 type Result = crate::commands::Result<()>;
 
 fn init_data() -> Result {
+    info!("Loading data into database");
     let mod_role = std::env::var("MOD_ID").map_err(|_| "MOD_ID env var not found")?;
     let talk_role = std::env::var("TALK_ID").map_err(|_| "TALK_ID env var not found")?;
 
@@ -33,7 +37,7 @@ fn init_data() -> Result {
             .values((roles::role.eq(role_id), roles::name.eq(name)))
             .on_conflict(roles::name)
             .do_update()
-            .set((roles::role.eq(role_id), roles::name.eq(name)))
+            .set(roles::role.eq(role_id))
             .execute(&conn)?;
 
         Ok(())
@@ -53,6 +57,7 @@ fn init_data() -> Result {
 }
 
 fn app() -> Result {
+    info!("starting...");
     let token = std::env::var("DISCORD_TOKEN")
         .map_err(|_| "missing environment variable: DISCORD_TOKEN")?;
 
@@ -93,6 +98,8 @@ fn app() -> Result {
 }
 
 fn main() {
+    env_logger::init();
+
     if let Err(err) = app() {
         eprintln!("error: {}", err);
         std::process::exit(1);
@@ -115,6 +122,7 @@ fn slow_mode(args: Args) -> Result {
             .get("channel")
             .ok_or("unable to retrieve channel param")?;
 
+        info!("Applying slowmode to channel {}", &channel_name);
         ChannelId::from_str(channel_name)?.edit(&args.cx, |c| c.slow_mode_rate(*seconds))?;
     }
     Ok(())
@@ -134,6 +142,7 @@ fn kick(args: Args) -> Result {
         .ok_or("unable to retrieve user id")?;
 
         if let Some(guild) = args.msg.guild(&args.cx) {
+            info!("Kicking user from guild");
             guild.read().kick(&args.cx, UserId::from(user_id))?
         }
     }
@@ -154,6 +163,7 @@ fn ban(args: Args) -> Result {
         .ok_or("unable to retrieve user id")?;
 
         if let Some(guild) = args.msg.guild(&args.cx) {
+            info!("Banning user from guild");
             guild.read().ban(&args.cx, UserId::from(user_id), &"all")?
         }
     }
@@ -173,6 +183,7 @@ fn welcome_message(args: Args) -> Result {
             .ok_or("unable to retrieve channel param")?;
 
         let channel_id = ChannelId::from_str(channel_name)?;
+        info!("Posting welcome message");
         let message = channel_id.say(&args.cx, WELCOME_BILLBOARD)?;
         let bot_id = &message.author.id;
 

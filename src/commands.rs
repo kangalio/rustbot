@@ -24,6 +24,7 @@ impl Commands {
     }
 
     pub(crate) fn add(&mut self, command: &'static str, handler: CmdPtr) {
+        info!("Adding command {}", &command);
         let mut param_names = Vec::new();
         let mut state = 0;
 
@@ -57,6 +58,7 @@ impl Commands {
         if !msg.is_own(&cx) && &msg.content[..1] == PREFIX {
             let message = &msg.content.clone();
             self.state_machine.process(&message).map(|matched| {
+                info!("Executing command {}", message);
                 let args = Args {
                     cx,
                     msg,

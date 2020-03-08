@@ -25,7 +25,7 @@ impl EventHandler for MessageDispatcher {
     }
 
     fn ready(&self, _: Context, ready: Ready) {
-        println!("{} connected", ready.user.name);
+        info!("{} connected to discord", ready.user.name);
     }
 }
 
@@ -95,6 +95,7 @@ fn assign_talk_role(cx: &Context, ev: &ReactionAddEvent) -> Result {
                         .member(cx, &user_id)?;
 
                     use std::str::FromStr;
+                    info!("Assigning talk role to {}", &member.user_id());
                     member.add_role(&cx, RoleId::from(u64::from_str(&role_id)?))?;
 
                     // Requires ManageMessage permission
