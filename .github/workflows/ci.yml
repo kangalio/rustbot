@@ -1,0 +1,40 @@
+name: CI
+on: [push, pull_request]
+
+env:
+  AWS_ACCESS_KEY_ID: AKIA46X5W6CZNZLSA3AD
+
+jobs:
+  ci:
+    name: CI
+    runs-on: ubuntu-latest
+    steps:
+
+      - name: Checkout the source code
+        uses: actions/checkout@v2
+        with:
+          fetch-depth: 1
+
+      - name: Install Rust
+        run: rustup update stable && rustup default stable
+
+      - name: Check formatting
+        run: cargo fmt -- --check
+
+      - name: Run the test suite
+        run: cargo test
+
+      - name: Build the Docker container
+        run: docker build -t discord-mods-bot .
+
+      - name: Deploy to production
+        uses: rust-lang/simpleinfra/github-actions/upload-docker-image@master
+        with:
+          image: discord-mods-bot
+          repository: discord-mods-bot
+          region: us-west-1
+          redeploy_ecs_cluster: rust-ecs-prod
+          redeploy_ecs_service: discord-mods-bot
+          aws_access_key_id: "${{ env.AWS_ACCESS_KEY_ID }}"
+          aws_secret_access_key: "${{ secrets.AWS_SECRET_ACCESS_KEY }}"
+        if: github.ref == 'refs/heads/master'
