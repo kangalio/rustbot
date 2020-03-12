@@ -1,20 +1,24 @@
 use crate::commands::Result;
 use diesel::prelude::*;
+use diesel::r2d2;
+use lazy_static::lazy_static;
 
-pub(crate) fn database_connection() -> Result<PgConnection> {
-    Ok(PgConnection::establish(&std::env::var("DATABASE_URL")?)?)
+type Pool = r2d2::Pool<r2d2::ConnectionManager<PgConnection>>;
+
+lazy_static! {
+    pub(crate) static ref DB: Pool = Pool::new(r2d2::ConnectionManager::<PgConnection>::new(
+        &std::env::var("DATABASE_URL").expect("DATABASE_URL not set")
+    ))
+    .expect("Unable to connect to database");
 }
 
 pub(crate) fn run_migrations() -> Result<()> {
-    let migrations_dir = std::env::var("MIGRATIONS_DIR")
-        .map(|p| std::path::PathBuf::from(p))
-        .unwrap_or_else(|_| std::path::PathBuf::from("migrations"));
+    let conn = PgConnection::establish(&std::env::var("DATABASE_URL")?)?;
 
-    diesel_migrations::run_pending_migrations_in_directory(
-        &database_connection()?,
-        &migrations_dir,
-        &mut std::io::sink(),
-    )?;
+    diesel_migrations::embed_migrations!();
+
+    info!("Running database migrations");
+    let _ = embedded_migrations::run_with_output(&conn, &mut std::io::stdout())?;
 
     Ok(())
 }

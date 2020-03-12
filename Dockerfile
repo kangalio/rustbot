@@ -37,6 +37,7 @@ RUN cargo build --release
 # source code didn't change thanks to mtime weirdness.
 RUN rm -rf /tmp/source/src
 COPY src /tmp/source/src
+COPY migrations /tmp/source/migrations
 RUN find -name "*.rs" -exec touch {} \; && cargo build --release
 
 ##################
@@ -49,8 +50,7 @@ RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y \
     libpq-dev \
     ca-certificates
 
-COPY migrations /opt/migrations
 COPY --from=build /tmp/source/target/release/rustlang_discord_mod_bot /usr/local/bin/
 
-ENV MIGRATIONS_DIR=/opt/migrations
+ENV RUST_LOG=info
 CMD rustlang_discord_mod_bot

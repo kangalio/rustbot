@@ -1,7 +1,7 @@
 use crate::{
     api,
     commands::{Args, Result},
-    db::database_connection,
+    db::DB,
     schema::tags,
 };
 
@@ -9,7 +9,7 @@ use diesel::prelude::*;
 
 /// Remove a key value pair from the tags.  
 pub fn delete<'m>(args: Args<'m>) -> Result<()> {
-    let conn = database_connection()?;
+    let conn = DB.get()?;
     let key = args
         .params
         .get("key")
@@ -21,7 +21,7 @@ pub fn delete<'m>(args: Args<'m>) -> Result<()> {
 
 /// Add a key value pair to the tags.  
 pub fn post<'m>(args: Args<'m>) -> Result<()> {
-    let conn = database_connection()?;
+    let conn = DB.get()?;
 
     let key = args
         .params
@@ -42,7 +42,7 @@ pub fn post<'m>(args: Args<'m>) -> Result<()> {
 
 /// Retrieve a value by key from the tags.  
 pub fn get<'m>(args: Args<'m>) -> Result<()> {
-    let conn = database_connection()?;
+    let conn = DB.get()?;
 
     let key = args.params.get("key").ok_or("unable to read params")?;
 
@@ -61,7 +61,7 @@ pub fn get<'m>(args: Args<'m>) -> Result<()> {
 
 /// Retrieve all tags
 pub fn get_all<'m>(args: Args<'m>) -> Result<()> {
-    let conn = database_connection()?;
+    let conn = DB.get()?;
 
     let results = tags::table.load::<(i32, String, String)>(&conn)?;
 
