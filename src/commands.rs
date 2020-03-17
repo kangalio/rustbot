@@ -55,7 +55,7 @@ impl Commands {
     }
 
     pub(crate) fn execute<'m>(&'m self, cx: Context, msg: Message) {
-        if !msg.is_own(&cx) && &msg.content[..1] == PREFIX {
+        if !msg.is_own(&cx) && msg.content.starts_with(PREFIX) {
             let message = &msg.content.clone();
             self.state_machine.process(&message).map(|matched| {
                 info!("Executing command {}", message);
