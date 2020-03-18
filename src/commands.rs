@@ -41,6 +41,10 @@ impl Commands {
                     state = add_space(&mut self.state_machine, state, i);
                     state = add_dynamic_segment(&mut self.state_machine, state);
                     param_names.push(&segment[1..segment.len() - 1]);
+                } else if segment.ends_with("...") {
+                    state = add_space(&mut self.state_machine, state, i);
+                    state = add_remaining_segment(&mut self.state_machine, state);
+                    param_names.push(&segment[..segment.len() - 3]);
                 } else {
                     state = add_space(&mut self.state_machine, state, i);
                     segment.chars().for_each(|ch| {
@@ -89,6 +93,17 @@ fn add_dynamic_segment(state_machine: &mut StateMachine, mut state: usize) -> us
     state_machine.start_parse(state);
     state_machine.end_parse(state);
 
+    state
+}
+
+#[inline]
+fn add_remaining_segment(state_machine: &mut StateMachine, mut state: usize) -> usize {
+    let mut char_set = CharacterSet::any();
+    state = state_machine.add(state, char_set);
+    state_machine.add_next_state(state, state);
+    state_machine.start_parse(state);
+    state_machine.end_parse(state);
+    
     state
 }
 
