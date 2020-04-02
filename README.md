@@ -32,13 +32,12 @@ A number of environment variables are required to run the bot.  Many of these
 environment variables come from discord, this means you will need to have your
 own guild setup to test the bot in.  
 
-```sh
-MOD_ID is the id of the mod role
-TALK_ID is the id of the talk role
-DISCORD_TOKEN is the token used to connect to discord
-DATABASE_URL is the url where the database is running, you will need to update
-the port to the port your instance of postgres is running on
-```
++ `MOD_ID` is the id of the mod role
++ `TALK_ID` is the id of the talk role
++ `DISCORD_TOKEN` is the token used to connect to discord
++ `DATABASE_URL` is the url where the database is running, you will need to
+  update the port to the port your instance of postgres is running on
+
 Once you have your guild setup, you can run the bot
 ```sh
 docker run -e "MOD_ID=" -e "TALK_ID=" -e "DISCORD_TOKEN=" -e "DATABASE_URL=postgres://docker:docker@172.17.0.1:32768" --add-host=database:172.17.0.2 --rm -it discordbot
