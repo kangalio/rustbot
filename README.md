@@ -1,6 +1,28 @@
 # Discord Mods Bot
 A discord bot written in rust.  
 
+# Getting Started
+
+# Setup Postgres
+This repo ships with a `Dockerfile` for a postgres image you can use in
+`postgres-docker/Dockerfile`.
+
+To use the `Dockerfile`:
+
+Navigate into the postgres-docker directory
+```sh
+cd postgres-docker/
+```
+
+Build the docker image
+```sh
+docker build -t postgresql .
+```
+
+Run the docker image
+```sh
+docker run --rm -P --name database postgresql
+```
 # Commands
 Commands for the bot are managed using the `Commands` struct.  The `.add` method
 is used to define commands for the bot to react to.  
