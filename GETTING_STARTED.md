@@ -18,7 +18,16 @@ Find out the port the postgres instance is running on
 ```sh
 docker ps
 ```
+## Setup Discord
+In order to test the bot, you need to have a dedicated testing server.
 
+1) [Click Here](https://discord.new/vkaVjTnf4aDc) to use our template. This is a server template functionality provided by Discord.
+2) Create a bot account ([guide](https://discordpy.readthedocs.io/en/latest/discord.html#creating-a-bot-account)).
+3) Get your bot's Client ID, replace `{ID}` with it, and then go to the URL in order to add the bot to your testing server.
+
+```
+https://discordapp.com/api/oauth2/authorize?client_id={ID}&permissions=8&scope=bot
+```
 ## Get the bot running
 
 Build the docker image for the bot
@@ -26,8 +35,7 @@ Build the docker image for the bot
 docker build -t discordbot .
 ```
 A number of environment variables are required to run the bot.  Many of these
-environment variables come from discord, this means you will need to have your
-own guild setup to test the bot in.  
+environment variables come from discord.  
 
 + `MOD_ID` is the id of the mod role
 + `TALK_ID` is the id of the talk role
