@@ -72,7 +72,7 @@ pub fn get_all<'m>(args: Args<'m>) -> Result<()> {
             prev + &row.1 + ": " + &row.2 + "\n"
         });
 
-        api::send_reply(&args, &format!("```\n{}```", &tags))?;
+        api::send_reply(&args, &format!("\n{}", &tags))?;
     }
 
     Ok(())
