@@ -103,7 +103,7 @@ fn add_remaining_segment(state_machine: &mut StateMachine, mut state: usize) -> 
     state_machine.add_next_state(state, state);
     state_machine.start_parse(state);
     state_machine.end_parse(state);
-    
+
     state
 }
 

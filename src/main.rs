@@ -72,6 +72,7 @@ fn app() -> Result {
     cmds.add("?tags delete {key}", tags::delete);
     cmds.add("?tags create {key} value...", tags::post);
     cmds.add("?tags get-all", tags::get_all);
+    cmds.add("?tags help", tags::help);
 
     // Slow mode.
     // 0 seconds disables slowmode

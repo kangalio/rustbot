@@ -77,3 +77,16 @@ pub fn get_all<'m>(args: Args<'m>) -> Result<()> {
 
     Ok(())
 }
+
+/// Print the help message
+pub fn help(args: Args) -> Result<()> {
+    let help_string = "```
+?tags get {key}
+?tags get-all
+?tags create {key} value...
+?tags delete {key}
+?tags help
+```";
+    api::send_reply(&args, &help_string)?;
+    Ok(())
+}
