@@ -8,7 +8,7 @@ use crate::{
 use diesel::prelude::*;
 
 /// Remove a key value pair from the tags.  
-pub fn delete<'m>(args: Args<'m>) -> Result<()> {
+pub fn delete(args: Args) -> Result<()> {
     let conn = DB.get()?;
     let key = args
         .params
@@ -20,7 +20,7 @@ pub fn delete<'m>(args: Args<'m>) -> Result<()> {
 }
 
 /// Add a key value pair to the tags.  
-pub fn post<'m>(args: Args<'m>) -> Result<()> {
+pub fn post(args: Args) -> Result<()> {
     let conn = DB.get()?;
 
     let key = args
@@ -41,7 +41,7 @@ pub fn post<'m>(args: Args<'m>) -> Result<()> {
 }
 
 /// Retrieve a value by key from the tags.  
-pub fn get<'m>(args: Args<'m>) -> Result<()> {
+pub fn get(args: Args) -> Result<()> {
     let conn = DB.get()?;
 
     let key = args.params.get("key").ok_or("unable to read params")?;
@@ -60,7 +60,7 @@ pub fn get<'m>(args: Args<'m>) -> Result<()> {
 }
 
 /// Retrieve all tags
-pub fn get_all<'m>(args: Args<'m>) -> Result<()> {
+pub fn get_all(args: Args) -> Result<()> {
     let conn = DB.get()?;
 
     let results = tags::table.load::<(i32, String, String)>(&conn)?;
@@ -81,6 +81,7 @@ pub fn get_all<'m>(args: Args<'m>) -> Result<()> {
 /// Print the help message
 pub fn help(args: Args) -> Result<()> {
     let help_string = "```
+?tag {key}
 ?tags get {key}
 ?tags get-all
 ?tags create {key} value...

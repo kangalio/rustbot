@@ -68,6 +68,7 @@ fn app() -> Result {
     let mut cmds = Commands::new();
 
     // Tags
+    cmds.add("?tag {key}", tags::get);
     cmds.add("?tags get {key}", tags::get);
     cmds.add("?tags delete {key}", tags::delete);
     cmds.add("?tags create {key} value...", tags::post);
