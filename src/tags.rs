@@ -8,19 +8,22 @@ use crate::{
 use diesel::prelude::*;
 
 /// Remove a key value pair from the tags.  
-pub fn delete<'m>(args: Args<'m>) -> Result<()> {
+pub fn delete(args: Args) -> Result<()> {
     let conn = DB.get()?;
     let key = args
         .params
         .get("key")
         .ok_or("Unable to retrieve param: key")?;
 
-    diesel::delete(tags::table.filter(tags::key.eq(key))).execute(&conn)?;
+    match diesel::delete(tags::table.filter(tags::key.eq(key))).execute(&conn) {
+        Ok(_) => args.msg.react(&args.cx, "✅")?,
+        Err(_) => args.msg.react(&args.cx, "❌")?,
+    }
     Ok(())
 }
 
 /// Add a key value pair to the tags.  
-pub fn post<'m>(args: Args<'m>) -> Result<()> {
+pub fn post(args: Args) -> Result<()> {
     let conn = DB.get()?;
 
     let key = args
@@ -33,15 +36,19 @@ pub fn post<'m>(args: Args<'m>) -> Result<()> {
         .get("value")
         .ok_or("Unable to retrieve param: value")?;
 
-    diesel::insert_into(tags::table)
+    match diesel::insert_into(tags::table)
         .values((tags::key.eq(key), tags::value.eq(value)))
-        .execute(&conn)?;
+        .execute(&conn)
+    {
+        Ok(_) => args.msg.react(&args.cx, "✅")?,
+        Err(_) => args.msg.react(&args.cx, "❌")?,
+    }
 
     Ok(())
 }
 
 /// Retrieve a value by key from the tags.  
-pub fn get<'m>(args: Args<'m>) -> Result<()> {
+pub fn get(args: Args) -> Result<()> {
     let conn = DB.get()?;
 
     let key = args.params.get("key").ok_or("unable to read params")?;
@@ -60,7 +67,7 @@ pub fn get<'m>(args: Args<'m>) -> Result<()> {
 }
 
 /// Retrieve all tags
-pub fn get_all<'m>(args: Args<'m>) -> Result<()> {
+pub fn get_all(args: Args) -> Result<()> {
     let conn = DB.get()?;
 
     let results = tags::table.load::<(i32, String, String)>(&conn)?;
@@ -81,6 +88,7 @@ pub fn get_all<'m>(args: Args<'m>) -> Result<()> {
 /// Print the help message
 pub fn help(args: Args) -> Result<()> {
     let help_string = "```
+?tag {key}
 ?tags get {key}
 ?tags get-all
 ?tags create {key} value...
