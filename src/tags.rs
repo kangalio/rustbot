@@ -15,7 +15,10 @@ pub fn delete(args: Args) -> Result<()> {
         .get("key")
         .ok_or("Unable to retrieve param: key")?;
 
-    diesel::delete(tags::table.filter(tags::key.eq(key))).execute(&conn)?;
+    match diesel::delete(tags::table.filter(tags::key.eq(key))).execute(&conn) {
+        Ok(_) => args.msg.react(&args.cx, "✅")?,
+        Err(_) => args.msg.react(&args.cx, "❌")?,
+    }
     Ok(())
 }
 
@@ -33,9 +36,13 @@ pub fn post(args: Args) -> Result<()> {
         .get("value")
         .ok_or("Unable to retrieve param: value")?;
 
-    diesel::insert_into(tags::table)
+    match diesel::insert_into(tags::table)
         .values((tags::key.eq(key), tags::value.eq(value)))
-        .execute(&conn)?;
+        .execute(&conn)
+    {
+        Ok(_) => args.msg.react(&args.cx, "✅")?,
+        Err(_) => args.msg.react(&args.cx, "❌")?,
+    }
 
     Ok(())
 }
