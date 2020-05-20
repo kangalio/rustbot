@@ -7,8 +7,8 @@ pub(crate) type Result<T> = std::result::Result<T, Box<dyn std::error::Error>>;
 pub(crate) type CmdPtr = for<'m> fn(Args<'m>) -> Result<()>;
 
 pub struct Args<'m> {
-    pub cx: Context,
-    pub msg: Message,
+    pub cx: &'m Context,
+    pub msg: &'m Message,
     pub params: HashMap<&'m str, &'m str>,
 }
 
@@ -59,13 +59,13 @@ impl Commands {
     }
 
     pub(crate) fn execute<'m>(&'m self, cx: Context, msg: Message) {
-        if !msg.is_own(&cx) && msg.content.starts_with(PREFIX) {
-            let message = &msg.content.clone();
-            self.state_machine.process(&message).map(|matched| {
+        let message = &msg.content;
+        if !msg.is_own(&cx) && message.starts_with(PREFIX) {
+            self.state_machine.process(message).map(|matched| {
                 info!("Executing command {}", message);
                 let args = Args {
-                    cx,
-                    msg,
+                    cx: &cx,
+                    msg: &msg,
                     params: matched.params,
                 };
                 if let Err(e) = (matched.handler)(args) {
@@ -98,7 +98,7 @@ fn add_dynamic_segment(state_machine: &mut StateMachine, mut state: usize) -> us
 
 #[inline]
 fn add_remaining_segment(state_machine: &mut StateMachine, mut state: usize) -> usize {
-    let mut char_set = CharacterSet::any();
+    let char_set = CharacterSet::any();
     state = state_machine.add(state, char_set);
     state_machine.add_next_state(state, state);
     state_machine.start_parse(state);

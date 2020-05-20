@@ -165,7 +165,7 @@ fn ban(args: Args) -> Result {
 
         if let Some(guild) = args.msg.guild(&args.cx) {
             info!("Banning user from guild");
-            guild.read().ban(&args.cx, UserId::from(user_id), &"all")?
+            guild.read().ban(args.cx, UserId::from(user_id), &"all")?
         }
     }
     Ok(())
@@ -223,7 +223,7 @@ fn welcome_message(args: Args) -> Result {
             })?;
 
         let white_check_mark = ReactionType::from("✅");
-        message.react(&args.cx, white_check_mark)?;
+        message.react(args.cx, white_check_mark)?;
     }
     Ok(())
 }
