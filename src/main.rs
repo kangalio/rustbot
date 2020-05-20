@@ -9,6 +9,7 @@ extern crate log;
 
 mod api;
 mod commands;
+mod crates;
 mod db;
 mod events;
 mod schema;
@@ -74,6 +75,10 @@ fn app() -> Result {
     cmds.add("?tags create {key} value...", tags::post);
     cmds.add("?tags get-all", tags::get_all);
     cmds.add("?tags help", tags::help);
+
+    // crates.io
+    cmds.add("?crate help", crates::help);
+    cmds.add("?crate query...", crates::search);
 
     // Slow mode.
     // 0 seconds disables slowmode

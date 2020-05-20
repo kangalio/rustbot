@@ -1,4 +1,5 @@
 use crate::state_machine::{CharacterSet, StateMachine};
+use reqwest::blocking::Client as HttpClient;
 use serenity::{model::channel::Message, prelude::Context};
 use std::collections::HashMap;
 
@@ -7,6 +8,7 @@ pub(crate) type Result<T> = std::result::Result<T, Box<dyn std::error::Error>>;
 pub(crate) type CmdPtr = for<'m> fn(Args<'m>) -> Result<()>;
 
 pub struct Args<'m> {
+    pub http: &'m HttpClient,
     pub cx: &'m Context,
     pub msg: &'m Message,
     pub params: HashMap<&'m str, &'m str>,
@@ -14,12 +16,14 @@ pub struct Args<'m> {
 
 pub(crate) struct Commands {
     state_machine: StateMachine,
+    client: HttpClient,
 }
 
 impl Commands {
     pub(crate) fn new() -> Self {
         Self {
             state_machine: StateMachine::new(),
+            client: HttpClient::new(),
         }
     }
 
@@ -64,6 +68,7 @@ impl Commands {
             self.state_machine.process(message).map(|matched| {
                 info!("Executing command {}", message);
                 let args = Args {
+                    http: &self.client,
                     cx: &cx,
                     msg: &msg,
                     params: matched.params,
