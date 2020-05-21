@@ -29,6 +29,7 @@ fn init_data() -> Result {
     info!("Loading data into database");
     let mod_role = std::env::var("MOD_ID").map_err(|_| "MOD_ID env var not found")?;
     let talk_role = std::env::var("TALK_ID").map_err(|_| "TALK_ID env var not found")?;
+    let wg_and_teams_role = std::env::var("WG_AND_TEAMS").map_err(|_| "WG_AND_TEAMS env var not found")?;
 
     let conn = DB.get()?;
 
@@ -49,6 +50,7 @@ fn init_data() -> Result {
         .run::<_, Box<dyn std::error::Error>, _>(|| {
             upsert_role("mod", &mod_role)?;
             upsert_role("talk", &talk_role)?;
+            upsert_role("wg_and_teams", &wg_and_teams_role)?;
 
             Ok(())
         })?;
@@ -68,12 +70,12 @@ fn app() -> Result {
     let mut cmds = Commands::new();
 
     // Tags
-    cmds.add("?tag {key}", tags::get);
     cmds.add("?tags get {key}", tags::get);
     cmds.add("?tags delete {key}", tags::delete);
     cmds.add("?tags create {key} value...", tags::post);
     cmds.add("?tags get-all", tags::get_all);
     cmds.add("?tags help", tags::help);
+    cmds.add("?tags {key}", tags::get);
 
     // Slow mode.
     // 0 seconds disables slowmode
