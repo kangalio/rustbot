@@ -11,6 +11,7 @@ license = "MIT"
 serenity = { version = "0.8.0", features = ["cache", "model"] }
 diesel = { version = "1.4.0", features = ["postgres", "r2d2"] }
 diesel_migrations = { version = "1.4.0", features = ["postgres"] }
+reqwest = { version = "0.10", features = ["blocking", "json"] }
 serde = "1.0"
 serde_derive = "1.0"
 lazy_static = "1.4.0"
