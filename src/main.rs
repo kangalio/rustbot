@@ -29,7 +29,8 @@ fn init_data() -> Result {
     info!("Loading data into database");
     let mod_role = std::env::var("MOD_ID").map_err(|_| "MOD_ID env var not found")?;
     let talk_role = std::env::var("TALK_ID").map_err(|_| "TALK_ID env var not found")?;
-    let wg_and_teams_role = std::env::var("WG_AND_TEAMS").map_err(|_| "WG_AND_TEAMS env var not found")?;
+    let wg_and_teams_role =
+        std::env::var("WG_AND_TEAMS").map_err(|_| "WG_AND_TEAMS env var not found")?;
 
     let conn = DB.get()?;
 

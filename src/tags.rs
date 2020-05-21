@@ -92,8 +92,7 @@ pub fn get_all(args: Args) -> Result<()> {
 /// Print the help message
 pub fn help(args: Args) -> Result<()> {
     let help_string = if api::is_wg_and_teams(&args)? {
-
-"```
+        "```
 ?tags get {key}
 ?tags get-all
 ?tags create {key} value...
@@ -102,7 +101,7 @@ pub fn help(args: Args) -> Result<()> {
 ?tags {key}
 ```"
     } else {
-"```
+        "```
 ?tags get {key}
 ?tags get-all
 ?tags help
