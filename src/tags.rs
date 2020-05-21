@@ -91,24 +91,13 @@ pub fn get_all(args: Args) -> Result<()> {
 
 /// Print the help message
 pub fn help(args: Args) -> Result<()> {
-    let help_string = if api::is_wg_and_teams(&args)? {
-        "```
-?tags get {key}
-?tags get-all
-?tags create {key} value...
-?tags delete {key}
-?tags help
-?tags {key}
-```"
-    } else {
-        "```
-?tags get {key}
-?tags get-all
-?tags help
-?tags {key}
-```"
-    };
-
+    let help_string = "```
+?tags create {key} value...     Create a tag.  Limited to WG & Teams.
+?tags delete {key}              Delete a tag.  Limited to WG & Teams.
+?tags help                      This menu.
+?tags                           Get all the tags.
+?tag {key}                      Get a specific tag.
+```";
     api::send_reply(&args, &help_string)?;
     Ok(())
 }

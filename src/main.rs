@@ -71,12 +71,11 @@ fn app() -> Result {
     let mut cmds = Commands::new();
 
     // Tags
-    cmds.add("?tags get {key}", tags::get);
     cmds.add("?tags delete {key}", tags::delete);
     cmds.add("?tags create {key} value...", tags::post);
-    cmds.add("?tags get-all", tags::get_all);
     cmds.add("?tags help", tags::help);
-    cmds.add("?tags {key}", tags::get);
+    cmds.add("?tags", tags::get_all);
+    cmds.add("?tag {key}", tags::get);
 
     // Slow mode.
     // 0 seconds disables slowmode

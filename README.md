@@ -13,7 +13,6 @@ Tags are a simple key value store.
 Lookup a tag
 ```
 ?tags {key}
-?tags get {key}
 ```
 Create a tag
 ```
@@ -25,7 +24,7 @@ Delete a tag
 ```
 Get all tags
 ```
-?tags get-all
+?tags
 ```
 ### Ban
 Ban a user
