@@ -12,19 +12,20 @@ Tags are a simple key value store.
 
 Lookup a tag
 ```
-?tag {key}
+?tags {key}
+?tags get {key}
 ```
 Create a tag
 ```
-?tag create {key} [value]
+?tags create {key} value...
 ```
 Delete a tag
 ```
-?tag delete {key}
+?tags delete {key}
 ```
 Get all tags
 ```
-?tags
+?tags get-all
 ```
 ### Ban
 Ban a user
