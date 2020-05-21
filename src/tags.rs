@@ -18,7 +18,7 @@ pub fn delete(args: Args) -> Result<()> {
 
         match diesel::delete(tags::table.filter(tags::key.eq(key))).execute(&conn) {
             Ok(_) => args.msg.react(args.cx, "✅")?,
-            Err(e) => api::send_reply(&args, &format!("{}", e))?,
+            Err(_) => api::send_reply(&args, "An error occured")?,
         }
     }
     Ok(())
@@ -44,7 +44,7 @@ pub fn post(args: Args) -> Result<()> {
             .execute(&conn)
         {
             Ok(_) => args.msg.react(args.cx, "✅")?,
-            Err(e) => api::send_reply(&args, &format!("{}", e))?,
+            Err(_) => api::send_reply(&args, "An error occured")?,
         }
     }
 
