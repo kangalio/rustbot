@@ -39,6 +39,7 @@ environment variables come from discord.
 
 + `MOD_ID` is the id of the mod role
 + `TALK_ID` is the id of the talk role
++ `WG_AND_TEAMS_ID` is the id of the working groups and teams role
 + `DISCORD_TOKEN` is the token used to connect to discord
 + `DATABASE_URL` is the url where the database is running, you will need to
   update the port to the port your instance of postgres is running on

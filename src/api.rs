@@ -21,18 +21,30 @@ pub(crate) fn has_role(args: &Args, role: &RoleId) -> Result<bool> {
         .contains(role))
 }
 
+fn check_permission(args: &Args, role: Option<String>) -> Result<bool> {
+    use std::str::FromStr;
+    if let Some(role_id) = role {
+        Ok(has_role(args, &RoleId::from(u64::from_str(&role_id)?))?)
+    } else {
+        Ok(false)
+    }
+}
+
 /// Return whether or not the user is a mod.  
 pub(crate) fn is_mod(args: &Args) -> Result<bool> {
-    use std::str::FromStr;
-
     let role = roles::table
         .filter(roles::name.eq("mod"))
         .first::<(i32, String, String)>(&DB.get()?)
         .optional()?;
 
-    if let Some((_, role_id, _)) = role {
-        Ok(has_role(args, &RoleId::from(u64::from_str(&role_id)?))?)
-    } else {
-        Ok(false)
-    }
+    check_permission(args, role.map(|(_, role_id, _)| role_id))
+}
+
+pub(crate) fn is_wg_and_teams(args: &Args) -> Result<bool> {
+    let role = roles::table
+        .filter(roles::name.eq("wg_and_teams"))
+        .first::<(i32, String, String)>(&DB.get()?)
+        .optional()?;
+
+    check_permission(args, role.map(|(_, role_id, _)| role_id))
 }

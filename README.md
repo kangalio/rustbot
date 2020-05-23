@@ -16,11 +16,11 @@ Lookup a tag
 ```
 Create a tag
 ```
-?tag create {key} [value]
+?tags create {key} value...
 ```
 Delete a tag
 ```
-?tag delete {key}
+?tags delete {key}
 ```
 Get all tags
 ```

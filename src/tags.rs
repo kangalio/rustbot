@@ -9,39 +9,48 @@ use diesel::prelude::*;
 
 /// Remove a key value pair from the tags.  
 pub fn delete(args: Args) -> Result<()> {
-    let conn = DB.get()?;
-    let key = args
-        .params
-        .get("key")
-        .ok_or("Unable to retrieve param: key")?;
+    if api::is_wg_and_teams(&args)? {
+        let conn = DB.get()?;
+        let key = args
+            .params
+            .get("key")
+            .ok_or("Unable to retrieve param: key")?;
 
-    match diesel::delete(tags::table.filter(tags::key.eq(key))).execute(&conn) {
-        Ok(_) => args.msg.react(args.cx, "✅")?,
-        Err(_) => args.msg.react(args.cx, "❌")?,
+        match diesel::delete(tags::table.filter(tags::key.eq(key))).execute(&conn) {
+            Ok(_) => args.msg.react(args.cx, "✅")?,
+            Err(_) => api::send_reply(&args, "A database error occurred when deleting the tag.")?,
+        }
     }
     Ok(())
 }
 
 /// Add a key value pair to the tags.  
 pub fn post(args: Args) -> Result<()> {
-    let conn = DB.get()?;
+    if api::is_wg_and_teams(&args)? {
+        let conn = DB.get()?;
 
-    let key = args
-        .params
-        .get("key")
-        .ok_or("Unable to retrieve param: key")?;
+        let key = args
+            .params
+            .get("key")
+            .ok_or("Unable to retrieve param: key")?;
 
-    let value = args
-        .params
-        .get("value")
-        .ok_or("Unable to retrieve param: value")?;
+        let value = args
+            .params
+            .get("value")
+            .ok_or("Unable to retrieve param: value")?;
 
-    match diesel::insert_into(tags::table)
-        .values((tags::key.eq(key), tags::value.eq(value)))
-        .execute(&conn)
-    {
-        Ok(_) => args.msg.react(args.cx, "✅")?,
-        Err(_) => args.msg.react(args.cx, "❌")?,
+        match diesel::insert_into(tags::table)
+            .values((tags::key.eq(key), tags::value.eq(value)))
+            .execute(&conn)
+        {
+            Ok(_) => args.msg.react(args.cx, "✅")?,
+            Err(_) => api::send_reply(&args, "A database error occurred when creating the tag.")?,
+        }
+    } else {
+        api::send_reply(
+            &args,
+            "Please reach out to a Rust team/WG member to create a tag.",
+        )?;
     }
 
     Ok(())
@@ -88,12 +97,11 @@ pub fn get_all(args: Args) -> Result<()> {
 /// Print the help message
 pub fn help(args: Args) -> Result<()> {
     let help_string = "```
-?tag {key}
-?tags get {key}
-?tags get-all
-?tags create {key} value...
-?tags delete {key}
-?tags help
+?tags create {key} value...     Create a tag.  Limited to WG & Teams.
+?tags delete {key}              Delete a tag.  Limited to WG & Teams.
+?tags help                      This menu.
+?tags                           Get all the tags.
+?tag {key}                      Get a specific tag.
 ```";
     api::send_reply(&args, &help_string)?;
     Ok(())
