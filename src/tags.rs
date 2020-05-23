@@ -47,7 +47,10 @@ pub fn post(args: Args) -> Result<()> {
             Err(_) => api::send_reply(&args, "A database error occurred when creating the tag.")?,
         }
     } else {
-        api::send_reply(&args, "Please reach out to a Rust team/WG member to create a tag.")?;
+        api::send_reply(
+            &args,
+            "Please reach out to a Rust team/WG member to create a tag.",
+        )?;
     }
 
     Ok(())
