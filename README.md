@@ -12,7 +12,7 @@ Tags are a simple key value store.
 
 Lookup a tag
 ```
-?tags {key}
+?tag {key}
 ```
 Create a tag
 ```
