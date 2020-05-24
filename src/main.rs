@@ -82,6 +82,10 @@ fn app() -> Result {
     cmds.add("?crate help", crates::help);
     cmds.add("?crate query...", crates::search);
 
+    // docs.rs
+    cmds.add("?docs help", crates::doc_help);
+    cmds.add("?docs query...", crates::doc_search);
+
     // Slow mode.
     // 0 seconds disables slowmode
     cmds.add("?slowmode {channel} {seconds}", slow_mode);

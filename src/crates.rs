@@ -22,9 +22,10 @@ struct Crate {
     updated: String,
     downloads: u64,
     description: String,
+    documentation: Option<String>,
 }
 
-pub fn search(args: Args) -> Result<()> {
+fn get_crate(args: &Args) -> Result<Option<Crate>> {
     let query = args
         .params
         .get("query")
@@ -40,7 +41,11 @@ pub fn search(args: Args) -> Result<()> {
         .send()?
         .json::<Crates>()?;
 
-    if let Some(krate) = crate_list.crates.get(0) {
+    Ok(crate_list.crates.into_iter().nth(0))
+}
+
+pub fn search(args: Args) -> Result<()> {
+    if let Some(krate) = get_crate(&args)? {
         args.msg.channel_id.send_message(&args.cx, |m| {
             m.embed(|e| {
                 e.title(&krate.name)
@@ -61,11 +66,37 @@ pub fn search(args: Args) -> Result<()> {
     Ok(())
 }
 
+pub fn doc_search(args: Args) -> Result<()> {
+    if let Some(krate) = get_crate(&args)? {
+        let name = krate.name;
+        let message = krate
+            .documentation
+            .unwrap_or_else(|| format!("https://docs.rs/{}", name));
+
+        api::send_reply(&args, &message)?;
+    } else {
+        let message = "No crates found.";
+        api::send_reply(&args, message)?;
+    }
+
+    Ok(())
+}
+
 /// Print the help message
 pub fn help(args: Args) -> Result<()> {
     let help_string = "search for a crate on crates.io
 ```
 ?crate query...
+```";
+    api::send_reply(&args, &help_string)?;
+    Ok(())
+}
+
+/// Print the help message
+pub fn doc_help(args: Args) -> Result<()> {
+    let help_string = "retrieves documentation for a given crate
+```
+?docs query...
 ```";
     api::send_reply(&args, &help_string)?;
     Ok(())

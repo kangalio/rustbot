@@ -26,6 +26,17 @@ Get all tags
 ```
 ?tags
 ```
+
+### Crates
+Search for a crate on crates.io
+```
+?crate query...
+```
+Retreive documentation for a crate
+```
+?docs query...
+```
+
 ### Ban
 Ban a user
 ```
