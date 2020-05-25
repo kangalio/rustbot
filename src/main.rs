@@ -99,6 +99,13 @@ fn app() -> Result {
     // Post the welcome message to the welcome channel.
     cmds.add("?CoC {channel}", welcome_message);
 
+    let menu = cmds.menu().unwrap();
+
+    cmds.add("?help", move |args: Args| {
+        api::send_reply(&args, &format!("```{}```", &menu))?;
+        Ok(())
+    });
+
     let messages = MessageDispatcher::new(cmds);
 
     let mut client =
