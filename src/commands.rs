@@ -5,7 +5,7 @@ use std::collections::HashMap;
 
 const PREFIX: &'static str = "?";
 pub(crate) type Result<T> = std::result::Result<T, Box<dyn std::error::Error>>;
-pub(crate) type CmdPtr = for<'m> fn(Args<'m>) -> Result<()>;
+pub(crate) type CmdPtr = Box<dyn for<'m> Fn(Args<'m>) -> Result<()> + Send + Sync>;
 
 pub struct Args<'m> {
     pub http: &'m HttpClient,
@@ -17,6 +17,7 @@ pub struct Args<'m> {
 pub(crate) struct Commands {
     state_machine: StateMachine,
     client: HttpClient,
+    menu: Option<String>,
 }
 
 impl Commands {
@@ -24,10 +25,15 @@ impl Commands {
         Self {
             state_machine: StateMachine::new(),
             client: HttpClient::new(),
+            menu: Some(String::new()),
         }
     }
 
-    pub(crate) fn add(&mut self, command: &'static str, handler: CmdPtr) {
+    pub(crate) fn add(
+        &mut self,
+        command: &'static str,
+        handler: impl Fn(Args) -> Result<()> + Send + Sync + 'static,
+    ) {
         info!("Adding command {}", &command);
         let mut param_names = Vec::new();
         let mut state = 0;
@@ -58,8 +64,16 @@ impl Commands {
             });
 
         self.state_machine.set_final_state(state);
-        self.state_machine.set_handler(state, handler);
+        self.state_machine.set_handler(state, Box::new(handler));
         self.state_machine.set_param_names(state, param_names);
+        self.menu.as_mut().map(|menu| {
+            *menu += command;
+            *menu += "\n"
+        });
+    }
+
+    pub(crate) fn menu(&mut self) -> Option<String> {
+        self.menu.take()
     }
 
     pub(crate) fn execute<'m>(&'m self, cx: Context, msg: Message) {
