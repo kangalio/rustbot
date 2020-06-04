@@ -15,18 +15,18 @@ mod events;
 mod schema;
 mod state_machine;
 mod tags;
+mod welcome;
 
 use crate::db::DB;
-use crate::schema::{messages, roles, users};
 use commands::{Args, Commands};
 use diesel::prelude::*;
 use events::{EventDispatcher, MessageDispatcher};
-use serenity::{model::prelude::*, utils::parse_username, Client};
-use std::str::FromStr;
+use serenity::Client;
 
-type Result = crate::commands::Result<()>;
+pub(crate) type Result = crate::commands::Result<()>;
 
 fn init_data() -> Result {
+    use crate::schema::roles;
     info!("Loading data into database");
     let mod_role = std::env::var("MOD_ID").map_err(|_| "MOD_ID env var not found")?;
     let talk_role = std::env::var("TALK_ID").map_err(|_| "TALK_ID env var not found")?;
@@ -88,16 +88,16 @@ fn app() -> Result {
 
     // Slow mode.
     // 0 seconds disables slowmode
-    cmds.add("?slowmode {channel} {seconds}", slow_mode);
+    cmds.add("?slowmode {channel} {seconds}", api::slow_mode);
 
     // Kick
-    cmds.add("?kick {user}", kick);
+    cmds.add("?kick {user}", api::kick);
 
     // Ban
-    cmds.add("?ban {user}", ban);
+    cmds.add("?ban {user}", api::ban);
 
     // Post the welcome message to the welcome channel.
-    cmds.add("?CoC {channel}", welcome_message);
+    cmds.add("?CoC {channel}", welcome::post_message);
 
     let menu = cmds.menu().unwrap();
 
@@ -123,125 +123,4 @@ fn main() {
         eprintln!("error: {}", err);
         std::process::exit(1);
     }
-}
-
-/// Set slow mode for a channel.  
-///
-/// A `seconds` value of 0 will disable slowmode
-fn slow_mode(args: Args) -> Result {
-    if api::is_mod(&args)? {
-        let seconds = &args
-            .params
-            .get("seconds")
-            .ok_or("unable to retrieve seconds param")?
-            .parse::<u64>()?;
-
-        let channel_name = &args
-            .params
-            .get("channel")
-            .ok_or("unable to retrieve channel param")?;
-
-        info!("Applying slowmode to channel {}", &channel_name);
-        ChannelId::from_str(channel_name)?.edit(&args.cx, |c| c.slow_mode_rate(*seconds))?;
-    }
-    Ok(())
-}
-
-/// Kick a user from the guild.  
-///
-/// Requires the kick members permission
-fn kick(args: Args) -> Result {
-    if api::is_mod(&args)? {
-        let user_id = parse_username(
-            &args
-                .params
-                .get("user")
-                .ok_or("unable to retrieve user param")?,
-        )
-        .ok_or("unable to retrieve user id")?;
-
-        if let Some(guild) = args.msg.guild(&args.cx) {
-            info!("Kicking user from guild");
-            guild.read().kick(&args.cx, UserId::from(user_id))?
-        }
-    }
-    Ok(())
-}
-
-/// Ban an user from the guild.  
-///
-/// Requires the ban members permission
-fn ban(args: Args) -> Result {
-    if api::is_mod(&args)? {
-        let user_id = parse_username(
-            &args
-                .params
-                .get("user")
-                .ok_or("unable to retrieve user param")?,
-        )
-        .ok_or("unable to retrieve user id")?;
-
-        if let Some(guild) = args.msg.guild(&args.cx) {
-            info!("Banning user from guild");
-            guild.read().ban(args.cx, UserId::from(user_id), &"all")?
-        }
-    }
-    Ok(())
-}
-
-/// Write the welcome message to the welcome channel.  
-fn welcome_message(args: Args) -> Result {
-    const WELCOME_BILLBOARD: &'static str = "By participating in this community, you agree to follow the Rust Code of Conduct, as linked below. Please click the :white_check_mark: below to acknowledge and gain access to the channels.
-
-  https://www.rust-lang.org/policies/code-of-conduct  ";
-
-    if api::is_mod(&args)? {
-        let channel_name = &args
-            .params
-            .get("channel")
-            .ok_or("unable to retrieve channel param")?;
-
-        let channel_id = ChannelId::from_str(channel_name)?;
-        info!("Posting welcome message");
-        let message = channel_id.say(&args.cx, WELCOME_BILLBOARD)?;
-        let bot_id = &message.author.id;
-
-        let conn = DB.get()?;
-
-        let _ = conn
-            .build_transaction()
-            .read_write()
-            .run::<_, Box<dyn std::error::Error>, _>(|| {
-                let message_id = message.id.0.to_string();
-                let channel_id = channel_id.0.to_string();
-
-                diesel::insert_into(messages::table)
-                    .values((
-                        messages::name.eq("welcome"),
-                        messages::message.eq(&message_id),
-                        messages::channel.eq(&channel_id),
-                    ))
-                    .on_conflict(messages::name)
-                    .do_update()
-                    .set((
-                        messages::message.eq(&message_id),
-                        messages::channel.eq(&channel_id),
-                    ))
-                    .execute(&conn)?;
-
-                let user_id = &bot_id.to_string();
-
-                diesel::insert_into(users::table)
-                    .values((users::user_id.eq(user_id), users::name.eq("me")))
-                    .on_conflict(users::name)
-                    .do_update()
-                    .set((users::name.eq("me"), users::user_id.eq(user_id)))
-                    .execute(&conn)?;
-                Ok(())
-            })?;
-
-        let white_check_mark = ReactionType::from("✅");
-        message.react(args.cx, white_check_mark)?;
-    }
-    Ok(())
 }

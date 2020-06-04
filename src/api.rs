@@ -2,7 +2,8 @@ use crate::commands::{Args, Result};
 use crate::db::DB;
 use crate::schema::roles;
 use diesel::prelude::*;
-use serenity::model::prelude::*;
+use serenity::{model::prelude::*, utils::parse_username};
+
 
 /// Send a reply to the channel the message was received on.  
 pub(crate) fn send_reply(args: &Args, message: &str) -> Result<()> {
@@ -47,4 +48,70 @@ pub(crate) fn is_wg_and_teams(args: &Args) -> Result<bool> {
         .optional()?;
 
     check_permission(args, role.map(|(_, role_id, _)| role_id))
+}
+
+/// Set slow mode for a channel.  
+///
+/// A `seconds` value of 0 will disable slowmode
+pub(crate) fn slow_mode(args: Args) -> Result<()> {
+    use std::str::FromStr;
+
+    if is_mod(&args)? {
+        let seconds = &args
+            .params
+            .get("seconds")
+            .ok_or("unable to retrieve seconds param")?
+            .parse::<u64>()?;
+
+        let channel_name = &args
+            .params
+            .get("channel")
+            .ok_or("unable to retrieve channel param")?;
+
+        info!("Applying slowmode to channel {}", &channel_name);
+        ChannelId::from_str(channel_name)?.edit(&args.cx, |c| c.slow_mode_rate(*seconds))?;
+    }
+    Ok(())
+}
+
+/// Kick a user from the guild.  
+///
+/// Requires the kick members permission
+pub(crate) fn kick(args: Args) -> Result<()> {
+    if is_mod(&args)? {
+        let user_id = parse_username(
+            &args
+                .params
+                .get("user")
+                .ok_or("unable to retrieve user param")?,
+        )
+        .ok_or("unable to retrieve user id")?;
+
+        if let Some(guild) = args.msg.guild(&args.cx) {
+            info!("Kicking user from guild");
+            guild.read().kick(&args.cx, UserId::from(user_id))?
+        }
+    }
+    Ok(())
+}
+
+/// Ban an user from the guild.  
+///
+/// Requires the ban members permission
+pub(crate) fn ban(args: Args) -> Result<()> {
+    if is_mod(&args)? {
+        let user_id = parse_username(
+            &args
+                .params
+                .get("user")
+                .ok_or("unable to retrieve user param")?,
+        )
+        .ok_or("unable to retrieve user id")?;
+
+        if let Some(guild) = args.msg.guild(&args.cx) {
+            info!("Banning user from guild");
+            guild.read().ban(args.cx, UserId::from(user_id), &"all")?
+        }
+    }
+    Ok(())
 }
