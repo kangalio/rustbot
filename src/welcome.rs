@@ -1,12 +1,12 @@
 use crate::{
     api,
     commands::Args,
-    schema::{messages, users},
+    schema::{roles, messages, users},
     db::DB,
     Result,
 };
 use diesel::prelude::*;
-use serenity::model::prelude::*;
+use serenity::{model::prelude::*, prelude::*};
 
 /// Write the welcome message to the welcome channel.  
 pub(crate) fn post_message(args: Args) -> Result {
@@ -63,6 +63,75 @@ pub(crate) fn post_message(args: Args) -> Result {
 
         let white_check_mark = ReactionType::from("✅");
         message.react(args.cx, white_check_mark)?;
+    }
+    Ok(())
+}
+
+pub(crate) fn assign_talk_role(cx: &Context, ev: &ReactionAddEvent) -> Result {
+    let reaction = &ev.reaction;
+
+    let channel = reaction.channel(cx)?;
+    let channel_id = ChannelId::from(&channel);
+    let message = reaction.message(cx)?;
+
+    let conn = DB.get()?;
+
+    let (msg, talk_role, me) = conn
+        .build_transaction()
+        .read_only()
+        .run::<_, Box<dyn std::error::Error>, _>(|| {
+            let msg: Option<_> = messages::table
+                .filter(messages::name.eq("welcome"))
+                .first::<(i32, String, String, String)>(&conn)
+                .optional()?;
+
+            let role: Option<_> = roles::table
+                .filter(roles::name.eq("talk"))
+                .first::<(i32, String, String)>(&conn)
+                .optional()?;
+
+            let me: Option<_> = users::table
+                .filter(users::name.eq("me"))
+                .first::<(i32, String, String)>(&conn)
+                .optional()?;
+
+            Ok((msg, role, me))
+        })?;
+
+    if let Some((_, _, cached_message_id, cached_channel_id)) = msg {
+        if message.id.0.to_string() == cached_message_id
+            && channel_id.0.to_string() == *cached_channel_id
+        {
+            if reaction.emoji == ReactionType::from("✅") {
+                if let Some((_, role_id, _)) = talk_role {
+                    let user_id = reaction.user_id;
+
+                    let guild = channel
+                        .guild()
+                        .ok_or("Unable to retrieve guild from channel")?;
+
+                    let mut member = guild
+                        .read()
+                        .guild(&cx)
+                        .ok_or("Unable to access guild")?
+                        .read()
+                        .member(cx, &user_id)?;
+
+                    use std::str::FromStr;
+                    info!("Assigning talk role to {}", &member.user_id());
+                    member.add_role(&cx, RoleId::from(u64::from_str(&role_id)?))?;
+
+                    // Requires ManageMessage permission
+                    if let Some((_, _, user_id)) = me {
+                        if ev.reaction.user_id.0.to_string() != user_id {
+                            ev.reaction.delete(cx)?;
+                        }
+                    }
+                }
+            } else {
+                ev.reaction.delete(cx)?;
+            }
+        }
     }
     Ok(())
 }

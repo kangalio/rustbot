@@ -11,7 +11,6 @@ mod api;
 mod commands;
 mod crates;
 mod db;
-mod events;
 mod schema;
 mod state_machine;
 mod tags;
@@ -20,8 +19,7 @@ mod welcome;
 use crate::db::DB;
 use commands::{Args, Commands};
 use diesel::prelude::*;
-use events::{EventDispatcher, MessageDispatcher};
-use serenity::Client;
+use serenity::{model::prelude::*, prelude::*};
 
 pub(crate) type Result = crate::commands::Result<()>;
 
@@ -106,10 +104,11 @@ fn app() -> Result {
         Ok(())
     });
 
-    let messages = MessageDispatcher::new(cmds);
-
-    let mut client =
-        Client::new_with_handlers(&token, Some(messages), Some(EventDispatcher)).unwrap();
+    let mut client = Client::new_with_extras(&token, |e| {
+        e.event_handler(Messages { cmds });
+        e.raw_event_handler(Events);
+        e
+    })?;
 
     client.start()?;
 
@@ -122,5 +121,34 @@ fn main() {
     if let Err(err) = app() {
         eprintln!("error: {}", err);
         std::process::exit(1);
+    }
+}
+
+struct Events;
+
+impl RawEventHandler for Events {
+    fn raw_event(&self, cx: Context, event: Event) {
+        match event {
+            Event::ReactionAdd(ref ev) => {
+                if let Err(e) = welcome::assign_talk_role(&cx, ev) {
+                    println!("{}", e);
+                }
+            }
+            _ => (),
+        }
+    }
+}
+
+struct Messages {
+    cmds: Commands,
+}
+
+impl EventHandler for Messages {
+    fn message(&self, cx: Context, msg: Message) {
+        self.cmds.execute(cx, msg);
+    }
+
+    fn ready(&self, _: Context, ready: Ready) {
+        info!("{} connected to discord", ready.user.name);
     }
 }
