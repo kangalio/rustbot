@@ -4,7 +4,6 @@ use crate::schema::roles;
 use diesel::prelude::*;
 use serenity::{model::prelude::*, utils::parse_username};
 
-
 /// Send a reply to the channel the message was received on.  
 pub(crate) fn send_reply(args: &Args, message: &str) -> Result<()> {
     args.msg.channel_id.say(&args.cx, message)?;

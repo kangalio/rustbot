@@ -1,8 +1,8 @@
 use crate::{
     api,
     commands::Args,
-    schema::{roles, messages, users},
     db::DB,
+    schema::{messages, roles, users},
     Result,
 };
 use diesel::prelude::*;
