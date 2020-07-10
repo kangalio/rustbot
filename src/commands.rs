@@ -73,6 +73,7 @@ impl Commands {
     }
 
     pub(crate) fn menu(&mut self) -> Option<String> {
+        self.menu.as_mut().map(|menu| *menu += "?help\n");
         self.menu.take()
     }
 
