@@ -20,16 +20,23 @@ use crate::db::DB;
 use commands::{Args, Commands};
 use diesel::prelude::*;
 use serenity::{model::prelude::*, prelude::*};
+use serde::Deserialize;
+use envy;
 
 pub(crate) type Result = crate::commands::Result<()>;
 
-fn init_data() -> Result {
+#[derive(Deserialize)]
+struct Config {
+    tags: bool,
+    crates: bool,
+}
+
+fn init_data(config: &Config) -> Result {
     use crate::schema::roles;
     info!("Loading data into database");
+
     let mod_role = std::env::var("MOD_ID").map_err(|_| "MOD_ID env var not found")?;
     let talk_role = std::env::var("TALK_ID").map_err(|_| "TALK_ID env var not found")?;
-    let wg_and_teams_role =
-        std::env::var("WG_AND_TEAMS_ID").map_err(|_| "WG_AND_TEAMS_ID env var not found")?;
 
     let conn = DB.get()?;
 
@@ -50,7 +57,9 @@ fn init_data() -> Result {
         .run::<_, Box<dyn std::error::Error>, _>(|| {
             upsert_role("mod", &mod_role)?;
             upsert_role("talk", &talk_role)?;
-            upsert_role("wg_and_teams", &wg_and_teams_role)?;
+            if config.tags || config.crates {
+                upsert_role("wg_and_teams", &std::env::var("WG_AND_TEAMS_ID").map_err(|_| "WG_AND_TEAMS_ID env var not found")?)?;
+            }
 
             Ok(())
         })?;
@@ -60,29 +69,36 @@ fn init_data() -> Result {
 
 fn app() -> Result {
     info!("starting...");
+
+    let config = envy::from_env::<Config>()?;
+
     let token = std::env::var("DISCORD_TOKEN")
         .map_err(|_| "missing environment variable: DISCORD_TOKEN")?;
 
     let _ = db::run_migrations()?;
 
-    let _ = init_data()?;
+    let _ = init_data(&config)?;
 
     let mut cmds = Commands::new();
 
-    // Tags
-    cmds.add("?tags delete {key}", tags::delete);
-    cmds.add("?tags create {key} value...", tags::post);
-    cmds.add("?tags help", tags::help);
-    cmds.add("?tags", tags::get_all);
-    cmds.add("?tag {key}", tags::get);
+    if config.tags {
+        // Tags
+        cmds.add("?tags delete {key}", tags::delete);
+        cmds.add("?tags create {key} value...", tags::post);
+        cmds.add("?tags help", tags::help);
+        cmds.add("?tags", tags::get_all);
+        cmds.add("?tag {key}", tags::get);
+    }
 
-    // crates.io
-    cmds.add("?crate help", crates::help);
-    cmds.add("?crate query...", crates::search);
+    if config.crates {
+        // crates.io
+        cmds.add("?crate help", crates::help);
+        cmds.add("?crate query...", crates::search);
 
-    // docs.rs
-    cmds.add("?docs help", crates::doc_help);
-    cmds.add("?docs query...", crates::doc_search);
+        // docs.rs
+        cmds.add("?docs help", crates::doc_help);
+        cmds.add("?docs query...", crates::doc_search);
+    }
 
     // Slow mode.
     // 0 seconds disables slowmode
