@@ -19,9 +19,9 @@ mod welcome;
 use crate::db::DB;
 use commands::{Args, Commands};
 use diesel::prelude::*;
-use serenity::{model::prelude::*, prelude::*};
-use serde::Deserialize;
 use envy;
+use serde::Deserialize;
+use serenity::{model::prelude::*, prelude::*};
 
 pub(crate) type Result = crate::commands::Result<()>;
 
@@ -58,7 +58,9 @@ fn init_data(config: &Config) -> Result {
             upsert_role("mod", &mod_role)?;
             upsert_role("talk", &talk_role)?;
             if config.tags || config.crates {
-                upsert_role("wg_and_teams", &std::env::var("WG_AND_TEAMS_ID").map_err(|_| "WG_AND_TEAMS_ID env var not found")?)?;
+                let wg_and_teams_role = &std::env::var("WG_AND_TEAMS_ID")
+                    .map_err(|_| "WG_AND_TEAMS_ID env var not found")?;
+                upsert_role("wg_and_teams", &wg_and_teams_role)?;
             }
 
             Ok(())
