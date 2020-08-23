@@ -29,14 +29,15 @@ pub(crate) type Result = crate::commands::Result<()>;
 struct Config {
     tags: bool,
     crates: bool,
+    discord_token: String,
+    mod_id: String,
+    talk_id: String,
+    wg_and_teams_id: Option<String>,
 }
 
 fn init_data(config: &Config) -> Result {
     use crate::schema::roles;
     info!("Loading data into database");
-
-    let mod_role = std::env::var("MOD_ID").map_err(|_| "MOD_ID env var not found")?;
-    let talk_role = std::env::var("TALK_ID").map_err(|_| "TALK_ID env var not found")?;
 
     let conn = DB.get()?;
 
@@ -55,11 +56,14 @@ fn init_data(config: &Config) -> Result {
         .build_transaction()
         .read_write()
         .run::<_, Box<dyn std::error::Error>, _>(|| {
-            upsert_role("mod", &mod_role)?;
-            upsert_role("talk", &talk_role)?;
+            upsert_role("mod", &config.mod_id)?;
+            upsert_role("talk", &config.talk_id)?;
+
             if config.tags || config.crates {
-                let wg_and_teams_role = &std::env::var("WG_AND_TEAMS_ID")
-                    .map_err(|_| "WG_AND_TEAMS_ID env var not found")?;
+                let wg_and_teams_role = config
+                    .wg_and_teams_id
+                    .as_ref()
+                    .ok_or_else(|| "missing value for field wg_and_teams_id.\n\nIf you enabled tags or crates then you need the WG_AND_TEAMS_ID env var.")?;
                 upsert_role("wg_and_teams", &wg_and_teams_role)?;
             }
 
@@ -70,12 +74,9 @@ fn init_data(config: &Config) -> Result {
 }
 
 fn app() -> Result {
-    info!("starting...");
-
     let config = envy::from_env::<Config>()?;
 
-    let token = std::env::var("DISCORD_TOKEN")
-        .map_err(|_| "missing environment variable: DISCORD_TOKEN")?;
+    info!("starting...");
 
     let _ = db::run_migrations()?;
 
@@ -122,7 +123,7 @@ fn app() -> Result {
         Ok(())
     });
 
-    let mut client = Client::new_with_extras(&token, |e| {
+    let mut client = Client::new_with_extras(&config.discord_token, |e| {
         e.event_handler(Messages { cmds });
         e.raw_event_handler(Events);
         e
@@ -136,8 +137,8 @@ fn app() -> Result {
 fn main() {
     env_logger::init();
 
-    if let Err(err) = app() {
-        eprintln!("error: {}", err);
+    if let Err(e) = app() {
+        error!("{}", e);
         std::process::exit(1);
     }
 }
