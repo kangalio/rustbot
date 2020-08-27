@@ -1,6 +1,6 @@
 use crate::commands::{Args, Result};
 use crate::db::DB;
-use crate::schema::roles;
+use crate::schema::{bans, roles};
 use diesel::prelude::*;
 use serenity::{model::prelude::*, utils::parse_username};
 
@@ -107,9 +107,31 @@ pub(crate) fn ban(args: Args) -> Result<()> {
         )
         .ok_or("unable to retrieve user id")?;
 
+        use std::str::FromStr;
+
+        let hours = u64::from_str(
+            args.params
+                .get("hours")
+                .ok_or("unable to retrieve hours param")?,
+        )?;
+
         if let Some(guild) = args.msg.guild(&args.cx) {
             info!("Banning user from guild");
-            guild.read().ban(args.cx, UserId::from(user_id), &"all")?
+
+            guild.read().ban(args.cx, UserId::from(user_id), &"all")?;
+
+            let conn = DB.get()?;
+            use std::time::{Duration, SystemTime};
+            diesel::insert_into(bans::table)
+                .values((
+                    bans::user_id.eq(format!("{}", user_id)),
+                    bans::guild_id.eq(format!("{}", guild.read().id)),
+                    bans::start_time.eq(SystemTime::now()),
+                    bans::end_time.eq(SystemTime::now()
+                        .checked_add(Duration::new(hours * 60 * 60, 0))
+                        .ok_or("out of range Duration for ban end_time")?),
+                ))
+                .execute(&conn)?;
         }
     }
     Ok(())
