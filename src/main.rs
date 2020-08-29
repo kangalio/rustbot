@@ -154,13 +154,10 @@ impl RawEventHandler for Events {
                     println!("{}", e);
                 }
             }
-            Event::GuildBanAdd(ref ev) => {
-                if let Err(e) = ban::save_ban(format!("{}", ev.user.id), format!("{}", ev.guild_id)) {
-                    error!("{}", e);
-                }
-            }
             Event::GuildBanRemove(ref ev) => {
-                if let Err(e) = ban::save_unban(format!("{}", ev.user.id), format!("{}", ev.guild_id)) {
+                if let Err(e) =
+                    ban::save_unban(format!("{}", ev.user.id), format!("{}", ev.guild_id))
+                {
                     error!("{}", e);
                 }
             }
