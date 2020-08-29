@@ -111,6 +111,9 @@ fn app() -> Result {
     // Kick
     cmds.add("?kick {user}", api::kick);
 
+    // Ban
+    cmds.add("?ban {user} {hours}", api::ban);
+
     // Post the welcome message to the welcome channel.
     cmds.add("?CoC {channel}", welcome::post_message);
 
