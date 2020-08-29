@@ -8,6 +8,7 @@ extern crate diesel_migrations;
 extern crate log;
 
 mod api;
+mod ban;
 mod commands;
 mod crates;
 mod db;
@@ -110,9 +111,6 @@ fn app() -> Result {
     // Kick
     cmds.add("?kick {user}", api::kick);
 
-    // Ban
-    cmds.add("?ban {user} {hours}", api::ban);
-
     // Post the welcome message to the welcome channel.
     cmds.add("?CoC {channel}", welcome::post_message);
 
@@ -153,6 +151,16 @@ impl RawEventHandler for Events {
                     println!("{}", e);
                 }
             }
+            Event::GuildBanAdd(ref ev) => {
+                if let Err(e) = ban::save_ban(format!("{}", ev.user.id), format!("{}", ev.guild_id)) {
+                    error!("{}", e);
+                }
+            }
+            Event::GuildBanRemove(ref ev) => {
+                if let Err(e) = ban::save_unban(format!("{}", ev.user.id), format!("{}", ev.guild_id)) {
+                    error!("{}", e);
+                }
+            }
             _ => (),
         }
     }
@@ -169,49 +177,6 @@ impl EventHandler for Messages {
 
     fn ready(&self, context: Context, ready: Ready) {
         info!("{} connected to discord", ready.user.name);
-        std::thread::spawn(
-            move || -> std::result::Result<(), Box<dyn std::error::Error + Send + Sync>> {
-                use std::{
-                    thread::sleep,
-                    time::{Duration, SystemTime},
-                };
-                let cx = context;
-
-                use crate::schema::bans;
-                use std::str::FromStr;
-
-                let conn = DB.get()?;
-                loop {
-                    sleep(Duration::new(3600, 0));
-                    let _ = conn.build_transaction().read_write().run::<_, Box<
-                        dyn std::error::Error + Send + Sync,
-                    >, _>(
-                        || {
-                            let to_unban = bans::table
-                                .filter(
-                                    bans::unbanned
-                                        .eq(false)
-                                        .and(bans::end_time.le(SystemTime::now())),
-                                )
-                                .load::<(i32, String, String, bool, SystemTime, SystemTime)>(
-                                    &conn,
-                                )?;
-
-                            for row in &to_unban {
-                                let guild_id = GuildId::from(u64::from_str(&row.2)?);
-                                guild_id.unban(&cx, u64::from_str(&row.1)?)?;
-                                diesel::update(bans::table)
-                                    .filter(bans::id.eq(&row.0))
-                                    .set(bans::unbanned.eq(true))
-                                    .execute(&conn)?;
-                            }
-
-                            dbg!(to_unban);
-                            Ok(())
-                        },
-                    )?;
-                }
-            },
-        );
+        ban::start_unban_thread(context);
     }
 }
