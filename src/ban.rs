@@ -1,6 +1,6 @@
-use crate::{commands::Result, db::DB, schema::bans};
+use crate::{api, commands::{Result, Args}, db::DB, schema::bans};
 use diesel::prelude::*;
-use serenity::{model::prelude::*, prelude::*};
+use serenity::{prelude::*, model::prelude::*, utils::parse_username};
 use std::{
     sync::atomic::{AtomicBool, Ordering},
     thread::sleep,
@@ -68,4 +68,47 @@ pub(crate) fn start_unban_thread(cx: Context) {
             }
         });
     }
+}
+
+/// Temporarily ban an user from the guild.  
+///
+/// Requires the ban members permission
+pub(crate) fn temp_ban(args: Args) -> Result<()> {
+    if api::is_mod(&args)? {
+        let user_id = parse_username(
+            &args
+                .params
+                .get("user")
+                .ok_or("unable to retrieve user param")?,
+        )
+        .ok_or("unable to retrieve user id")?;
+
+        use std::str::FromStr;
+
+        let hours = u64::from_str(
+            args.params
+                .get("hours")
+                .ok_or("unable to retrieve hours param")?,
+        )?;
+
+        if let Some(guild) = args.msg.guild(&args.cx) {
+            info!("Banning user from guild");
+            guild.read().ban(args.cx, UserId::from(user_id), &"all")?;
+            save_ban(
+                format!("{}", user_id),
+                format!("{}", guild.read().id),
+                hours,
+            )?;
+        }
+    }
+    Ok(())
+}
+
+pub(crate) fn help(args: Args) -> Result<()> {
+    let help_string = "ban a user for a temporary amount of time
+```
+?ban {user} {hours}
+```";
+    api::send_reply(&args, &help_string)?;
+    Ok(())
 }
