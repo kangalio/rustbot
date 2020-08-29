@@ -1,6 +1,11 @@
-use crate::{api, commands::{Result, Args}, db::DB, schema::bans};
+use crate::{
+    api,
+    commands::{Args, Result},
+    db::DB,
+    schema::bans,
+};
 use diesel::prelude::*;
-use serenity::{prelude::*, model::prelude::*, utils::parse_username};
+use serenity::{model::prelude::*, prelude::*, utils::parse_username};
 use std::{
     sync::atomic::{AtomicBool, Ordering},
     thread::sleep,
