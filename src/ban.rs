@@ -3,6 +3,7 @@ use crate::{
     commands::{Args, Result},
     db::DB,
     schema::bans,
+    text::ban_message,
 };
 use diesel::prelude::*;
 use serenity::{model::prelude::*, prelude::*, utils::parse_username};
@@ -47,15 +48,13 @@ pub(crate) fn save_unban(user_id: String, guild_id: String) -> Result<()> {
     Ok(())
 }
 
-type SendSyncError = Box<dyn std::error::Error + Send + Sync>;
-
 pub(crate) fn start_unban_thread(cx: Context) {
     use std::str::FromStr;
     if !UNBAN_THREAD_INITIALIZED.load(Ordering::SeqCst) {
         UNBAN_THREAD_INITIALIZED.store(true, Ordering::SeqCst);
+        type SendSyncError = Box<dyn std::error::Error + Send + Sync>;
         std::thread::spawn(move || -> std::result::Result<(), SendSyncError> {
             loop {
-                sleep(Duration::new(HOUR, 0));
                 let conn = DB.get()?;
                 let to_unban = bans::table
                     .filter(
@@ -70,6 +69,7 @@ pub(crate) fn start_unban_thread(cx: Context) {
                     info!("Unbanning user {}", &row.1);
                     guild_id.unban(&cx, u64::from_str(&row.1)?)?;
                 }
+                sleep(Duration::new(HOUR, 0));
             }
         });
     }
@@ -96,9 +96,20 @@ pub(crate) fn temp_ban(args: Args) -> Result<()> {
                 .ok_or("unable to retrieve hours param")?,
         )?;
 
+        let reason = args
+            .params
+            .get("reason")
+            .ok_or("unable to retrieve reason param")?;
+
         if let Some(guild) = args.msg.guild(&args.cx) {
             info!("Banning user from guild");
-            guild.read().ban(args.cx, UserId::from(user_id), &"all")?;
+            let user = UserId::from(user_id);
+
+            user.create_dm_channel(args.cx)?
+                .say(args.cx, ban_message(reason, hours))?;
+
+            guild.read().ban(args.cx, &user, &"all")?;
+
             save_ban(
                 format!("{}", user_id),
                 format!("{}", guild.read().id),
@@ -110,10 +121,30 @@ pub(crate) fn temp_ban(args: Args) -> Result<()> {
 }
 
 pub(crate) fn help(args: Args) -> Result<()> {
-    let help_string = "ban a user for a temporary amount of time
+    let hours = 24;
+    let reason = "violating the code of conduct";
+
+    let help_string = format!(
+        "
+Ban a user for a temporary amount of time
 ```
-?ban {user} {hours}
-```";
+{command}
+```
+Example:
+```
+?ban @someuser {hours} {reason}
+```
+will ban a user for {hours} hours and send them the following message:
+```
+{user_message}
+```
+",
+        command = "?ban {user} {hours} reason...",
+        user_message = ban_message(reason, hours),
+        hours = hours,
+        reason = reason,
+    );
+
     api::send_reply(&args, &help_string)?;
     Ok(())
 }

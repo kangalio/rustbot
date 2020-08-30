@@ -15,6 +15,7 @@ mod db;
 mod schema;
 mod state_machine;
 mod tags;
+mod text;
 mod welcome;
 
 use crate::db::DB;
@@ -113,7 +114,7 @@ fn app() -> Result {
 
     // Ban
     cmds.add("?ban help", ban::help);
-    cmds.add("?ban {user} {hours}", ban::temp_ban);
+    cmds.add("?ban {user} {hours} reason...", ban::temp_ban);
 
     // Post the welcome message to the welcome channel.
     cmds.add("?CoC {channel}", welcome::post_message);

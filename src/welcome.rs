@@ -3,6 +3,7 @@ use crate::{
     commands::Args,
     db::DB,
     schema::{messages, roles, users},
+    text::WELCOME_BILLBOARD,
     Result,
 };
 use diesel::prelude::*;
@@ -11,10 +12,6 @@ use serenity::{model::prelude::*, prelude::*};
 /// Write the welcome message to the welcome channel.  
 pub(crate) fn post_message(args: Args) -> Result {
     use std::str::FromStr;
-
-    const WELCOME_BILLBOARD: &'static str = "By participating in this community, you agree to follow the Rust Code of Conduct, as linked below. Please click the :white_check_mark: below to acknowledge and gain access to the channels.
-
-  https://www.rust-lang.org/policies/code-of-conduct  ";
 
     if api::is_mod(&args)? {
         let channel_name = &args
