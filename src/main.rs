@@ -153,7 +153,7 @@ impl RawEventHandler for Events {
         match event {
             Event::ReactionAdd(ref ev) => {
                 if let Err(e) = welcome::assign_talk_role(&cx, ev) {
-                    println!("{}", e);
+                    error!("{}", e);
                 }
             }
             Event::GuildBanRemove(ref ev) => {
