@@ -3,5 +3,5 @@ pub(crate) const WELCOME_BILLBOARD: &'static str = "By participating in this com
   https://www.rust-lang.org/policies/code-of-conduct  ";
 
 pub(crate) fn ban_message(reason: &str, hours: u64) -> String {
-    format!("You have been banned from The Rust Programming Language discord server for {}. The ban will expire in {} hours. If you feel this action was taken unfairly, you can reach the Rust moderation team at rust-mods@rust-lang.org", reason, hours)
+    format!("You have been banned from The Rust Programming Language discord server for {}. The ban will expire in {} hours. If you feel this action was taken unfairly, you can reach the Rust moderation team at discord-mods@rust-lang.org", reason, hours)
 }
