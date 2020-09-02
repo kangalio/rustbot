@@ -8,12 +8,14 @@ extern crate diesel_migrations;
 extern crate log;
 
 mod api;
+mod ban;
 mod commands;
 mod crates;
 mod db;
 mod schema;
 mod state_machine;
 mod tags;
+mod text;
 mod welcome;
 
 use crate::db::DB;
@@ -111,7 +113,8 @@ fn app() -> Result {
     cmds.add("?kick {user}", api::kick);
 
     // Ban
-    cmds.add("?ban {user}", api::ban);
+    cmds.add("?ban help", ban::help);
+    cmds.add("?ban {user} {hours} reason...", ban::temp_ban);
 
     // Post the welcome message to the welcome channel.
     cmds.add("?CoC {channel}", welcome::post_message);
@@ -150,7 +153,14 @@ impl RawEventHandler for Events {
         match event {
             Event::ReactionAdd(ref ev) => {
                 if let Err(e) = welcome::assign_talk_role(&cx, ev) {
-                    println!("{}", e);
+                    error!("{}", e);
+                }
+            }
+            Event::GuildBanRemove(ref ev) => {
+                if let Err(e) =
+                    ban::save_unban(format!("{}", ev.user.id), format!("{}", ev.guild_id))
+                {
+                    error!("{}", e);
                 }
             }
             _ => (),
@@ -167,7 +177,8 @@ impl EventHandler for Messages {
         self.cmds.execute(cx, msg);
     }
 
-    fn ready(&self, _: Context, ready: Ready) {
+    fn ready(&self, context: Context, ready: Ready) {
         info!("{} connected to discord", ready.user.name);
+        ban::start_unban_thread(context);
     }
 }

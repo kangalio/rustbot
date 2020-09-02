@@ -1,4 +1,15 @@
 table! {
+    bans (id) {
+        id -> Int4,
+        user_id -> Text,
+        guild_id -> Text,
+        unbanned -> Bool,
+        start_time -> Timestamp,
+        end_time -> Timestamp,
+    }
+}
+
+table! {
     messages (id) {
         id -> Int4,
         name -> Text,
@@ -31,4 +42,4 @@ table! {
     }
 }
 
-allow_tables_to_appear_in_same_query!(messages, roles, tags, users,);
+allow_tables_to_appear_in_same_query!(bans, messages, roles, tags, users,);

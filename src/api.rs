@@ -1,6 +1,8 @@
-use crate::commands::{Args, Result};
-use crate::db::DB;
-use crate::schema::roles;
+use crate::{
+    commands::{Args, Result},
+    db::DB,
+    schema::roles,
+};
 use diesel::prelude::*;
 use serenity::{model::prelude::*, utils::parse_username};
 
@@ -89,27 +91,6 @@ pub(crate) fn kick(args: Args) -> Result<()> {
         if let Some(guild) = args.msg.guild(&args.cx) {
             info!("Kicking user from guild");
             guild.read().kick(&args.cx, UserId::from(user_id))?
-        }
-    }
-    Ok(())
-}
-
-/// Ban an user from the guild.  
-///
-/// Requires the ban members permission
-pub(crate) fn ban(args: Args) -> Result<()> {
-    if is_mod(&args)? {
-        let user_id = parse_username(
-            &args
-                .params
-                .get("user")
-                .ok_or("unable to retrieve user param")?,
-        )
-        .ok_or("unable to retrieve user id")?;
-
-        if let Some(guild) = args.msg.guild(&args.cx) {
-            info!("Banning user from guild");
-            guild.read().ban(args.cx, UserId::from(user_id), &"all")?
         }
     }
     Ok(())
