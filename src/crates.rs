@@ -66,8 +66,29 @@ pub fn search(args: Args) -> Result<()> {
     Ok(())
 }
 
+fn rustc_crate(crate_name: &str) -> Option<&str> {
+    match crate_name {
+        "std" => Some("https://doc.rust_lang.org/stable/std/"),
+        "core" => Some("https://doc.rust_lang.org/stable/core/"),
+        "beta" => Some("https://doc.rust_lang.org/beta/std/"),
+        "nightly" => Some("https://doc.rust_lang.org/nightly/std/"),
+        "rustc" => Some("https://doc.rust_lang.org/nightly/nightly-rustc/"),
+        _ => None,
+    }
+}
+
 pub fn doc_search(args: Args) -> Result<()> {
-    if let Some(krate) = get_crate(&args)? {
+    let crate_name = args
+        .params
+        .get("query")
+        .ok_or("Unable to retrieve param: query")?;
+
+    if crate_name.contains("::") {
+        let message = "`?docs` cannot retrieve documentation for items within a crate.";
+        api::send_reply(&args, message)?;
+    } else if let Some(rustc_crate) = rustc_crate(crate_name) {
+        api::send_reply(&args, rustc_crate)?;
+    } else if let Some(krate) = get_crate(&args)? {
         let name = krate.name;
         let message = krate
             .documentation
@@ -94,9 +115,9 @@ pub fn help(args: Args) -> Result<()> {
 
 /// Print the help message
 pub fn doc_help(args: Args) -> Result<()> {
-    let help_string = "retrieves documentation for a given crate
+    let help_string = "retrieve documentation for a given crate
 ```
-?docs query...
+?docs crate_name...
 ```";
     api::send_reply(&args, &help_string)?;
     Ok(())
