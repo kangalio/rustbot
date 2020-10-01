@@ -86,21 +86,6 @@ fn app() -> Result {
 
     let mut cmds = Commands::new();
 
-    cmds.add("?play ```rust\ncode\n```", |args: Args| {
-        let input = dbg!(args.params.get("code").unwrap());
-        Ok(())
-    });
-
-    cmds.add("?play ```code```", |args: Args| {
-        let input = dbg!(args.params.get("code").unwrap());
-        Ok(())
-    });
-
-    cmds.add("?play `code`", |args: Args| {
-        let input = dbg!(args.params.get("code").unwrap());
-        Ok(())
-    });
-
     if config.tags {
         // Tags
         cmds.add("?tags delete {key}", tags::delete);

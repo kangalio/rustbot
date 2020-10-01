@@ -47,32 +47,26 @@ impl Commands {
                     state = add_space(&mut self.state_machine, state, i);
                     state = add_quoted_dynamic_segment(&mut self.state_machine, state);
                     param_names.push(&segment[1..segment.len() - 1]);
-
                 } else if segment.starts_with("```rust\n") && segment.ends_with("\n```") {
                     state = add_space(&mut self.state_machine, state, i);
                     state = add_code_segment1(&mut self.state_machine, state);
                     param_names.push(&segment[8..segment.len() - 4]);
-
                 } else if segment.starts_with("```") && segment.ends_with("```") {
                     state = add_space(&mut self.state_machine, state, i);
                     state = add_code_segment2(&mut self.state_machine, state);
                     param_names.push(&segment[3..segment.len() - 3]);
-
                 } else if segment.starts_with("`") && segment.ends_with("`") {
                     state = add_space(&mut self.state_machine, state, i);
                     state = add_code_segment3(&mut self.state_machine, state);
                     param_names.push(&segment[1..segment.len() - 1]);
-
                 } else if segment.starts_with("{") && segment.ends_with("}") {
                     state = add_space(&mut self.state_machine, state, i);
                     state = add_dynamic_segment(&mut self.state_machine, state);
                     param_names.push(&segment[1..segment.len() - 1]);
-
                 } else if segment.ends_with("...") {
                     state = add_space(&mut self.state_machine, state, i);
                     state = add_remaining_segment(&mut self.state_machine, state);
                     param_names.push(&segment[..segment.len() - 3]);
-
                 } else {
                     state = add_space(&mut self.state_machine, state, i);
                     segment.chars().for_each(|ch| {
@@ -179,7 +173,6 @@ fn add_code_segment1(state_machine: &mut StateMachine, mut state: usize) -> usiz
 
     state
 }
-
 
 #[inline]
 fn add_code_segment2(state_machine: &mut StateMachine, mut state: usize) -> usize {
