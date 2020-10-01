@@ -47,18 +47,32 @@ impl Commands {
                     state = add_space(&mut self.state_machine, state, i);
                     state = add_quoted_dynamic_segment(&mut self.state_machine, state);
                     param_names.push(&segment[1..segment.len() - 1]);
+
+                } else if segment.starts_with("```rust\n") && segment.ends_with("\n```") {
+                    state = add_space(&mut self.state_machine, state, i);
+                    state = add_code_segment1(&mut self.state_machine, state);
+                    param_names.push(&segment[8..segment.len() - 4]);
+
                 } else if segment.starts_with("```") && segment.ends_with("```") {
                     state = add_space(&mut self.state_machine, state, i);
-                    state = add_triple_tick_code_segment(&mut self.state_machine, state);
+                    state = add_code_segment2(&mut self.state_machine, state);
                     param_names.push(&segment[3..segment.len() - 3]);
+
+                } else if segment.starts_with("`") && segment.ends_with("`") {
+                    state = add_space(&mut self.state_machine, state, i);
+                    state = add_code_segment3(&mut self.state_machine, state);
+                    param_names.push(&segment[1..segment.len() - 1]);
+
                 } else if segment.starts_with("{") && segment.ends_with("}") {
                     state = add_space(&mut self.state_machine, state, i);
                     state = add_dynamic_segment(&mut self.state_machine, state);
                     param_names.push(&segment[1..segment.len() - 1]);
+
                 } else if segment.ends_with("...") {
                     state = add_space(&mut self.state_machine, state, i);
                     state = add_remaining_segment(&mut self.state_machine, state);
                     param_names.push(&segment[..segment.len() - 3]);
+
                 } else {
                     state = add_space(&mut self.state_machine, state, i);
                     segment.chars().for_each(|ch| {
@@ -145,7 +159,30 @@ fn add_quoted_dynamic_segment(state_machine: &mut StateMachine, mut state: usize
 }
 
 #[inline]
-fn add_triple_tick_code_segment(state_machine: &mut StateMachine, mut state: usize) -> usize {
+fn add_code_segment1(state_machine: &mut StateMachine, mut state: usize) -> usize {
+    state = state_machine.add(state, CharacterSet::from_char('`'));
+    state = state_machine.add(state, CharacterSet::from_char('`'));
+    state = state_machine.add(state, CharacterSet::from_char('`'));
+    state = state_machine.add(state, CharacterSet::from_char('r'));
+    state = state_machine.add(state, CharacterSet::from_char('u'));
+    state = state_machine.add(state, CharacterSet::from_char('s'));
+    state = state_machine.add(state, CharacterSet::from_char('t'));
+    state = state_machine.add(state, CharacterSet::from_char('\n'));
+    state = state_machine.add(state, CharacterSet::any());
+    state_machine.add_next_state(state, state);
+    state_machine.start_parse(state);
+    state_machine.end_parse(state);
+    state = state_machine.add(state, CharacterSet::from_char('\n'));
+    state = state_machine.add(state, CharacterSet::from_char('`'));
+    state = state_machine.add(state, CharacterSet::from_char('`'));
+    state = state_machine.add(state, CharacterSet::from_char('`'));
+
+    state
+}
+
+
+#[inline]
+fn add_code_segment2(state_machine: &mut StateMachine, mut state: usize) -> usize {
     state = state_machine.add(state, CharacterSet::from_char('`'));
     state = state_machine.add(state, CharacterSet::from_char('`'));
     state = state_machine.add(state, CharacterSet::from_char('`'));
@@ -155,6 +192,18 @@ fn add_triple_tick_code_segment(state_machine: &mut StateMachine, mut state: usi
     state_machine.end_parse(state);
     state = state_machine.add(state, CharacterSet::from_char('`'));
     state = state_machine.add(state, CharacterSet::from_char('`'));
+    state = state_machine.add(state, CharacterSet::from_char('`'));
+
+    state
+}
+
+#[inline]
+fn add_code_segment3(state_machine: &mut StateMachine, mut state: usize) -> usize {
+    state = state_machine.add(state, CharacterSet::from_char('`'));
+    state = state_machine.add(state, CharacterSet::any());
+    state_machine.add_next_state(state, state);
+    state_machine.start_parse(state);
+    state_machine.end_parse(state);
     state = state_machine.add(state, CharacterSet::from_char('`'));
 
     state

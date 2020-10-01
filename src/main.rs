@@ -86,15 +86,18 @@ fn app() -> Result {
 
     let mut cmds = Commands::new();
 
-    cmds.add("?play ```code```", |args: Args| {
-        let input = args.params.get("code").unwrap();
-        let code = if input.starts_with("rust\n") && input.ends_with("\n") {
-            &input[5..input.len()-1]
-        } else {
-            &input
-        };
+    cmds.add("?play ```rust\ncode\n```", |args: Args| {
+        let input = dbg!(args.params.get("code").unwrap());
+        Ok(())
+    });
 
-        dbg!(code);
+    cmds.add("?play ```code```", |args: Args| {
+        let input = dbg!(args.params.get("code").unwrap());
+        Ok(())
+    });
+
+    cmds.add("?play `code`", |args: Args| {
+        let input = dbg!(args.params.get("code").unwrap());
         Ok(())
     });
 
