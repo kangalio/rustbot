@@ -68,11 +68,13 @@ pub fn search(args: Args) -> Result<()> {
 
 fn rustc_crate(crate_name: &str) -> Option<&str> {
     match crate_name {
-        "std" => Some("https://doc.rust_lang.org/stable/std/"),
-        "core" => Some("https://doc.rust_lang.org/stable/core/"),
-        "beta" => Some("https://doc.rust_lang.org/beta/std/"),
-        "nightly" => Some("https://doc.rust_lang.org/nightly/std/"),
-        "rustc" => Some("https://doc.rust_lang.org/nightly/nightly-rustc/"),
+        "std" => Some("https://doc.rust-lang.org/stable/std/"),
+        "core" => Some("https://doc.rust-lang.org/stable/core/"),
+        "alloc" => Some("https://doc.rust-lang.org/stable/alloc/"),
+        "proc_macro" => Some("https://doc.rust-lang.org/stable/proc_macro/"),
+        "beta" => Some("https://doc.rust-lang.org/beta/std/"),
+        "nightly" => Some("https://doc.rust-lang.org/nightly/std/"),
+        "rustc" => Some("https://doc.rust-lang.org/nightly/nightly-rustc/"),
         _ => None,
     }
 }
