@@ -51,13 +51,17 @@ impl Commands {
                     state = add_space(&mut self.state_machine, state, i);
                     state = add_code_segment1(&mut self.state_machine, state);
                     param_names.push(&segment[8..segment.len() - 4]);
-                } else if segment.starts_with("```") && segment.ends_with("```") {
+                } else if segment.starts_with("```\n") && segment.ends_with("\n```") {
                     state = add_space(&mut self.state_machine, state, i);
                     state = add_code_segment2(&mut self.state_machine, state);
+                    param_names.push(&segment[4..segment.len() - 4]);
+                } else if segment.starts_with("```") && segment.ends_with("```") {
+                    state = add_space(&mut self.state_machine, state, i);
+                    state = add_code_segment3(&mut self.state_machine, state);
                     param_names.push(&segment[3..segment.len() - 3]);
                 } else if segment.starts_with("`") && segment.ends_with("`") {
                     state = add_space(&mut self.state_machine, state, i);
-                    state = add_code_segment3(&mut self.state_machine, state);
+                    state = add_code_segment4(&mut self.state_machine, state);
                     param_names.push(&segment[1..segment.len() - 1]);
                 } else if segment.starts_with("{") && segment.ends_with("}") {
                     state = add_space(&mut self.state_machine, state, i);
@@ -179,6 +183,24 @@ fn add_code_segment2(state_machine: &mut StateMachine, mut state: usize) -> usiz
     state = state_machine.add(state, CharacterSet::from_char('`'));
     state = state_machine.add(state, CharacterSet::from_char('`'));
     state = state_machine.add(state, CharacterSet::from_char('`'));
+    state = state_machine.add(state, CharacterSet::from_char('\n'));
+    state = state_machine.add(state, CharacterSet::any());
+    state_machine.add_next_state(state, state);
+    state_machine.start_parse(state);
+    state_machine.end_parse(state);
+    state = state_machine.add(state, CharacterSet::from_char('\n'));
+    state = state_machine.add(state, CharacterSet::from_char('`'));
+    state = state_machine.add(state, CharacterSet::from_char('`'));
+    state = state_machine.add(state, CharacterSet::from_char('`'));
+
+    state
+}
+
+#[inline]
+fn add_code_segment3(state_machine: &mut StateMachine, mut state: usize) -> usize {
+    state = state_machine.add(state, CharacterSet::from_char('`'));
+    state = state_machine.add(state, CharacterSet::from_char('`'));
+    state = state_machine.add(state, CharacterSet::from_char('`'));
     state = state_machine.add(state, CharacterSet::any());
     state_machine.add_next_state(state, state);
     state_machine.start_parse(state);
@@ -191,7 +213,7 @@ fn add_code_segment2(state_machine: &mut StateMachine, mut state: usize) -> usiz
 }
 
 #[inline]
-fn add_code_segment3(state_machine: &mut StateMachine, mut state: usize) -> usize {
+fn add_code_segment4(state_machine: &mut StateMachine, mut state: usize) -> usize {
     state = state_machine.add(state, CharacterSet::from_char('`'));
     state = state_machine.add(state, CharacterSet::any());
     state_machine.add_next_state(state, state);
