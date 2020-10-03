@@ -43,10 +43,10 @@ impl Commands {
             .filter(|segment| segment.len() > 0)
             .enumerate()
             .for_each(|(i, segment)| {
-                if segment.starts_with("```\n") && segment.ends_with("\n```") {
+                if segment.starts_with("```\n") && segment.ends_with("```") {
                     state = add_space(&mut self.state_machine, state, i);
                     state = add_code_segment_multi_line(&mut self.state_machine, state);
-                    param_names.push(&segment[4..segment.len() - 4]);
+                    param_names.push(&segment[4..segment.len() - 3]);
                 } else if segment.starts_with("```") && segment.ends_with("```") {
                     state = add_space(&mut self.state_machine, state, i);
                     state = add_code_segment_single_line_long(&mut self.state_machine, state);
@@ -159,7 +159,7 @@ fn add_code_segment_multi_line(state_machine: &mut StateMachine, mut state: usiz
     state_machine.add_next_state(state, state);
     state_machine.start_parse(state);
     state_machine.end_parse(state);
-    state = state_machine.add(state, CharacterSet::from_char('\n'));
+
     state = state_machine.add(state, CharacterSet::from_char('`'));
     state = state_machine.add(state, CharacterSet::from_char('`'));
     state = state_machine.add(state, CharacterSet::from_char('`'));
