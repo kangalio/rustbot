@@ -107,7 +107,10 @@ impl Commands {
 #[inline]
 fn add_space(state_machine: &mut StateMachine, mut state: usize, i: usize) -> usize {
     if i > 0 {
-        state = state_machine.add(state, CharacterSet::from_char(' '));
+        let mut char_set = CharacterSet::from_char(' ');
+        char_set.insert('\n');
+
+        state = state_machine.add(state, char_set);
         state_machine.add_next_state(state, state);
     }
     state
