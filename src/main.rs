@@ -12,6 +12,7 @@ mod ban;
 mod commands;
 mod crates;
 mod db;
+mod playground;
 mod schema;
 mod state_machine;
 mod tags;
@@ -30,6 +31,7 @@ use std::collections::HashMap;
 struct Config {
     tags: bool,
     crates: bool,
+    eval: bool,
     discord_token: String,
     mod_id: String,
     talk_id: String,
@@ -106,6 +108,16 @@ fn app() -> Result<()> {
         // docs.rs
         cmds.add("?docs query...", crates::doc_search);
         cmds.help("?docs", "Lookup documentation", crates::doc_help);
+    }
+
+    if config.eval {
+        // rust playground
+        cmds.add("?play ```\ncode```", playground::run);
+        cmds.add("?play code...", playground::help);
+
+        cmds.add("?eval `code`", playground::eval);
+        cmds.add("?eval ```\ncode```", playground::eval);
+        cmds.add("?eval code...", playground::eval_help);
     }
 
     // Slow mode.
