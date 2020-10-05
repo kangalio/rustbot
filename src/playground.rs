@@ -31,6 +31,29 @@ impl PlaygroundCode {
             tests: false,
         }
     }
+
+    fn url_from_gist(&self, gist: &str) -> String {
+        let version = match self.channel {
+            Channel::Nightly => "nightly",
+            Channel::Beta => "beta",
+            Channel::Stable => "stable",
+        };
+
+        let edition = match self.edition {
+            Edition::E2015 => "2015",
+            Edition::E2018 => "2018",
+        };
+
+        let mode = match self.mode {
+            Mode::Debug => "debug",
+            Mode::Release => "release",
+        };
+
+        format!(
+            "https://play.rust-lang.org/?version={}&mode={}&edition={}&gist={}",
+            version, mode, edition, gist
+        )
+    }
 }
 
 #[derive(Debug, Serialize)]
@@ -92,28 +115,30 @@ fn run_code(args: &Args, code: &str) -> Result<String> {
     Ok(if result.len() > 1994 {
         format!(
             "Output too large. Playground link: {}",
-            get_playground_link(args, code)?
+            get_playground_link(args, code, &request)?
         )
     } else {
         format!("```{}```", result)
     })
 }
 
-fn get_playground_link(args: &Args, code: &str) -> Result<String> {
+fn get_playground_link(args: &Args, code: &str, request: &PlaygroundCode) -> Result<String> {
     let mut payload = HashMap::new();
     payload.insert("code", code);
 
     let resp = args
         .http
-        .get("https://play.rust-lang.org/meta/gist/")
+        .post("https://play.rust-lang.org/meta/gist/")
         .header(header::REFERER, "https://discord.gg/rust-lang")
         .json(&payload)
         .send()?;
 
-    let resp = resp.text()?;
-    debug!("{:?}", resp);
+    let resp: HashMap<String, String> = resp.json()?;
+    debug!("gist response: {:?}", resp);
 
-    Ok(resp)
+    resp.get("id")
+        .map(|id| request.url_from_gist(id))
+        .ok_or("no gist found".into())
 }
 
 pub fn run(args: Args) -> Result<()> {
