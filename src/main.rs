@@ -115,8 +115,8 @@ fn app() -> Result<()> {
         cmds.add("?play ```\ncode```", playground::run);
         cmds.add("?play code...", playground::help);
 
-        cmds.add("?eval `code`", playground::eval);
         cmds.add("?eval ```\ncode```", playground::eval);
+        cmds.add("?eval `code`", playground::eval);
         cmds.add("?eval code...", playground::eval_help);
     }
 
