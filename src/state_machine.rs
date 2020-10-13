@@ -4,7 +4,7 @@ use std::{collections::HashMap, u64};
 /// # CharacterSet
 ///
 /// Stores the characters for a character set
-#[derive(Eq, PartialEq, Clone)]
+#[derive(Eq, PartialEq, Clone, Debug)]
 pub(crate) struct CharacterSet {
     low_mask: u64,
     high_mask: u64,
@@ -91,7 +91,6 @@ pub(crate) struct State {
     next_states: Vec<usize>,
     is_final_state: bool,
     handler: Option<CmdPtr>,
-    param_names: Option<Vec<&'static str>>,
 }
 
 impl PartialEq for State {
@@ -108,17 +107,17 @@ impl State {
             next_states: Vec::new(),
             is_final_state: false,
             handler: None,
-            param_names: None,
         }
     }
 }
 
 /// # Traversal
-#[derive(Clone)]
+#[derive(Debug, Clone)]
 pub(crate) struct Traversal {
     current_state: usize,
-    positions: Vec<(usize, usize)>,
+    positions: Vec<(usize, usize, Option<&'static str>)>,
     segment_start: Option<usize>,
+    segment_name: Option<&'static str>,
 }
 
 impl Traversal {
@@ -128,37 +127,48 @@ impl Traversal {
             current_state: 0,
             positions: Vec::new(),
             segment_start: None,
+            segment_name: None,
         }
     }
 
     /// Mark the position in the input where a dynamic segment begins.  
-    pub(crate) fn set_segment_start(&mut self, pos: usize) {
+    pub(crate) fn set_segment_start(&mut self, pos: usize, name: &'static str) {
         self.segment_start = Some(pos);
+        self.segment_name = Some(name);
     }
 
     /// Mark the position in the input where a dynamic segment ends.   
     pub(crate) fn set_segment_end(&mut self, pos: usize) {
-        self.positions.push((self.segment_start.unwrap(), pos));
+        self.positions
+            .push((self.segment_start.unwrap(), pos, self.segment_name.take()));
         self.segment_start = None;
     }
 
-    /// Returns a vector of the dynamic segments parsed from the input.  
-    pub(crate) fn extract<'a>(&self, input: &'a str) -> Vec<&'a str> {
+    /// Returns a `HashMap` containing the dynamic segments parsed from the input.  
+    pub(crate) fn extract<'a>(&self, input: &'a str) -> HashMap<&'static str, &'a str> {
         self.positions
             .iter()
-            .map(|&(start, end)| &input[start..end])
-            .collect()
+            .fold(HashMap::new(), |mut hash_map, (start, end, name)| {
+                hash_map.insert(name.unwrap(), &input[*start..*end]);
+                hash_map
+            })
     }
 }
 
 pub(crate) struct Match<'m> {
     pub handler: &'m CmdPtr,
-    pub params: HashMap<&'m str, &'m str>,
+    pub params: HashMap<&'static str, &'m str>,
 }
+
+#[derive(Default)]
+struct StartParse {
+    should_start: bool,
+    name: Option<&'static str>,
+} 
 
 pub(crate) struct StateMachine {
     states: Vec<State>,
-    start_parse: Vec<bool>,
+    start_parse: Vec<StartParse>,
     end_parse: Vec<bool>,
 }
 
@@ -166,7 +176,7 @@ impl StateMachine {
     pub(crate) fn new() -> Self {
         Self {
             states: vec![State::new(0, CharacterSet::new())],
-            start_parse: vec![false],
+            start_parse: vec![StartParse::default()],
             end_parse: vec![false],
         }
     }
@@ -199,7 +209,7 @@ impl StateMachine {
         let state = State::new(index, expected);
 
         self.states.push(state);
-        self.start_parse.push(false);
+        self.start_parse.push(StartParse::default());
         self.end_parse.push(false);
         index
     }
@@ -215,16 +225,12 @@ impl StateMachine {
         state.handler = Some(handler);
     }
 
-    /// Set the expected parameter keys for the params map.  
-    pub(crate) fn set_param_names(&mut self, index: usize, names: Vec<&'static str>) {
-        let state = &mut self.states[index];
-        state.param_names = Some(names);
-    }
-
     /// Mark that the index in the state machine is a state to start parsing a dynamic
     /// segment.  
-    pub(crate) fn start_parse(&mut self, index: usize) {
-        self.start_parse[index] = true;
+    pub(crate) fn start_parse(&mut self, index: usize, name: &'static str) {
+        let parse = &mut self.start_parse[index];
+        parse.should_start = true;
+        parse.name = Some(name);
     }
 
     /// Mark that the index in the state machine is a state to stop parsing a dynamic
@@ -262,21 +268,11 @@ impl StateMachine {
         } else {
             let traversal = &traversals[0];
             let state = &self.states[traversal.current_state];
-            let mut params = HashMap::new();
-
-            if let Some(ref param_names) = state.param_names {
-                param_names
-                    .iter()
-                    .zip(traversal.extract(input))
-                    .for_each(|(key, value)| {
-                        params.insert(*key, value);
-                    });
-            }
 
             Some({
                 Match {
                     handler: state.handler.as_ref().unwrap(),
-                    params,
+                    params: traversal.extract(input),
                 }
             })
         }
@@ -328,12 +324,14 @@ impl StateMachine {
         next_state: usize,
         pos: usize,
     ) {
-        if traversal.segment_start.is_none() && self.start_parse[next_state] {
-            traversal.set_segment_start(pos);
+        let start_parse = &self.start_parse[next_state];
+
+        if traversal.segment_start.is_none() && start_parse.should_start {
+            traversal.set_segment_start(pos, start_parse.name.unwrap());
         }
         if traversal.segment_start.is_some()
             && self.end_parse[current_state]
-            && current_state < next_state
+            && current_state != next_state
         {
             traversal.set_segment_end(pos);
         }
