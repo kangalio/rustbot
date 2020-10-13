@@ -69,11 +69,12 @@ impl Commands {
                         state = add_code_segment_multi_line(name, &mut self.state_machine, state);
                     } else if segment.starts_with("```") && segment.ends_with("```") {
                         let name = &segment[3..segment.len() - 3];
-                        state = add_code_segment_single_line_long(name, &mut self.state_machine, state);
+                        state =
+                            add_code_segment_single_line(name, &mut self.state_machine, state, 3);
                     } else if segment.starts_with("`") && segment.ends_with("`") {
                         let name = &segment[1..segment.len() - 1];
                         state =
-                            add_code_segment_single_line_short(name, &mut self.state_machine, state);
+                            add_code_segment_single_line(name, &mut self.state_machine, state, 1);
                     } else if segment.starts_with("{") && segment.ends_with("}") {
                         let name = &segment[1..segment.len() - 1];
                         state = add_dynamic_segment(name, &mut self.state_machine, state);
@@ -218,36 +219,22 @@ fn add_code_segment_multi_line(
     state
 }
 
-fn add_code_segment_single_line_long(
+fn add_code_segment_single_line(
     name: &'static str,
     state_machine: &mut StateMachine,
     mut state: usize,
+    n_backticks: usize,
 ) -> usize {
-    state = state_machine.add(state, CharacterSet::from_char('`'));
-    state = state_machine.add(state, CharacterSet::from_char('`'));
-    state = state_machine.add(state, CharacterSet::from_char('`'));
+    (0..n_backticks).for_each(|_| {
+        state = state_machine.add(state, CharacterSet::from_char('`'));
+    });
     state = state_machine.add(state, CharacterSet::any());
     state_machine.add_next_state(state, state);
     state_machine.start_parse(state, name);
     state_machine.end_parse(state);
-    state = state_machine.add(state, CharacterSet::from_char('`'));
-    state = state_machine.add(state, CharacterSet::from_char('`'));
-    state = state_machine.add(state, CharacterSet::from_char('`'));
-
-    state
-}
-
-fn add_code_segment_single_line_short(
-    name: &'static str,
-    state_machine: &mut StateMachine,
-    mut state: usize,
-) -> usize {
-    state = state_machine.add(state, CharacterSet::from_char('`'));
-    state = state_machine.add(state, CharacterSet::any());
-    state_machine.add_next_state(state, state);
-    state_machine.start_parse(state, name);
-    state_machine.end_parse(state);
-    state = state_machine.add(state, CharacterSet::from_char('`'));
+    (0..n_backticks).for_each(|_| {
+        state = state_machine.add(state, CharacterSet::from_char('`'));
+    });
 
     state
 }
