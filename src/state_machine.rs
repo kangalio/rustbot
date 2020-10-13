@@ -160,15 +160,9 @@ pub(crate) struct Match<'m> {
     pub params: HashMap<&'static str, &'m str>,
 }
 
-#[derive(Default)]
-struct StartParse {
-    should_start: bool,
-    name: Option<&'static str>,
-} 
-
 pub(crate) struct StateMachine {
     states: Vec<State>,
-    start_parse: Vec<StartParse>,
+    start_parse: Vec<Option<&'static str>>,
     end_parse: Vec<bool>,
 }
 
@@ -176,7 +170,7 @@ impl StateMachine {
     pub(crate) fn new() -> Self {
         Self {
             states: vec![State::new(0, CharacterSet::new())],
-            start_parse: vec![StartParse::default()],
+            start_parse: vec![None],
             end_parse: vec![false],
         }
     }
@@ -209,7 +203,7 @@ impl StateMachine {
         let state = State::new(index, expected);
 
         self.states.push(state);
-        self.start_parse.push(StartParse::default());
+        self.start_parse.push(None);
         self.end_parse.push(false);
         index
     }
@@ -228,9 +222,7 @@ impl StateMachine {
     /// Mark that the index in the state machine is a state to start parsing a dynamic
     /// segment.  
     pub(crate) fn start_parse(&mut self, index: usize, name: &'static str) {
-        let parse = &mut self.start_parse[index];
-        parse.should_start = true;
-        parse.name = Some(name);
+        self.start_parse[index] = Some(name);
     }
 
     /// Mark that the index in the state machine is a state to stop parsing a dynamic
@@ -326,8 +318,8 @@ impl StateMachine {
     ) {
         let start_parse = &self.start_parse[next_state];
 
-        if traversal.segment_start.is_none() && start_parse.should_start {
-            traversal.set_segment_start(pos, start_parse.name.unwrap());
+        if traversal.segment_start.is_none() && start_parse.is_some() {
+            traversal.set_segment_start(pos, start_parse.unwrap());
         }
         if traversal.segment_start.is_some()
             && self.end_parse[current_state]
