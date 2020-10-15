@@ -112,12 +112,29 @@ fn app() -> Result<()> {
 
     if config.eval {
         // rust playground
-        cmds.add("?play ```\ncode```", playground::run);
-        cmds.add("?play code...", playground::help);
+        cmds.add(
+            "?play mode={} edition={} channel={} ```\ncode```",
+            playground::run,
+        );
+        cmds.add("?play code...", playground::err);
+        cmds.help(
+            "?play",
+            "Compile and run rust code in a playground",
+            |args| playground::help(args, "play"),
+        );
 
-        cmds.add("?eval ```\ncode```", playground::eval);
-        cmds.add("?eval `code`", playground::eval);
-        cmds.add("?eval code...", playground::eval_help);
+        cmds.add(
+            "?eval mode={} edition={} channel={} ```\ncode```",
+            playground::eval,
+        );
+        cmds.add(
+            "?eval mode={} edition={} channel={} `code`",
+            playground::eval,
+        );
+        cmds.add("?eval code...", playground::eval_err);
+        cmds.help("?eval", "Evaluate a single rust expression", |args| {
+            playground::help(args, "eval")
+        });
     }
 
     // Slow mode.
