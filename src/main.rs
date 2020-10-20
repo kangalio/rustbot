@@ -143,11 +143,7 @@ fn main_menu(commands: &HashMap<&str, &str>) -> String {
     menu = commands
         .iter()
         .fold(menu, |mut menu, (base_cmd, description)| {
-            menu += &format!(
-                "\t{cmd:<8}{desc}\n",
-                cmd = base_cmd,
-                desc = description
-            );
+            menu += &format!("\t{cmd:<8}{desc}\n", cmd = base_cmd, desc = description);
             menu
         });
 
