@@ -172,11 +172,9 @@ fn add_help_menu(
     cmd: &'static str,
     mut state: usize,
 ) -> usize {
-    state = state_machine.add(state, CharacterSet::from_char('?'));
-    state = state_machine.add(state, CharacterSet::from_char('h'));
-    state = state_machine.add(state, CharacterSet::from_char('e'));
-    state = state_machine.add(state, CharacterSet::from_char('l'));
-    state = state_machine.add(state, CharacterSet::from_char('p'));
+    "?help".chars().for_each(|ch| {
+        state = state_machine.add(state, CharacterSet::from_char(ch));
+    });
     state = add_space(&mut state_machine, state, 1);
     cmd.chars().for_each(|ch| {
         state = state_machine.add(state, CharacterSet::from_char(ch));
