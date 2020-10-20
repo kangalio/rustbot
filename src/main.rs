@@ -24,6 +24,7 @@ use diesel::prelude::*;
 use envy;
 use serde::Deserialize;
 use serenity::{model::prelude::*, prelude::*};
+use std::collections::HashMap;
 
 pub(crate) type Result = crate::commands::Result<()>;
 
@@ -90,19 +91,19 @@ fn app() -> Result {
         // Tags
         cmds.add("?tags delete {key}", tags::delete);
         cmds.add("?tags create {key} value...", tags::post);
-        cmds.add("?tags help", tags::help);
+        cmds.add("?tags {key}", tags::get);
         cmds.add("?tags", tags::get_all);
-        cmds.add("?tag {key}", tags::get);
+        cmds.help("?tags", "A key value store", tags::help);
     }
 
     if config.crates {
         // crates.io
-        cmds.add("?crate help", crates::help);
         cmds.add("?crate query...", crates::search);
+        cmds.help("?crate", "Lookup crates on crates.io", crates::help);
 
         // docs.rs
-        cmds.add("?docs help", crates::doc_help);
         cmds.add("?docs query...", crates::doc_search);
+        cmds.help("?docs", "Lookup documentation", crates::doc_help);
     }
 
     // Slow mode.
@@ -113,14 +114,13 @@ fn app() -> Result {
     cmds.add("?kick {user}", api::kick);
 
     // Ban
-    cmds.add("?ban help", ban::help);
     cmds.add("?ban {user} {hours} reason...", ban::temp_ban);
+    cmds.help("?ban", "Temporarily ban a user from the guild", ban::help);
 
     // Post the welcome message to the welcome channel.
     cmds.add("?CoC {channel}", welcome::post_message);
 
-    let menu = cmds.menu().unwrap();
-
+    let menu = main_menu(cmds.menu());
     cmds.add("?help", move |args: Args| {
         api::send_reply(&args, &format!("```{}```", &menu))?;
         Ok(())
@@ -135,6 +135,25 @@ fn app() -> Result {
     client.start()?;
 
     Ok(())
+}
+
+fn main_menu(commands: &HashMap<&str, &str>) -> String {
+    let mut menu = format!("Commands:\n");
+
+    menu = commands
+        .iter()
+        .fold(menu, |mut menu, (base_cmd, description)| {
+            menu += &format!(
+                "\t{cmd:<8}{desc}\n",
+                cmd = base_cmd,
+                desc = description
+            );
+            menu
+        });
+
+    menu += &format!("\t{help:<8}This menu\n", help = "?help");
+    menu += "\nType ?help command for more info on a command.";
+    menu
 }
 
 fn main() {

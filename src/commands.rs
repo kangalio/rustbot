@@ -17,7 +17,7 @@ pub struct Args<'m> {
 pub(crate) struct Commands {
     state_machine: StateMachine,
     client: HttpClient,
-    menu: Option<String>,
+    menu: HashMap<&'static str, &'static str>,
 }
 
 impl Commands {
@@ -25,7 +25,7 @@ impl Commands {
         Self {
             state_machine: StateMachine::new(),
             client: HttpClient::new(),
-            menu: Some(String::new()),
+            menu: HashMap::new(),
         }
     }
 
@@ -100,16 +100,27 @@ impl Commands {
             self.state_machine.set_final_state(state);
             self.state_machine.set_handler(state, handler.clone());
         }
-
-        self.menu.as_mut().map(|menu| {
-            *menu += command;
-            *menu += "\n"
-        });
     }
 
-    pub(crate) fn menu(&mut self) -> Option<String> {
-        self.menu.as_mut().map(|menu| *menu += "?help\n");
-        self.menu.take()
+    pub(crate) fn help(
+        &mut self,
+        cmd: &'static str,
+        desc: &'static str,
+        handler: impl Fn(Args) -> Result<()> + Send + Sync + 'static,
+    ) {
+        let base_cmd = &cmd[1..];
+        info!("Adding command ?help {}", &base_cmd);
+        let mut state = 0;
+
+        self.menu.insert(cmd, desc);
+        state = add_help_menu(&mut self.state_machine, base_cmd, state);
+
+        self.state_machine.set_final_state(state);
+        self.state_machine.set_handler(state, Arc::new(handler));
+    }
+
+    pub(crate) fn menu(&mut self) -> &HashMap<&'static str, &'static str> {
+        &self.menu
     }
 
     pub(crate) fn execute<'m>(&'m self, cx: Context, msg: Message) {
@@ -153,6 +164,24 @@ fn add_space(state_machine: &mut StateMachine, mut state: usize, i: usize) -> us
         state = state_machine.add(state, char_set);
         state_machine.add_next_state(state, state);
     }
+    state
+}
+
+fn add_help_menu(
+    mut state_machine: &mut StateMachine,
+    cmd: &'static str,
+    mut state: usize,
+) -> usize {
+    state = state_machine.add(state, CharacterSet::from_char('?'));
+    state = state_machine.add(state, CharacterSet::from_char('h'));
+    state = state_machine.add(state, CharacterSet::from_char('e'));
+    state = state_machine.add(state, CharacterSet::from_char('l'));
+    state = state_machine.add(state, CharacterSet::from_char('p'));
+    state = add_space(&mut state_machine, state, 1);
+    cmd.chars().for_each(|ch| {
+        state = state_machine.add(state, CharacterSet::from_char(ch));
+    });
+
     state
 }
 
