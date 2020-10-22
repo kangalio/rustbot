@@ -132,3 +132,24 @@ pub(crate) fn assign_talk_role(cx: &Context, ev: &ReactionAddEvent) -> Result {
     }
     Ok(())
 }
+
+pub(crate) fn help(args: Args) -> Result {
+    let help_string = format!(
+        "
+Post the welcome message to `channel`
+```
+{command}
+```
+**Example:**
+```
+?CoC #welcome
+
+```
+will post the welcome message to the `channel` specified.  
+",
+        command = "?CoC {channel}"
+    );
+
+    api::send_reply(&args, &help_string)?;
+    Ok(())
+}

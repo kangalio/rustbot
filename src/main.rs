@@ -91,7 +91,7 @@ fn app() -> Result {
         // Tags
         cmds.add("?tags delete {key}", tags::delete);
         cmds.add("?tags create {key} value...", tags::post);
-        cmds.add("?tags {key}", tags::get);
+        cmds.add("?tag {key}", tags::get);
         cmds.add("?tags", tags::get_all);
         cmds.help("?tags", "A key value store", tags::help);
     }
@@ -109,9 +109,15 @@ fn app() -> Result {
     // Slow mode.
     // 0 seconds disables slowmode
     cmds.add("?slowmode {channel} {seconds}", api::slow_mode);
+    cmds.help(
+        "?slowmode",
+        "Set slowmode on a channel",
+        api::slow_mode_help,
+    );
 
     // Kick
     cmds.add("?kick {user}", api::kick);
+    cmds.help("?kick", "Kick a user from the guild", api::kick_help);
 
     // Ban
     cmds.add("?ban {user} {hours} reason...", ban::temp_ban);
@@ -119,6 +125,11 @@ fn app() -> Result {
 
     // Post the welcome message to the welcome channel.
     cmds.add("?CoC {channel}", welcome::post_message);
+    cmds.help(
+        "?CoC",
+        "Post the code of conduct message to a channel",
+        welcome::help,
+    );
 
     let menu = main_menu(cmds.menu());
     cmds.add("?help", move |args: Args| {
@@ -143,11 +154,11 @@ fn main_menu(commands: &HashMap<&str, &str>) -> String {
     menu = commands
         .iter()
         .fold(menu, |mut menu, (base_cmd, description)| {
-            menu += &format!("\t{cmd:<8}{desc}\n", cmd = base_cmd, desc = description);
+            menu += &format!("\t{cmd:<12}{desc}\n", cmd = base_cmd, desc = description);
             menu
         });
 
-    menu += &format!("\t{help:<8}This menu\n", help = "?help");
+    menu += &format!("\t{help:<12}This menu\n", help = "?help");
     menu += "\nType ?help command for more info on a command.";
     menu
 }

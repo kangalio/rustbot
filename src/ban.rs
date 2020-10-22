@@ -130,7 +130,7 @@ Ban a user for a temporary amount of time
 ```
 {command}
 ```
-Example:
+**Example:**
 ```
 ?ban @someuser {hours} {reason}
 ```

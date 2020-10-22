@@ -75,6 +75,31 @@ pub(crate) fn slow_mode(args: Args) -> Result<()> {
     Ok(())
 }
 
+pub(crate) fn slow_mode_help(args: Args) -> Result<()> {
+    let help_string = format!(
+        "
+Set slowmode on a channel
+```
+{command}
+```
+**Example:**
+```
+?slowmode #bot-usage 10
+```
+will set slowmode on the `#bot-usage` channel with a delay of 10 seconds.  
+
+**Disable slowmode:**
+```
+?slowmode #bot-usage 0
+```
+will disable slowmode on the `#bot-usage` channel.  
+    ",
+        command = "?slowmode {channel} {seconds}",
+    );
+    send_reply(&args, &help_string)?;
+    Ok(())
+}
+
 /// Kick a user from the guild.  
 ///
 /// Requires the kick members permission
@@ -93,5 +118,25 @@ pub(crate) fn kick(args: Args) -> Result<()> {
             guild.read().kick(&args.cx, UserId::from(user_id))?
         }
     }
+    Ok(())
+}
+
+pub(crate) fn kick_help(args: Args) -> Result<()> {
+    let help_string = format!(
+        "
+Kick a user from the guild
+```
+{command}
+```
+**Example:**
+```
+?kick @someuser
+```
+will kick a user from the guild.
+",
+        command = "?kick {user}"
+    );
+
+    send_reply(&args, &help_string)?;
     Ok(())
 }
