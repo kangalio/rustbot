@@ -26,7 +26,6 @@ use serde::Deserialize;
 use serenity::{model::prelude::*, prelude::*};
 use std::collections::HashMap;
 
-
 #[derive(Deserialize)]
 struct Config {
     tags: bool,
