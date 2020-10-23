@@ -5,7 +5,22 @@ use std::{collections::HashMap, sync::Arc};
 
 const PREFIX: &'static str = "?";
 pub(crate) type Result<T> = std::result::Result<T, Box<dyn std::error::Error>>;
-pub(crate) type CmdPtr = Arc<dyn for<'m> Fn(Args<'m>) -> Result<()> + Send + Sync>;
+pub(crate) type GuardFn = fn(&Args) -> Result<bool>;
+
+struct Command {
+    guard: GuardFn,
+    ptr: Box<dyn for<'m> Fn(Args<'m>) -> Result<()> + Send + Sync>,
+}
+
+impl Command {
+    fn authorize(&self, args: &Args) -> Result<bool> {
+        (self.guard)(&args)
+    }
+
+    fn call(&self, args: Args) -> Result<()> {
+        (self.ptr)(args)
+    }
+}
 
 pub struct Args<'m> {
     pub http: &'m HttpClient,
@@ -15,9 +30,9 @@ pub struct Args<'m> {
 }
 
 pub(crate) struct Commands {
-    state_machine: StateMachine,
+    state_machine: StateMachine<Arc<Command>>,
     client: HttpClient,
-    menu: HashMap<&'static str, &'static str>,
+    menu: Option<HashMap<&'static str, (&'static str, GuardFn)>>,
 }
 
 impl Commands {
@@ -25,7 +40,7 @@ impl Commands {
         Self {
             state_machine: StateMachine::new(),
             client: HttpClient::new(),
-            menu: HashMap::new(),
+            menu: Some(HashMap::new()),
         }
     }
 
@@ -33,6 +48,15 @@ impl Commands {
         &mut self,
         command: &'static str,
         handler: impl Fn(Args) -> Result<()> + Send + Sync + 'static,
+    ) {
+        self.add_protected(command, handler, |_| Ok(true));
+    }
+
+    pub(crate) fn add_protected(
+        &mut self,
+        command: &'static str,
+        handler: impl Fn(Args) -> Result<()> + Send + Sync + 'static,
+        guard: GuardFn,
     ) {
         info!("Adding command {}", &command);
         let mut state = 0;
@@ -89,7 +113,10 @@ impl Commands {
                 }
             });
 
-        let handler = Arc::new(handler);
+        let handler = Arc::new(Command {
+            guard,
+            ptr: Box::new(handler),
+        });
 
         if opt_lambda_state.is_some() {
             opt_final_states.iter().for_each(|state| {
@@ -108,34 +135,60 @@ impl Commands {
         desc: &'static str,
         handler: impl Fn(Args) -> Result<()> + Send + Sync + 'static,
     ) {
-        let base_cmd = &cmd[1..];
-        info!("Adding command ?help {}", &base_cmd);
-        let mut state = 0;
-
-        self.menu.insert(cmd, desc);
-        state = add_help_menu(&mut self.state_machine, base_cmd, state);
-
-        self.state_machine.set_final_state(state);
-        self.state_machine.set_handler(state, Arc::new(handler));
+        self.help_protected(cmd, desc, handler, |_| Ok(true));
     }
 
-    pub(crate) fn menu(&mut self) -> &HashMap<&'static str, &'static str> {
-        &self.menu
+    pub(crate) fn help_protected(
+        &mut self,
+        cmd: &'static str,
+        desc: &'static str,
+        handler: impl Fn(Args) -> Result<()> + Send + Sync + 'static,
+        guard: GuardFn,
+    ) {
+        info!("Adding command ?help {}", &base_cmd);
+        let base_cmd = &cmd[1..];
+        let mut state = 0;
+
+        self.menu.as_mut().map(|menu| {
+            menu.insert(cmd, (desc, guard));
+            menu
+        });
+
+        state = add_help_menu(&mut self.state_machine, base_cmd, state);
+        self.state_machine.set_final_state(state);
+        self.state_machine.set_handler(
+            state,
+            Arc::new(Command {
+                guard,
+                ptr: Box::new(handler),
+            }),
+        );
+    }
+
+    pub(crate) fn menu(&mut self) -> Option<HashMap<&'static str, (&'static str, GuardFn)>> {
+        self.menu.take()
     }
 
     pub(crate) fn execute<'m>(&'m self, cx: Context, msg: Message) {
         let message = &msg.content;
         if !msg.is_own(&cx) && message.starts_with(PREFIX) {
             self.state_machine.process(message).map(|matched| {
-                info!("Executing command {}", message);
                 let args = Args {
                     http: &self.client,
                     cx: &cx,
                     msg: &msg,
                     params: matched.params,
                 };
-                if let Err(e) = (matched.handler)(args) {
-                    println!("{}", e);
+                info!("Checking permissions");
+                match matched.handler.authorize(&args) {
+                    Ok(true) => {
+                        info!("Executing command {}", message);
+                        if let Err(e) = matched.handler.call(args) {
+                            println!("{}", e);
+                        }
+                    }
+                    Ok(false) => {}
+                    Err(e) => error!("{}", e),
                 }
             });
         }
@@ -156,7 +209,7 @@ fn key_value_pair(s: &'static str) -> Option<&'static str> {
         .flatten()
 }
 
-fn add_space(state_machine: &mut StateMachine, mut state: usize, i: usize) -> usize {
+fn add_space<T>(state_machine: &mut StateMachine<T>, mut state: usize, i: usize) -> usize {
     if i > 0 {
         let mut char_set = CharacterSet::from_char(' ');
         char_set.insert('\n');
@@ -167,8 +220,8 @@ fn add_space(state_machine: &mut StateMachine, mut state: usize, i: usize) -> us
     state
 }
 
-fn add_help_menu(
-    mut state_machine: &mut StateMachine,
+fn add_help_menu<T>(
+    mut state_machine: &mut StateMachine<T>,
     cmd: &'static str,
     mut state: usize,
 ) -> usize {
@@ -183,8 +236,8 @@ fn add_help_menu(
     state
 }
 
-fn add_dynamic_segment(
-    state_machine: &mut StateMachine,
+fn add_dynamic_segment<T>(
+    state_machine: &mut StateMachine<T>,
     name: &'static str,
     mut state: usize,
 ) -> usize {
@@ -198,8 +251,8 @@ fn add_dynamic_segment(
     state
 }
 
-fn add_remaining_segment(
-    state_machine: &mut StateMachine,
+fn add_remaining_segment<T>(
+    state_machine: &mut StateMachine<T>,
     name: &'static str,
     mut state: usize,
 ) -> usize {
@@ -212,8 +265,8 @@ fn add_remaining_segment(
     state
 }
 
-fn add_code_segment_multi_line(
-    state_machine: &mut StateMachine,
+fn add_code_segment_multi_line<T>(
+    state_machine: &mut StateMachine<T>,
     name: &'static str,
     mut state: usize,
 ) -> usize {
@@ -246,8 +299,8 @@ fn add_code_segment_multi_line(
     state
 }
 
-fn add_code_segment_single_line(
-    state_machine: &mut StateMachine,
+fn add_code_segment_single_line<T>(
+    state_machine: &mut StateMachine<T>,
     name: &'static str,
     mut state: usize,
     n_backticks: usize,
@@ -266,7 +319,11 @@ fn add_code_segment_single_line(
     state
 }
 
-fn add_key_value(state_machine: &mut StateMachine, name: &'static str, mut state: usize) -> usize {
+fn add_key_value<T>(
+    state_machine: &mut StateMachine<T>,
+    name: &'static str,
+    mut state: usize,
+) -> usize {
     name.chars().for_each(|c| {
         state = state_machine.add(state, CharacterSet::from_char(c));
     });

@@ -19,14 +19,13 @@ mod text;
 mod welcome;
 
 use crate::db::DB;
-use commands::{Args, Commands};
+use commands::{Args, Commands, GuardFn, Result};
 use diesel::prelude::*;
 use envy;
 use serde::Deserialize;
 use serenity::{model::prelude::*, prelude::*};
 use std::collections::HashMap;
 
-pub(crate) type Result = crate::commands::Result<()>;
 
 #[derive(Deserialize)]
 struct Config {
@@ -38,13 +37,13 @@ struct Config {
     wg_and_teams_id: Option<String>,
 }
 
-fn init_data(config: &Config) -> Result {
+fn init_data(config: &Config) -> Result<()> {
     use crate::schema::roles;
     info!("Loading data into database");
 
     let conn = DB.get()?;
 
-    let upsert_role = |name: &str, role_id: &str| -> Result {
+    let upsert_role = |name: &str, role_id: &str| -> Result<()> {
         diesel::insert_into(roles::table)
             .values((roles::role.eq(role_id), roles::name.eq(name)))
             .on_conflict(roles::name)
@@ -76,7 +75,7 @@ fn init_data(config: &Config) -> Result {
     Ok(())
 }
 
-fn app() -> Result {
+fn app() -> Result<()> {
     let config = envy::from_env::<Config>()?;
 
     info!("starting...");
@@ -89,8 +88,12 @@ fn app() -> Result {
 
     if config.tags {
         // Tags
-        cmds.add("?tags delete {key}", tags::delete);
-        cmds.add("?tags create {key} value...", tags::post);
+        cmds.add_protected("?tags delete {key}", tags::delete, api::is_wg_and_teams);
+        cmds.add_protected(
+            "?tags create {key} value...",
+            tags::post,
+            api::is_wg_and_teams,
+        );
         cmds.add("?tag {key}", tags::get);
         cmds.add("?tags", tags::get_all);
         cmds.help("?tags", "A key value store", tags::help);
@@ -108,32 +111,45 @@ fn app() -> Result {
 
     // Slow mode.
     // 0 seconds disables slowmode
-    cmds.add("?slowmode {channel} {seconds}", api::slow_mode);
-    cmds.help(
+    cmds.add_protected("?slowmode {channel} {seconds}", api::slow_mode, api::is_mod);
+    cmds.help_protected(
         "?slowmode",
         "Set slowmode on a channel",
         api::slow_mode_help,
+        api::is_mod,
     );
 
     // Kick
-    cmds.add("?kick {user}", api::kick);
-    cmds.help("?kick", "Kick a user from the guild", api::kick_help);
+    cmds.add_protected("?kick {user}", api::kick, api::is_mod);
+    cmds.help_protected(
+        "?kick",
+        "Kick a user from the guild",
+        api::kick_help,
+        api::is_mod,
+    );
 
     // Ban
-    cmds.add("?ban {user} {hours} reason...", ban::temp_ban);
-    cmds.help("?ban", "Temporarily ban a user from the guild", ban::help);
+    cmds.add_protected("?ban {user} {hours} reason...", ban::temp_ban, api::is_mod);
+    cmds.help_protected(
+        "?ban",
+        "Temporarily ban a user from the guild",
+        ban::help,
+        api::is_mod,
+    );
 
     // Post the welcome message to the welcome channel.
-    cmds.add("?CoC {channel}", welcome::post_message);
-    cmds.help(
+    cmds.add_protected("?CoC {channel}", welcome::post_message, api::is_mod);
+    cmds.help_protected(
         "?CoC",
         "Post the code of conduct message to a channel",
         welcome::help,
+        api::is_mod,
     );
 
-    let menu = main_menu(cmds.menu());
+    let menu = cmds.menu();
     cmds.add("?help", move |args: Args| {
-        api::send_reply(&args, &format!("```{}```", &menu))?;
+        let output = main_menu(&args, menu.as_ref().unwrap())?;
+        api::send_reply(&args, &format!("```{}```", &output))?;
         Ok(())
     });
 
@@ -148,19 +164,21 @@ fn app() -> Result {
     Ok(())
 }
 
-fn main_menu(commands: &HashMap<&str, &str>) -> String {
+fn main_menu(args: &Args, commands: &HashMap<&str, (&str, GuardFn)>) -> Result<String> {
     let mut menu = format!("Commands:\n");
 
     menu = commands
         .iter()
-        .fold(menu, |mut menu, (base_cmd, description)| {
-            menu += &format!("\t{cmd:<12}{desc}\n", cmd = base_cmd, desc = description);
+        .fold(menu, |mut menu, (base_cmd, (description, guard))| {
+            if let Ok(true) = (guard)(&args) {
+                menu += &format!("\t{cmd:<12}{desc}\n", cmd = base_cmd, desc = description);
+            }
             menu
         });
 
     menu += &format!("\t{help:<12}This menu\n", help = "?help");
     menu += "\nType ?help command for more info on a command.";
-    menu
+    Ok(menu)
 }
 
 fn main() {
