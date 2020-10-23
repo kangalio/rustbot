@@ -147,7 +147,7 @@ fn app() -> Result<()> {
 
     let menu = cmds.menu();
     cmds.add("?help", move |args: Args| {
-        let output = main_menu(&args, menu.as_ref().unwrap())?;
+        let output = main_menu(&args, menu.as_ref().unwrap());
         api::send_reply(&args, &format!("```{}```", &output))?;
         Ok(())
     });
@@ -163,7 +163,7 @@ fn app() -> Result<()> {
     Ok(())
 }
 
-fn main_menu(args: &Args, commands: &HashMap<&str, (&str, GuardFn)>) -> Result<String> {
+fn main_menu(args: &Args, commands: &HashMap<&str, (&str, GuardFn)>) -> String {
     let mut menu = format!("Commands:\n");
 
     menu = commands
@@ -177,7 +177,7 @@ fn main_menu(args: &Args, commands: &HashMap<&str, (&str, GuardFn)>) -> Result<S
 
     menu += &format!("\t{help:<12}This menu\n", help = "?help");
     menu += "\nType ?help command for more info on a command.";
-    Ok(menu)
+    menu
 }
 
 fn main() {

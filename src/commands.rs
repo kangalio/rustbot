@@ -1,4 +1,7 @@
-use crate::state_machine::{CharacterSet, StateMachine};
+use crate::{
+    api,
+    state_machine::{CharacterSet, StateMachine},
+};
 use reqwest::blocking::Client as HttpClient;
 use serenity::{model::channel::Message, prelude::Context};
 use std::{collections::HashMap, sync::Arc};
@@ -145,8 +148,8 @@ impl Commands {
         handler: impl Fn(Args) -> Result<()> + Send + Sync + 'static,
         guard: GuardFn,
     ) {
-        info!("Adding command ?help {}", &base_cmd);
         let base_cmd = &cmd[1..];
+        info!("Adding command ?help {}", &base_cmd);
         let mut state = 0;
 
         self.menu.as_mut().map(|menu| {
@@ -173,6 +176,7 @@ impl Commands {
         let message = &msg.content;
         if !msg.is_own(&cx) && message.starts_with(PREFIX) {
             self.state_machine.process(message).map(|matched| {
+                info!("Processing command: {}", message);
                 let args = Args {
                     http: &self.client,
                     cx: &cx,
@@ -182,12 +186,19 @@ impl Commands {
                 info!("Checking permissions");
                 match matched.handler.authorize(&args) {
                     Ok(true) => {
-                        info!("Executing command {}", message);
+                        info!("Executing command");
                         if let Err(e) = matched.handler.call(args) {
-                            println!("{}", e);
+                            error!("{}", e);
                         }
                     }
-                    Ok(false) => {}
+                    Ok(false) => {
+                        info!("Not executing command, unauthorized");
+                        if let Err(e) =
+                            api::send_reply(&args, "You do not have permission to run this command")
+                        {
+                            error!("{}", e);
+                        }
+                    }
                     Err(e) => error!("{}", e),
                 }
             });
