@@ -76,11 +76,10 @@ pub(crate) fn slow_mode(args: Args) -> Result<()> {
 }
 
 pub(crate) fn slow_mode_help(args: Args) -> Result<()> {
-    let help_string = format!(
-        "
+    let help_string = "
 Set slowmode on a channel
 ```
-{command}
+?slowmode {channel} {seconds}
 ```
 **Example:**
 ```
@@ -92,10 +91,7 @@ will set slowmode on the `#bot-usage` channel with a delay of 10 seconds.
 ```
 ?slowmode #bot-usage 0
 ```
-will disable slowmode on the `#bot-usage` channel.  
-    ",
-        command = "?slowmode {channel} {seconds}",
-    );
+will disable slowmode on the `#bot-usage` channel.";
     send_reply(&args, &help_string)?;
     Ok(())
 }
@@ -122,21 +118,16 @@ pub(crate) fn kick(args: Args) -> Result<()> {
 }
 
 pub(crate) fn kick_help(args: Args) -> Result<()> {
-    let help_string = format!(
-        "
+    let help_string = "
 Kick a user from the guild
 ```
-{command}
+?kick {user}
 ```
 **Example:**
 ```
 ?kick @someuser
 ```
-will kick a user from the guild.
-",
-        command = "?kick {user}"
-    );
-
+will kick a user from the guild.";
     send_reply(&args, &help_string)?;
     Ok(())
 }
