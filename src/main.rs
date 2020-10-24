@@ -23,9 +23,9 @@ use crate::db::DB;
 use commands::{Args, Commands, GuardFn, Result};
 use diesel::prelude::*;
 use envy;
+use indexmap::IndexMap;
 use serde::Deserialize;
 use serenity::{model::prelude::*, prelude::*};
-use indexmap::IndexMap;
 
 #[derive(Deserialize)]
 struct Config {
