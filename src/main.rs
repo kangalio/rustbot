@@ -128,6 +128,10 @@ fn app() -> Result<()> {
             playground::eval,
         );
         cmds.add(
+            "?eval mode={} edition={} channel={} ```code```",
+            playground::eval,
+        );
+        cmds.add(
             "?eval mode={} edition={} channel={} `code`",
             playground::eval,
         );
