@@ -2,6 +2,7 @@ use crate::{
     api,
     state_machine::{CharacterSet, StateMachine},
 };
+use indexmap::IndexMap;
 use reqwest::blocking::Client as HttpClient;
 use serenity::{model::channel::Message, prelude::Context};
 use std::{collections::HashMap, sync::Arc};
@@ -35,7 +36,7 @@ pub struct Args<'m> {
 pub(crate) struct Commands {
     state_machine: StateMachine<Arc<Command>>,
     client: HttpClient,
-    menu: Option<HashMap<&'static str, (&'static str, GuardFn)>>,
+    menu: Option<IndexMap<&'static str, (&'static str, GuardFn)>>,
 }
 
 impl Commands {
@@ -43,7 +44,7 @@ impl Commands {
         Self {
             state_machine: StateMachine::new(),
             client: HttpClient::new(),
-            menu: Some(HashMap::new()),
+            menu: Some(IndexMap::new()),
         }
     }
 
@@ -168,7 +169,7 @@ impl Commands {
         );
     }
 
-    pub(crate) fn menu(&mut self) -> Option<HashMap<&'static str, (&'static str, GuardFn)>> {
+    pub(crate) fn menu(&mut self) -> Option<IndexMap<&'static str, (&'static str, GuardFn)>> {
         self.menu.take()
     }
 
