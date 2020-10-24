@@ -1,16 +1,15 @@
 use crate::{
     api,
-    commands::Args,
+    commands::{Args, Result},
     db::DB,
     schema::{messages, roles, users},
     text::WELCOME_BILLBOARD,
-    Result,
 };
 use diesel::prelude::*;
 use serenity::{model::prelude::*, prelude::*};
 
 /// Write the welcome message to the welcome channel.  
-pub(crate) fn post_message(args: Args) -> Result {
+pub(crate) fn post_message(args: Args) -> Result<()> {
     use std::str::FromStr;
 
     if api::is_mod(&args)? {
@@ -64,7 +63,7 @@ pub(crate) fn post_message(args: Args) -> Result {
     Ok(())
 }
 
-pub(crate) fn assign_talk_role(cx: &Context, ev: &ReactionAddEvent) -> Result {
+pub(crate) fn assign_talk_role(cx: &Context, ev: &ReactionAddEvent) -> Result<()> {
     let reaction = &ev.reaction;
 
     let channel = reaction.channel(cx)?;
@@ -130,5 +129,26 @@ pub(crate) fn assign_talk_role(cx: &Context, ev: &ReactionAddEvent) -> Result {
             }
         }
     }
+    Ok(())
+}
+
+pub(crate) fn help(args: Args) -> Result<()> {
+    let help_string = format!(
+        "
+Post the welcome message to `channel`
+```
+{command}
+```
+**Example:**
+```
+?CoC #welcome
+
+```
+will post the welcome message to the `channel` specified.  
+",
+        command = "?CoC {channel}"
+    );
+
+    api::send_reply(&args, &help_string)?;
     Ok(())
 }

@@ -1,4 +1,3 @@
-use crate::commands::CmdPtr;
 use std::{collections::HashMap, u64};
 
 /// # CharacterSet
@@ -85,21 +84,21 @@ impl CharacterSet {
     }
 }
 
-pub(crate) struct State {
+pub(crate) struct State<T> {
     index: usize,
     expected: CharacterSet,
     next_states: Vec<usize>,
     is_final_state: bool,
-    handler: Option<CmdPtr>,
+    handler: Option<T>,
 }
 
-impl PartialEq for State {
-    fn eq(&self, other: &State) -> bool {
+impl<T> PartialEq for State<T> {
+    fn eq(&self, other: &State<T>) -> bool {
         self.index == other.index
     }
 }
 
-impl State {
+impl<T> State<T> {
     pub(crate) fn new(index: usize, expected: CharacterSet) -> Self {
         Self {
             index,
@@ -155,18 +154,18 @@ impl Traversal {
     }
 }
 
-pub(crate) struct Match<'m> {
-    pub handler: &'m CmdPtr,
+pub(crate) struct Match<'m, T> {
+    pub handler: &'m T,
     pub params: HashMap<&'static str, &'m str>,
 }
 
-pub(crate) struct StateMachine {
-    states: Vec<State>,
+pub(crate) struct StateMachine<T> {
+    states: Vec<State<T>>,
     start_parse: Vec<Option<&'static str>>,
     end_parse: Vec<bool>,
 }
 
-impl StateMachine {
+impl<T> StateMachine<T> {
     pub(crate) fn new() -> Self {
         Self {
             states: vec![State::new(0, CharacterSet::new())],
@@ -214,7 +213,7 @@ impl StateMachine {
     }
 
     /// Set the handler function for a state.  
-    pub(crate) fn set_handler(&mut self, index: usize, handler: CmdPtr) {
+    pub(crate) fn set_handler(&mut self, index: usize, handler: T) {
         let state = &mut self.states[index];
         state.handler = Some(handler);
     }
@@ -232,7 +231,7 @@ impl StateMachine {
     }
 
     /// Run the input through the state machine, optionally returning a handler and params.  
-    pub(crate) fn process<'m>(&'m self, input: &'m str) -> Option<Match<'m>> {
+    pub(crate) fn process<'m>(&'m self, input: &'m str) -> Option<Match<'m, T>> {
         let mut traversals = vec![Traversal::new()];
 
         for (i, ch) in input.chars().enumerate() {

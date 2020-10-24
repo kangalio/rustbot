@@ -79,43 +79,41 @@ pub(crate) fn start_unban_thread(cx: Context) {
 ///
 /// Requires the ban members permission
 pub(crate) fn temp_ban(args: Args) -> Result<()> {
-    if api::is_mod(&args)? {
-        let user_id = parse_username(
-            &args
-                .params
-                .get("user")
-                .ok_or("unable to retrieve user param")?,
-        )
-        .ok_or("unable to retrieve user id")?;
-
-        use std::str::FromStr;
-
-        let hours = u64::from_str(
-            args.params
-                .get("hours")
-                .ok_or("unable to retrieve hours param")?,
-        )?;
-
-        let reason = args
+    let user_id = parse_username(
+        &args
             .params
-            .get("reason")
-            .ok_or("unable to retrieve reason param")?;
+            .get("user")
+            .ok_or("unable to retrieve user param")?,
+    )
+    .ok_or("unable to retrieve user id")?;
 
-        if let Some(guild) = args.msg.guild(&args.cx) {
-            info!("Banning user from guild");
-            let user = UserId::from(user_id);
+    use std::str::FromStr;
 
-            user.create_dm_channel(args.cx)?
-                .say(args.cx, ban_message(reason, hours))?;
+    let hours = u64::from_str(
+        args.params
+            .get("hours")
+            .ok_or("unable to retrieve hours param")?,
+    )?;
 
-            guild.read().ban(args.cx, &user, &"all")?;
+    let reason = args
+        .params
+        .get("reason")
+        .ok_or("unable to retrieve reason param")?;
 
-            save_ban(
-                format!("{}", user_id),
-                format!("{}", guild.read().id),
-                hours,
-            )?;
-        }
+    if let Some(guild) = args.msg.guild(&args.cx) {
+        info!("Banning user from guild");
+        let user = UserId::from(user_id);
+
+        user.create_dm_channel(args.cx)?
+            .say(args.cx, ban_message(reason, hours))?;
+
+        guild.read().ban(args.cx, &user, &"all")?;
+
+        save_ban(
+            format!("{}", user_id),
+            format!("{}", guild.read().id),
+            hours,
+        )?;
     }
     Ok(())
 }
@@ -130,7 +128,7 @@ Ban a user for a temporary amount of time
 ```
 {command}
 ```
-Example:
+**Example:**
 ```
 ?ban @someuser {hours} {reason}
 ```
