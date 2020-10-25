@@ -24,6 +24,7 @@ use commands::{Args, Commands, GuardFn, Result};
 use diesel::prelude::*;
 use envy;
 use indexmap::IndexMap;
+use std::collections::HashMap;
 use serde::Deserialize;
 use serenity::{model::prelude::*, prelude::*};
 
@@ -221,6 +222,11 @@ fn main() {
     }
 }
 
+struct CommandHistory {}
+impl TypeMapKey for CommandHistory {
+    type Value = HashMap<MessageId, MessageId>;
+}
+
 struct Events {
     cmds: Commands,
 }
@@ -230,10 +236,33 @@ impl RawEventHandler for Events {
         match event {
             Event::Ready(ev) => {
                 info!("{} connected to discord", ev.ready.user.name);
+                let mut data = cx.data.write();
+                data.insert::<CommandHistory>(HashMap::new());
+                drop(data);
+
                 ban::start_unban_thread(cx);
             }
             Event::MessageCreate(ev) => {
                 self.cmds.execute(cx, &ev.message);
+            }
+            Event::MessageUpdate(ev) => {
+                use serenity::utils::CustomMessage;
+                let mut msg = CustomMessage::new();
+        
+                msg.id(ev.id)
+                    .channel_id(ev.channel_id)
+                    .content(ev.content.unwrap_or_else(|| String::new()));
+        
+                let msg = msg.build();
+                self.cmds.execute(cx, msg);
+            }
+            Event::MessageDelete(ev) => {
+                let mut data = cx.data.write();
+                let history = data.get_mut::<CommandHistory>().unwrap();
+                if let Some(response_id) = history.remove(&ev.message_id) {
+                    info!("deleting message: {:?}", response_id);
+                    let _ = ev.channel_id.delete_message(&cx, response_id);
+                }
             }
             Event::ReactionAdd(ev) => {
                 if let Err(e) = welcome::assign_talk_role(&cx, &ev) {
