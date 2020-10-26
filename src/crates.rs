@@ -80,23 +80,31 @@ fn rustc_crate(crate_name: &str) -> Option<&str> {
 }
 
 pub fn doc_search(args: Args) -> Result<()> {
-    let crate_name = args
+    let query = args
         .params
         .get("query")
         .ok_or("Unable to retrieve param: query")?;
 
-    if crate_name.contains("::") {
-        let message = "`?docs` cannot retrieve documentation for items within a crate.";
-        api::send_reply(&args, message)?;
-    } else if let Some(rustc_crate) = rustc_crate(crate_name) {
-        api::send_reply(&args, rustc_crate)?;
+    let mut query_iter = query.splitn(2, "::");
+    let crate_name = query_iter.next().unwrap();
+
+    let doc_url = if let Some(rustc_crate) = rustc_crate(crate_name) {
+        Some(rustc_crate.to_string())
     } else if let Some(krate) = get_crate(&args)? {
         let name = krate.name;
-        let message = krate
+        krate
             .documentation
-            .unwrap_or_else(|| format!("https://docs.rs/{}", name));
+            .or_else(|| Some(format!("https://docs.rs/{}", name)))
+    } else {
+        None
+    };
 
-        api::send_reply(&args, &message)?;
+    if let Some(mut url) = doc_url {
+        if let Some(item_path) = query_iter.next() {
+            url += &format!("?search={}", item_path);
+        }
+
+        api::send_reply(&args, &url)?;
     } else {
         let message = "No crates found.";
         api::send_reply(&args, message)?;

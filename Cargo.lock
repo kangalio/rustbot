@@ -1130,6 +1130,7 @@ dependencies = [
  "diesel_migrations",
  "env_logger",
  "envy",
+ "indexmap",
  "lazy_static",
  "log",
  "reqwest",

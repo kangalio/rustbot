@@ -23,9 +23,9 @@ use crate::db::DB;
 use commands::{Args, Commands, GuardFn, Result};
 use diesel::prelude::*;
 use envy;
+use indexmap::IndexMap;
 use serde::Deserialize;
 use serenity::{model::prelude::*, prelude::*};
-use std::collections::HashMap;
 
 #[derive(Deserialize)]
 struct Config {
@@ -196,7 +196,7 @@ fn app() -> Result<()> {
     Ok(())
 }
 
-fn main_menu(args: &Args, commands: &HashMap<&str, (&str, GuardFn)>) -> String {
+fn main_menu(args: &Args, commands: &IndexMap<&str, (&str, GuardFn)>) -> String {
     let mut menu = format!("Commands:\n");
 
     menu = commands
