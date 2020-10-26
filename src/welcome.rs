@@ -108,9 +108,7 @@ pub(crate) fn assign_talk_role(cx: &Context, ev: &ReactionAddEvent) -> Result<()
 
                     let mut member = guild
                         .read()
-                        .guild(&cx)
-                        .ok_or("Unable to access guild")?
-                        .read()
+                        .guild_id
                         .member(cx, &user_id)?;
 
                     use std::str::FromStr;
