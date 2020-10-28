@@ -75,14 +75,14 @@ impl Commands {
             .for_each(|(i, segment)| {
                 if let Some(name) = key_value_pair(segment) {
                     if let Some(lambda) = opt_lambda_state {
-                        state = add_key_value(&mut self.state_machine, name, lambda);
+                        state = self.add_key_value(name, lambda);
                         self.state_machine.add_next_state(state, lambda);
                         opt_final_states.push(state);
                     } else {
                         opt_final_states.push(state);
-                        state = add_space(&mut self.state_machine, state, i);
+                        state = self.add_space(state, i);
                         opt_lambda_state = Some(state);
-                        state = add_key_value(&mut self.state_machine, name, state);
+                        state = self.add_key_value(name, state);
                         self.state_machine
                             .add_next_state(state, opt_lambda_state.unwrap());
                         opt_final_states.push(state);
@@ -90,25 +90,18 @@ impl Commands {
                 } else {
                     opt_lambda_state = None;
                     opt_final_states.truncate(0);
-                    state = add_space(&mut self.state_machine, state, i);
+                    state = self.add_space(state, i);
 
                     if segment.starts_with("```\n") && segment.ends_with("```") {
-                        let name = &segment[4..segment.len() - 3];
-                        state = add_code_segment_multi_line(&mut self.state_machine, name, state);
+                        state = self.add_code_segment_multi_line(state, segment);
                     } else if segment.starts_with("```") && segment.ends_with("```") {
-                        let name = &segment[3..segment.len() - 3];
-                        state =
-                            add_code_segment_single_line(&mut self.state_machine, name, state, 3);
+                        state = self.add_code_segment_single_line(state, 3, segment);
                     } else if segment.starts_with("`") && segment.ends_with("`") {
-                        let name = &segment[1..segment.len() - 1];
-                        state =
-                            add_code_segment_single_line(&mut self.state_machine, name, state, 1);
+                        state = self.add_code_segment_single_line(state, 1, segment);
                     } else if segment.starts_with("{") && segment.ends_with("}") {
-                        let name = &segment[1..segment.len() - 1];
-                        state = add_dynamic_segment(&mut self.state_machine, name, state);
+                        state = self.add_dynamic_segment(state, segment);
                     } else if segment.ends_with("...") {
-                        let name = &segment[..segment.len() - 3];
-                        state = add_remaining_segment(&mut self.state_machine, name, state);
+                        state = self.add_remaining_segment(state, segment);
                     } else {
                         segment.chars().for_each(|ch| {
                             state = self.state_machine.add(state, CharacterSet::from_char(ch))
@@ -158,7 +151,7 @@ impl Commands {
             menu
         });
 
-        state = add_help_menu(&mut self.state_machine, base_cmd, state);
+        state = self.add_help_menu(base_cmd, state);
         self.state_machine.set_final_state(state);
         self.state_machine.set_handler(
             state,
@@ -173,7 +166,7 @@ impl Commands {
         self.menu.take()
     }
 
-    pub(crate) fn execute<'m>(&'m self, cx: Context, msg: Message) {
+    pub(crate) fn execute<'m>(&'m self, cx: Context, msg: &Message) {
         let message = &msg.content;
         if !msg.is_own(&cx) && message.starts_with(PREFIX) {
             self.state_machine.process(message).map(|matched| {
@@ -205,6 +198,127 @@ impl Commands {
             });
         }
     }
+
+    fn add_space(&mut self, mut state: usize, i: usize) -> usize {
+        if i > 0 {
+            let mut char_set = CharacterSet::from_char(' ');
+            char_set.insert('\n');
+
+            state = self.state_machine.add(state, char_set);
+            self.state_machine.add_next_state(state, state);
+        }
+        state
+    }
+
+    fn add_help_menu(&mut self, cmd: &'static str, mut state: usize) -> usize {
+        "?help".chars().for_each(|ch| {
+            state = self.state_machine.add(state, CharacterSet::from_char(ch));
+        });
+        state = self.add_space(state, 1);
+        cmd.chars().for_each(|ch| {
+            state = self.state_machine.add(state, CharacterSet::from_char(ch));
+        });
+
+        state
+    }
+
+    fn add_dynamic_segment(&mut self, mut state: usize, s: &'static str) -> usize {
+        let name = &s[1..s.len() - 1];
+
+        let mut char_set = CharacterSet::any();
+        char_set.remove(' ');
+        state = self.state_machine.add(state, char_set);
+        self.state_machine.add_next_state(state, state);
+        self.state_machine.start_parse(state, name);
+        self.state_machine.end_parse(state);
+
+        state
+    }
+
+    fn add_remaining_segment(&mut self, mut state: usize, s: &'static str) -> usize {
+        let name = &s[..s.len() - 3];
+
+        let char_set = CharacterSet::any();
+        state = self.state_machine.add(state, char_set);
+        self.state_machine.add_next_state(state, state);
+        self.state_machine.start_parse(state, name);
+        self.state_machine.end_parse(state);
+
+        state
+    }
+
+    fn add_code_segment_multi_line(&mut self, mut state: usize, s: &'static str) -> usize {
+        let name = &s[4..s.len() - 3];
+
+        "```".chars().for_each(|ch| {
+            state = self.state_machine.add(state, CharacterSet::from_char(ch));
+        });
+
+        let lambda = state;
+
+        let mut char_set = CharacterSet::any();
+        char_set.remove('`');
+        char_set.remove(' ');
+        char_set.remove('\n');
+        state = self.state_machine.add(state, char_set);
+        self.state_machine.add_next_state(state, state);
+
+        state = self.state_machine.add(state, CharacterSet::from_char('\n'));
+
+        self.state_machine.add_next_state(lambda, state);
+
+        state = self.state_machine.add(state, CharacterSet::any());
+        self.state_machine.add_next_state(state, state);
+        self.state_machine.start_parse(state, name);
+        self.state_machine.end_parse(state);
+
+        "```".chars().for_each(|ch| {
+            state = self.state_machine.add(state, CharacterSet::from_char(ch));
+        });
+
+        state
+    }
+
+    fn add_code_segment_single_line(
+        &mut self,
+        mut state: usize,
+        n_backticks: usize,
+        s: &'static str,
+    ) -> usize {
+        use std::iter::repeat;
+
+        let name = &s[n_backticks..s.len() - n_backticks];
+
+        repeat('`').take(n_backticks).for_each(|ch| {
+            state = self.state_machine.add(state, CharacterSet::from_char(ch));
+        });
+        state = self.state_machine.add(state, CharacterSet::any());
+        self.state_machine.add_next_state(state, state);
+        self.state_machine.start_parse(state, name);
+        self.state_machine.end_parse(state);
+        repeat('`').take(n_backticks).for_each(|ch| {
+            state = self.state_machine.add(state, CharacterSet::from_char(ch));
+        });
+
+        state
+    }
+
+    fn add_key_value(&mut self, name: &'static str, mut state: usize) -> usize {
+        name.chars().for_each(|c| {
+            state = self.state_machine.add(state, CharacterSet::from_char(c));
+        });
+        state = self.state_machine.add(state, CharacterSet::from_char('='));
+
+        let mut char_set = CharacterSet::any();
+        char_set.remove(' ');
+        char_set.remove('\n');
+        state = self.state_machine.add(state, char_set);
+        self.state_machine.add_next_state(state, state);
+        self.state_machine.start_parse(state, name);
+        self.state_machine.end_parse(state);
+
+        state
+    }
 }
 
 fn key_value_pair(s: &'static str) -> Option<&'static str> {
@@ -219,135 +333,4 @@ fn key_value_pair(s: &'static str) -> Option<&'static str> {
             }
         })
         .flatten()
-}
-
-fn add_space<T>(state_machine: &mut StateMachine<T>, mut state: usize, i: usize) -> usize {
-    if i > 0 {
-        let mut char_set = CharacterSet::from_char(' ');
-        char_set.insert('\n');
-
-        state = state_machine.add(state, char_set);
-        state_machine.add_next_state(state, state);
-    }
-    state
-}
-
-fn add_help_menu<T>(
-    mut state_machine: &mut StateMachine<T>,
-    cmd: &'static str,
-    mut state: usize,
-) -> usize {
-    "?help".chars().for_each(|ch| {
-        state = state_machine.add(state, CharacterSet::from_char(ch));
-    });
-    state = add_space(&mut state_machine, state, 1);
-    cmd.chars().for_each(|ch| {
-        state = state_machine.add(state, CharacterSet::from_char(ch));
-    });
-
-    state
-}
-
-fn add_dynamic_segment<T>(
-    state_machine: &mut StateMachine<T>,
-    name: &'static str,
-    mut state: usize,
-) -> usize {
-    let mut char_set = CharacterSet::any();
-    char_set.remove(' ');
-    state = state_machine.add(state, char_set);
-    state_machine.add_next_state(state, state);
-    state_machine.start_parse(state, name);
-    state_machine.end_parse(state);
-
-    state
-}
-
-fn add_remaining_segment<T>(
-    state_machine: &mut StateMachine<T>,
-    name: &'static str,
-    mut state: usize,
-) -> usize {
-    let char_set = CharacterSet::any();
-    state = state_machine.add(state, char_set);
-    state_machine.add_next_state(state, state);
-    state_machine.start_parse(state, name);
-    state_machine.end_parse(state);
-
-    state
-}
-
-fn add_code_segment_multi_line<T>(
-    state_machine: &mut StateMachine<T>,
-    name: &'static str,
-    mut state: usize,
-) -> usize {
-    state = state_machine.add(state, CharacterSet::from_char('`'));
-    state = state_machine.add(state, CharacterSet::from_char('`'));
-    state = state_machine.add(state, CharacterSet::from_char('`'));
-
-    let lambda = state;
-
-    let mut char_set = CharacterSet::any();
-    char_set.remove('`');
-    char_set.remove(' ');
-    char_set.remove('\n');
-    state = state_machine.add(state, char_set);
-    state_machine.add_next_state(state, state);
-
-    state = state_machine.add(state, CharacterSet::from_char('\n'));
-
-    state_machine.add_next_state(lambda, state);
-
-    state = state_machine.add(state, CharacterSet::any());
-    state_machine.add_next_state(state, state);
-    state_machine.start_parse(state, name);
-    state_machine.end_parse(state);
-
-    state = state_machine.add(state, CharacterSet::from_char('`'));
-    state = state_machine.add(state, CharacterSet::from_char('`'));
-    state = state_machine.add(state, CharacterSet::from_char('`'));
-
-    state
-}
-
-fn add_code_segment_single_line<T>(
-    state_machine: &mut StateMachine<T>,
-    name: &'static str,
-    mut state: usize,
-    n_backticks: usize,
-) -> usize {
-    (0..n_backticks).for_each(|_| {
-        state = state_machine.add(state, CharacterSet::from_char('`'));
-    });
-    state = state_machine.add(state, CharacterSet::any());
-    state_machine.add_next_state(state, state);
-    state_machine.start_parse(state, name);
-    state_machine.end_parse(state);
-    (0..n_backticks).for_each(|_| {
-        state = state_machine.add(state, CharacterSet::from_char('`'));
-    });
-
-    state
-}
-
-fn add_key_value<T>(
-    state_machine: &mut StateMachine<T>,
-    name: &'static str,
-    mut state: usize,
-) -> usize {
-    name.chars().for_each(|c| {
-        state = state_machine.add(state, CharacterSet::from_char(c));
-    });
-    state = state_machine.add(state, CharacterSet::from_char('='));
-
-    let mut char_set = CharacterSet::any();
-    char_set.remove(' ');
-    char_set.remove('\n');
-    state = state_machine.add(state, char_set);
-    state_machine.add_next_state(state, state);
-    state_machine.start_parse(state, name);
-    state_machine.end_parse(state);
-
-    state
 }

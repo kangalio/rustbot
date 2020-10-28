@@ -186,8 +186,7 @@ fn app() -> Result<()> {
     });
 
     let mut client = Client::new_with_extras(&config.discord_token, |e| {
-        e.event_handler(Messages { cmds });
-        e.raw_event_handler(Events);
+        e.raw_event_handler(Events { cmds });
         e
     })?;
 
@@ -222,17 +221,26 @@ fn main() {
     }
 }
 
-struct Events;
+struct Events {
+    cmds: Commands,
+}
 
 impl RawEventHandler for Events {
     fn raw_event(&self, cx: Context, event: Event) {
         match event {
-            Event::ReactionAdd(ref ev) => {
-                if let Err(e) = welcome::assign_talk_role(&cx, ev) {
+            Event::Ready(ev) => {
+                info!("{} connected to discord", ev.ready.user.name);
+                ban::start_unban_thread(cx);
+            }
+            Event::MessageCreate(ev) => {
+                self.cmds.execute(cx, &ev.message);
+            }
+            Event::ReactionAdd(ev) => {
+                if let Err(e) = welcome::assign_talk_role(&cx, &ev) {
                     error!("{}", e);
                 }
             }
-            Event::GuildBanRemove(ref ev) => {
+            Event::GuildBanRemove(ev) => {
                 if let Err(e) =
                     ban::save_unban(format!("{}", ev.user.id), format!("{}", ev.guild_id))
                 {
@@ -241,20 +249,5 @@ impl RawEventHandler for Events {
             }
             _ => (),
         }
-    }
-}
-
-struct Messages {
-    cmds: Commands,
-}
-
-impl EventHandler for Messages {
-    fn message(&self, cx: Context, msg: Message) {
-        self.cmds.execute(cx, msg);
-    }
-
-    fn ready(&self, context: Context, ready: Ready) {
-        info!("{} connected to discord", ready.user.name);
-        ban::start_unban_thread(context);
     }
 }

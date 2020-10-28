@@ -106,12 +106,7 @@ pub(crate) fn assign_talk_role(cx: &Context, ev: &ReactionAddEvent) -> Result<()
                         .guild()
                         .ok_or("Unable to retrieve guild from channel")?;
 
-                    let mut member = guild
-                        .read()
-                        .guild(&cx)
-                        .ok_or("Unable to access guild")?
-                        .read()
-                        .member(cx, &user_id)?;
+                    let mut member = guild.read().guild_id.member(cx, &user_id)?;
 
                     use std::str::FromStr;
                     info!("Assigning talk role to {}", &member.user_id());
