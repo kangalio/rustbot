@@ -10,6 +10,8 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::str::FromStr;
 
+const MAX_OUTPUT_LINES: usize = 45;
+
 #[derive(Debug, Serialize)]
 struct PlaygroundCode<'a> {
     channel: Channel,
@@ -135,6 +137,7 @@ struct PlayResult {
 fn run_code(args: &Args, code: &str) -> Result<String> {
     let mut errors = String::new();
 
+    let warnings = args.params.get("warn").unwrap_or_else(|| &"false");
     let channel = args.params.get("channel").unwrap_or_else(|| &"nightly");
     let mode = args.params.get("mode").unwrap_or_else(|| &"debug");
     let edition = args.params.get("edition").unwrap_or_else(|| &"2018");
@@ -168,23 +171,29 @@ fn run_code(args: &Args, code: &str) -> Result<String> {
 
     let result: PlayResult = resp.json()?;
 
-    let result = if result.success {
+    let result = if *warnings == "true" {
+        format!("{}\n{}", result.stderr, result.stdout)
+    } else if result.success {
         result.stdout
     } else {
         result.stderr
     };
 
-    Ok(if result.len() + errors.len() > 1994 {
-        format!(
-            "{}Output too large. Playground link: {}",
-            errors,
-            get_playground_link(args, code, &request)?
-        )
-    } else if result.len() == 0 {
-        format!("{}compilation succeded.", errors)
-    } else {
-        format!("{}```{}```", errors, result)
-    })
+    let lines = result.lines().count();
+
+    Ok(
+        if result.len() + errors.len() > 1993 || lines > MAX_OUTPUT_LINES {
+            format!(
+                "{}Output too large. Playground link: {}",
+                errors,
+                get_playground_link(args, code, &request)?
+            )
+        } else if result.len() == 0 {
+            format!("{}compilation succeded.", errors)
+        } else {
+            format!("{}```\n{}```", errors, result)
+        },
+    )
 }
 
 fn get_playground_link(args: &Args, code: &str, request: &PlaygroundCode) -> Result<String> {
@@ -220,11 +229,12 @@ pub fn run(args: Args) -> Result<()> {
 pub fn help(args: Args, name: &str) -> Result<()> {
     let message = format!(
         "Compile and run rust code. All code is executed on https://play.rust-lang.org.
-```?{} mode={{}} channel={{}} edition={{}} ``\u{200B}`code``\u{200B}` ```
+```?{} mode={{}} channel={{}} edition={{}} warn={{}} ``\u{200B}`code``\u{200B}` ```
 Optional arguments:
     \tmode: debug, release (default: debug)
     \tchannel: stable, beta, nightly (default: nightly)
     \tedition: 2015, 2018 (default: 2018)
+    \twarn: boolean flag to enable compilation warnings
     ",
         name
     );
