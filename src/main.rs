@@ -24,9 +24,9 @@ use commands::{Args, Commands, GuardFn, Result};
 use diesel::prelude::*;
 use envy;
 use indexmap::IndexMap;
-use std::collections::HashMap;
 use serde::Deserialize;
-use serenity::{model::prelude::*, prelude::*};
+use serenity::{model::prelude::*, prelude::*, utils::CustomMessage};
+use std::collections::HashMap;
 
 #[derive(Deserialize)]
 struct Config {
@@ -234,8 +234,13 @@ struct Events {
 impl RawEventHandler for Events {
     fn raw_event(&self, cx: Context, event: Event) {
         match event {
-            Event::Ready(ev) => {
+            Event::Ready(mut ev) => {
                 info!("{} connected to discord", ev.ready.user.name);
+
+                let mut cache = cx.cache.write();
+                cache.update(&mut ev);
+                drop(cache);
+
                 let mut data = cx.data.write();
                 data.insert::<CommandHistory>(HashMap::new());
                 drop(data);
@@ -246,15 +251,15 @@ impl RawEventHandler for Events {
                 self.cmds.execute(cx, &ev.message);
             }
             Event::MessageUpdate(ev) => {
-                use serenity::utils::CustomMessage;
                 let mut msg = CustomMessage::new();
-        
+
                 msg.id(ev.id)
                     .channel_id(ev.channel_id)
                     .content(ev.content.unwrap_or_else(|| String::new()));
-        
+
                 let msg = msg.build();
-                self.cmds.execute(cx, msg);
+                info!("sending edited message - {:?}", msg.content);
+                self.cmds.execute(cx, &msg);
             }
             Event::MessageDelete(ev) => {
                 let mut data = cx.data.write();
