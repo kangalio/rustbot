@@ -7,6 +7,7 @@ use std::{collections::HashMap, u64};
 pub(crate) struct CharacterSet {
     low_mask: u64,
     high_mask: u64,
+    any: bool,
 }
 
 impl CharacterSet {
@@ -14,6 +15,7 @@ impl CharacterSet {
         Self {
             low_mask: 0,
             high_mask: 0,
+            any: false,
         }
     }
 
@@ -21,6 +23,7 @@ impl CharacterSet {
         Self {
             low_mask: u64::MAX,
             high_mask: u64::MAX,
+            any: true,
         }
     }
 
@@ -72,7 +75,7 @@ impl CharacterSet {
                 let bit = 1 << val - 64;
                 self.high_mask & bit != 0
             }
-            _ => false,
+            _ => self.any,
         }
     }
 
@@ -234,7 +237,7 @@ impl<T> StateMachine<T> {
     pub(crate) fn process<'m>(&'m self, input: &'m str) -> Option<Match<'m, T>> {
         let mut traversals = vec![Traversal::new()];
 
-        for (i, ch) in input.chars().enumerate() {
+        for (i, ch) in input.char_indices() {
             let next_traversals = self.process_char(traversals, ch, i);
             traversals = next_traversals;
 
