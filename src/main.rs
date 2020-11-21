@@ -26,8 +26,9 @@ use envy;
 use indexmap::IndexMap;
 use serde::Deserialize;
 use serenity::{model::prelude::*, prelude::*, utils::CustomMessage};
-use std::collections::HashMap;
+use std::time::Duration;
 
+const MESSAGE_AGE_MAX: Duration = Duration::from_secs(3600);
 #[derive(Deserialize)]
 struct Config {
     tags: bool,
@@ -224,7 +225,7 @@ fn main() {
 
 struct CommandHistory {}
 impl TypeMapKey for CommandHistory {
-    type Value = HashMap<MessageId, MessageId>;
+    type Value = IndexMap<MessageId, MessageId>;
 }
 
 struct Events {
@@ -242,24 +243,30 @@ impl RawEventHandler for Events {
                 drop(cache);
 
                 let mut data = cx.data.write();
-                data.insert::<CommandHistory>(HashMap::new());
+                data.insert::<CommandHistory>(IndexMap::new());
                 drop(data);
 
-                ban::start_unban_thread(cx);
+                ban::start_cleanup_thread(cx);
             }
             Event::MessageCreate(ev) => {
                 self.cmds.execute(cx, &ev.message);
             }
             Event::MessageUpdate(ev) => {
-                let mut msg = CustomMessage::new();
+                let age = ev.timestamp.and_then(|create| {
+                    ev.edited_timestamp
+                        .and_then(|edit| edit.signed_duration_since(create).to_std().ok())
+                });
 
-                msg.id(ev.id)
-                    .channel_id(ev.channel_id)
-                    .content(ev.content.unwrap_or_else(|| String::new()));
+                if age.is_some() && age.unwrap() < MESSAGE_AGE_MAX {
+                    let mut msg = CustomMessage::new();
+                    msg.id(ev.id)
+                        .channel_id(ev.channel_id)
+                        .content(ev.content.unwrap_or_else(|| String::new()));
 
-                let msg = msg.build();
-                info!("sending edited message - {:?}", msg.content);
-                self.cmds.execute(cx, &msg);
+                    let msg = msg.build();
+                    info!("sending edited message - {:?}", msg.content);
+                    self.cmds.execute(cx, &msg);
+                }
             }
             Event::MessageDelete(ev) => {
                 let mut data = cx.data.write();
