@@ -189,7 +189,7 @@ fn run_code(args: &Args, code: &str) -> Result<String> {
                 get_playground_link(args, code, &request)?
             )
         } else if result.len() == 0 {
-            format!("{}compilation succeded.", errors)
+            format!("{}compilation succeeded.", errors)
         } else {
             format!("{}```\n{}```", errors, result)
         },

@@ -85,10 +85,14 @@ pub fn get_all(args: Args) -> Result<()> {
         api::send_reply(&args, "No tags found")?;
     } else {
         let tags = &results.iter().fold(String::new(), |prev, row| {
-            prev + &row.1 + ": " + &row.2 + "\n"
+            if prev.len() < 1980 {
+                prev + &row.1 + "\n"
+            } else {
+                prev
+            }
         });
 
-        api::send_reply(&args, &format!("\n{}", &tags))?;
+        api::send_reply(&args, &format!("All tags: ```\n{}```", &tags))?;
     }
 
     Ok(())
