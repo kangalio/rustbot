@@ -188,7 +188,7 @@ fn app() -> Result<()> {
     });
 
     let mut client = Client::new_with_extras(&config.discord_token, |e| {
-        e.raw_event_handler(Events { cmds });
+        e.event_handler(Events { cmds });
         e
     })?;
 
@@ -232,63 +232,66 @@ struct Events {
     cmds: Commands,
 }
 
-impl RawEventHandler for Events {
-    fn raw_event(&self, cx: Context, event: Event) {
-        match event {
-            Event::Ready(mut ev) => {
-                info!("{} connected to discord", ev.ready.user.name);
+impl EventHandler for Events {
+    fn ready(&self, cx: Context, ready: Ready) {
+        info!("{} connected to discord", ready.user.name);
 
-                let mut cache = cx.cache.write();
-                cache.update(&mut ev);
-                drop(cache);
+        let mut data = cx.data.write();
+        data.insert::<CommandHistory>(IndexMap::new());
+        drop(data);
 
-                let mut data = cx.data.write();
-                data.insert::<CommandHistory>(IndexMap::new());
-                drop(data);
+        ban::start_cleanup_thread(cx);
+    }
 
-                ban::start_cleanup_thread(cx);
-            }
-            Event::MessageCreate(ev) => {
-                self.cmds.execute(cx, &ev.message);
-            }
-            Event::MessageUpdate(ev) => {
-                let age = ev.timestamp.and_then(|create| {
-                    ev.edited_timestamp
-                        .and_then(|edit| edit.signed_duration_since(create).to_std().ok())
-                });
+    fn message(&self, cx: Context, message: Message) {
+        self.cmds.execute(cx, &message);
+    }
 
-                if age.is_some() && age.unwrap() < MESSAGE_AGE_MAX {
-                    let mut msg = CustomMessage::new();
-                    msg.id(ev.id)
-                        .channel_id(ev.channel_id)
-                        .content(ev.content.unwrap_or_else(|| String::new()));
+    fn message_update(
+        &self,
+        cx: Context,
+        _: Option<Message>,
+        _: Option<Message>,
+        ev: MessageUpdateEvent,
+    ) {
+        let age = ev.timestamp.and_then(|create| {
+            ev.edited_timestamp
+                .and_then(|edit| edit.signed_duration_since(create).to_std().ok())
+        });
 
-                    let msg = msg.build();
-                    info!("sending edited message - {:?}", msg.content);
-                    self.cmds.execute(cx, &msg);
-                }
-            }
-            Event::MessageDelete(ev) => {
-                let mut data = cx.data.write();
-                let history = data.get_mut::<CommandHistory>().unwrap();
-                if let Some(response_id) = history.remove(&ev.message_id) {
-                    info!("deleting message: {:?}", response_id);
-                    let _ = ev.channel_id.delete_message(&cx, response_id);
-                }
-            }
-            Event::ReactionAdd(ev) => {
-                if let Err(e) = welcome::assign_talk_role(&cx, &ev) {
-                    error!("{}", e);
-                }
-            }
-            Event::GuildBanRemove(ev) => {
-                if let Err(e) =
-                    ban::save_unban(format!("{}", ev.user.id), format!("{}", ev.guild_id))
-                {
-                    error!("{}", e);
-                }
-            }
-            _ => (),
+        if age.is_some() && age.unwrap() < MESSAGE_AGE_MAX {
+            let mut msg = CustomMessage::new();
+            msg.id(ev.id)
+                .channel_id(ev.channel_id)
+                .content(ev.content.unwrap_or_else(|| String::new()));
+
+            let msg = msg.build();
+            info!(
+                "sending edited message - {:?} {:?}",
+                msg.content, msg.author
+            );
+            self.cmds.execute(cx, &msg);
+        }
+    }
+
+    fn message_delete(&self, cx: Context, channel_id: ChannelId, message_id: MessageId) {
+        let mut data = cx.data.write();
+        let history = data.get_mut::<CommandHistory>().unwrap();
+        if let Some(response_id) = history.remove(&message_id) {
+            info!("deleting message: {:?}", response_id);
+            let _ = channel_id.delete_message(&cx, response_id);
+        }
+    }
+
+    fn reaction_add(&self, cx: Context, reaction: Reaction) {
+        if let Err(e) = welcome::assign_talk_role(&cx, &reaction) {
+            error!("{}", e);
+        }
+    }
+
+    fn guild_ban_removal(&self, _cx: Context, guild_id: GuildId, user: User) {
+        if let Err(e) = ban::save_unban(format!("{}", user.id), format!("{}", guild_id)) {
+            error!("{}", e);
         }
     }
 }
