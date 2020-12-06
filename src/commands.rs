@@ -7,7 +7,7 @@ use reqwest::blocking::Client as HttpClient;
 use serenity::{model::channel::Message, prelude::Context};
 use std::{collections::HashMap, sync::Arc};
 
-const PREFIX: &'static str = "?";
+pub(crate) const PREFIX: &'static str = "?";
 pub(crate) type Result<T> = std::result::Result<T, Box<dyn std::error::Error>>;
 pub(crate) type GuardFn = fn(&Args) -> Result<bool>;
 
