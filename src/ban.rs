@@ -77,9 +77,7 @@ pub(crate) fn start_cleanup_thread(cx: Context) {
                 // always keep the last command in history
                 if history.len() > 0 {
                     info!("Clearing command history");
-                    let (key, value) = history.pop().unwrap();
-                    history.drain(..);
-                    history.insert(key, value);
+                    history.drain(..history.len() - 1);
                 }
 
                 drop(data);
