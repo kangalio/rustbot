@@ -266,11 +266,14 @@ impl EventHandler for Events {
                 .content(ev.content.unwrap_or_else(|| String::new()));
 
             let msg = msg.build();
-            info!(
-                "sending edited message - {:?} {:?}",
-                msg.content, msg.author
-            );
-            self.cmds.execute(cx, &msg);
+
+            if msg.content.starts_with(commands::PREFIX) {
+                info!(
+                    "sending edited message - {:?} {:?}",
+                    msg.content, msg.author
+                );
+                self.cmds.execute(cx, &msg);
+            }
         }
     }
 
