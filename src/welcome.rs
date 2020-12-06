@@ -63,9 +63,7 @@ pub(crate) fn post_message(args: Args) -> Result<()> {
     Ok(())
 }
 
-pub(crate) fn assign_talk_role(cx: &Context, ev: &ReactionAddEvent) -> Result<()> {
-    let reaction = &ev.reaction;
-
+pub(crate) fn assign_talk_role(cx: &Context, reaction: &Reaction) -> Result<()> {
     let channel = reaction.channel(cx)?;
     let channel_id = ChannelId::from(&channel);
     let message = reaction.message(cx)?;
@@ -114,13 +112,13 @@ pub(crate) fn assign_talk_role(cx: &Context, ev: &ReactionAddEvent) -> Result<()
 
                     // Requires ManageMessage permission
                     if let Some((_, _, user_id)) = me {
-                        if ev.reaction.user_id.0.to_string() != user_id {
-                            ev.reaction.delete(cx)?;
+                        if reaction.user_id.0.to_string() != user_id {
+                            reaction.delete(cx)?;
                         }
                     }
                 }
             } else {
-                ev.reaction.delete(cx)?;
+                reaction.delete(cx)?;
             }
         }
     }

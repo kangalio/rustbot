@@ -1,3 +1,4 @@
+use super::CommandHistory;
 use crate::{
     api,
     commands::{Args, Result},
@@ -48,7 +49,7 @@ pub(crate) fn save_unban(user_id: String, guild_id: String) -> Result<()> {
     Ok(())
 }
 
-pub(crate) fn start_unban_thread(cx: Context) {
+pub(crate) fn start_cleanup_thread(cx: Context) {
     use std::str::FromStr;
     if !UNBAN_THREAD_INITIALIZED.load(Ordering::SeqCst) {
         UNBAN_THREAD_INITIALIZED.store(true, Ordering::SeqCst);
@@ -69,6 +70,18 @@ pub(crate) fn start_unban_thread(cx: Context) {
                     info!("Unbanning user {}", &row.1);
                     guild_id.unban(&cx, u64::from_str(&row.1)?)?;
                 }
+
+                let mut data = cx.data.write();
+                let history = data.get_mut::<CommandHistory>().unwrap();
+
+                // always keep the last command in history
+                if history.len() > 0 {
+                    info!("Clearing command history");
+                    history.drain(..history.len() - 1);
+                }
+
+                drop(data);
+
                 sleep(Duration::new(HOUR, 0));
             }
         });

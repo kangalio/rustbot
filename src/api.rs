@@ -2,14 +2,34 @@ use crate::{
     commands::{Args, Result},
     db::DB,
     schema::roles,
+    CommandHistory,
 };
 use diesel::prelude::*;
 use serenity::{model::prelude::*, utils::parse_username};
 
 /// Send a reply to the channel the message was received on.  
 pub(crate) fn send_reply(args: &Args, message: &str) -> Result<()> {
-    args.msg.channel_id.say(&args.cx, message)?;
+    if let Some(response_id) = response_exists(args) {
+        info!("editing message: {:?}", response_id);
+        args.msg
+            .channel_id
+            .edit_message(&args.cx, response_id, |msg| msg.content(message))?;
+    } else {
+        let command_id = args.msg.id;
+        let response = args.msg.channel_id.say(&args.cx, message)?;
+
+        let mut data = args.cx.data.write();
+        let history = data.get_mut::<CommandHistory>().unwrap();
+        history.insert(command_id, response.id);
+    }
+
     Ok(())
+}
+
+fn response_exists(args: &Args) -> Option<MessageId> {
+    let data = args.cx.data.read();
+    let history = data.get::<CommandHistory>().unwrap();
+    history.get(&args.msg.id).cloned()
 }
 
 /// Determine if a member sending a message has the `Role`.  
