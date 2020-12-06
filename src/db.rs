@@ -1,4 +1,4 @@
-use crate::commands::Result;
+use crate::Error;
 use diesel::prelude::*;
 use diesel::r2d2;
 use lazy_static::lazy_static;
@@ -12,7 +12,7 @@ lazy_static! {
     .expect("Unable to connect to database");
 }
 
-pub(crate) fn run_migrations() -> Result<()> {
+pub(crate) fn run_migrations() -> Result<(), Error> {
     let conn = PgConnection::establish(&std::env::var("DATABASE_URL")?)?;
 
     diesel_migrations::embed_migrations!();

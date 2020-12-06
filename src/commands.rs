@@ -1,6 +1,7 @@
 use crate::{
     api,
     state_machine::{CharacterSet, StateMachine},
+    Error,
 };
 use indexmap::IndexMap;
 use reqwest::blocking::Client as HttpClient;
@@ -8,20 +9,19 @@ use serenity::{model::channel::Message, prelude::Context};
 use std::{collections::HashMap, sync::Arc};
 
 const PREFIX: &'static str = "?";
-pub(crate) type Result<T> = std::result::Result<T, Box<dyn std::error::Error>>;
-pub(crate) type GuardFn = fn(&Args) -> Result<bool>;
+pub(crate) type GuardFn = fn(&Args) -> Result<bool, Error>;
 
 struct Command {
     guard: GuardFn,
-    ptr: Box<dyn for<'m> Fn(Args<'m>) -> Result<()> + Send + Sync>,
+    ptr: Box<dyn for<'m> Fn(Args<'m>) -> Result<(), Error> + Send + Sync>,
 }
 
 impl Command {
-    fn authorize(&self, args: &Args) -> Result<bool> {
+    fn authorize(&self, args: &Args) -> Result<bool, Error> {
         (self.guard)(&args)
     }
 
-    fn call(&self, args: Args) -> Result<()> {
+    fn call(&self, args: Args) -> Result<(), Error> {
         (self.ptr)(args)
     }
 }
@@ -51,7 +51,7 @@ impl Commands {
     pub(crate) fn add(
         &mut self,
         command: &'static str,
-        handler: impl Fn(Args) -> Result<()> + Send + Sync + 'static,
+        handler: impl Fn(Args) -> Result<(), Error> + Send + Sync + 'static,
     ) {
         self.add_protected(command, handler, |_| Ok(true));
     }
@@ -59,7 +59,7 @@ impl Commands {
     pub(crate) fn add_protected(
         &mut self,
         command: &'static str,
-        handler: impl Fn(Args) -> Result<()> + Send + Sync + 'static,
+        handler: impl Fn(Args) -> Result<(), Error> + Send + Sync + 'static,
         guard: GuardFn,
     ) {
         info!("Adding command {}", &command);
@@ -130,7 +130,7 @@ impl Commands {
         &mut self,
         cmd: &'static str,
         desc: &'static str,
-        handler: impl Fn(Args) -> Result<()> + Send + Sync + 'static,
+        handler: impl Fn(Args) -> Result<(), Error> + Send + Sync + 'static,
     ) {
         self.help_protected(cmd, desc, handler, |_| Ok(true));
     }
@@ -139,7 +139,7 @@ impl Commands {
         &mut self,
         cmd: &'static str,
         desc: &'static str,
-        handler: impl Fn(Args) -> Result<()> + Send + Sync + 'static,
+        handler: impl Fn(Args) -> Result<(), Error> + Send + Sync + 'static,
         guard: GuardFn,
     ) {
         let base_cmd = &cmd[1..];

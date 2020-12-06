@@ -1,14 +1,9 @@
-use crate::{
-    commands::{Args, Result},
-    db::DB,
-    schema::roles,
-    CommandHistory,
-};
+use crate::{command_history::CommandHistory, commands::Args, db::DB, schema::roles, Error};
 use diesel::prelude::*;
 use serenity::{model::prelude::*, utils::parse_username};
 
 /// Send a reply to the channel the message was received on.  
-pub(crate) fn send_reply(args: &Args, message: &str) -> Result<()> {
+pub(crate) fn send_reply(args: &Args, message: &str) -> Result<(), Error> {
     if let Some(response_id) = response_exists(args) {
         info!("editing message: {:?}", response_id);
         args.msg
@@ -33,7 +28,7 @@ fn response_exists(args: &Args) -> Option<MessageId> {
 }
 
 /// Determine if a member sending a message has the `Role`.  
-pub(crate) fn has_role(args: &Args, role: &RoleId) -> Result<bool> {
+pub(crate) fn has_role(args: &Args, role: &RoleId) -> Result<bool, Error> {
     Ok(args
         .msg
         .member
@@ -43,7 +38,7 @@ pub(crate) fn has_role(args: &Args, role: &RoleId) -> Result<bool> {
         .contains(role))
 }
 
-fn check_permission(args: &Args, role: Option<String>) -> Result<bool> {
+fn check_permission(args: &Args, role: Option<String>) -> Result<bool, Error> {
     use std::str::FromStr;
     if let Some(role_id) = role {
         Ok(has_role(args, &RoleId::from(u64::from_str(&role_id)?))?)
@@ -53,7 +48,7 @@ fn check_permission(args: &Args, role: Option<String>) -> Result<bool> {
 }
 
 /// Return whether or not the user is a mod.  
-pub(crate) fn is_mod(args: &Args) -> Result<bool> {
+pub(crate) fn is_mod(args: &Args) -> Result<bool, Error> {
     let role = roles::table
         .filter(roles::name.eq("mod"))
         .first::<(i32, String, String)>(&DB.get()?)
@@ -62,7 +57,7 @@ pub(crate) fn is_mod(args: &Args) -> Result<bool> {
     check_permission(args, role.map(|(_, role_id, _)| role_id))
 }
 
-pub(crate) fn is_wg_and_teams(args: &Args) -> Result<bool> {
+pub(crate) fn is_wg_and_teams(args: &Args) -> Result<bool, Error> {
     let role = roles::table
         .filter(roles::name.eq("wg_and_teams"))
         .first::<(i32, String, String)>(&DB.get()?)
@@ -74,7 +69,7 @@ pub(crate) fn is_wg_and_teams(args: &Args) -> Result<bool> {
 /// Set slow mode for a channel.  
 ///
 /// A `seconds` value of 0 will disable slowmode
-pub(crate) fn slow_mode(args: Args) -> Result<()> {
+pub(crate) fn slow_mode(args: Args) -> Result<(), Error> {
     use std::str::FromStr;
 
     if is_mod(&args)? {
@@ -95,7 +90,7 @@ pub(crate) fn slow_mode(args: Args) -> Result<()> {
     Ok(())
 }
 
-pub(crate) fn slow_mode_help(args: Args) -> Result<()> {
+pub(crate) fn slow_mode_help(args: Args) -> Result<(), Error> {
     let help_string = "
 Set slowmode on a channel
 ```
@@ -119,7 +114,7 @@ will disable slowmode on the `#bot-usage` channel.";
 /// Kick a user from the guild.  
 ///
 /// Requires the kick members permission
-pub(crate) fn kick(args: Args) -> Result<()> {
+pub(crate) fn kick(args: Args) -> Result<(), Error> {
     if is_mod(&args)? {
         let user_id = parse_username(
             &args
@@ -137,7 +132,7 @@ pub(crate) fn kick(args: Args) -> Result<()> {
     Ok(())
 }
 
-pub(crate) fn kick_help(args: Args) -> Result<()> {
+pub(crate) fn kick_help(args: Args) -> Result<(), Error> {
     let help_string = "
 Kick a user from the guild
 ```
