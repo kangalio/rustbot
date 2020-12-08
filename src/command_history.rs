@@ -1,4 +1,7 @@
-use crate::{Commands, Error, SendSyncError, HOUR};
+use crate::{
+    commands::{Commands, PREFIX},
+    Error, SendSyncError, HOUR,
+};
 use indexmap::IndexMap;
 use serenity::{model::prelude::*, prelude::*, utils::CustomMessage};
 use std::time::Duration;
@@ -28,11 +31,14 @@ pub(crate) fn replay_message(
             .content(ev.content.unwrap_or_else(|| String::new()));
 
         let msg = msg.build();
-        info!(
-            "sending edited message - {:?} {:?}",
-            msg.content, msg.author
-        );
-        cmds.execute(cx, &msg);
+
+        if msg.content.starts_with(PREFIX) {
+            info!(
+                "sending edited message - {:?} {:?}",
+                msg.content, msg.author
+            );
+            cmds.execute(cx, &msg);
+        }
     }
 
     Ok(())

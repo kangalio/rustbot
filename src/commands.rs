@@ -8,7 +8,7 @@ use reqwest::blocking::Client as HttpClient;
 use serenity::{model::channel::Message, prelude::Context};
 use std::{collections::HashMap, sync::Arc};
 
-const PREFIX: &'static str = "?";
+pub(crate) const PREFIX: &'static str = "?";
 pub(crate) type GuardFn = fn(&Args) -> Result<bool, Error>;
 
 struct Command {
