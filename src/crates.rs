@@ -1,7 +1,4 @@
-use crate::{
-    api,
-    commands::{Args, Result},
-};
+use crate::{api, commands::Args, Error};
 
 use reqwest::header;
 use serde::Deserialize;
@@ -25,7 +22,7 @@ struct Crate {
     documentation: Option<String>,
 }
 
-fn get_crate(args: &Args) -> Result<Option<Crate>> {
+fn get_crate(args: &Args) -> Result<Option<Crate>, Error> {
     let query = args
         .params
         .get("query")
@@ -44,7 +41,7 @@ fn get_crate(args: &Args) -> Result<Option<Crate>> {
     Ok(crate_list.crates.into_iter().nth(0))
 }
 
-pub fn search(args: Args) -> Result<()> {
+pub fn search(args: Args) -> Result<(), Error> {
     if let Some(krate) = get_crate(&args)? {
         args.msg.channel_id.send_message(&args.cx, |m| {
             m.embed(|e| {
@@ -79,7 +76,7 @@ fn rustc_crate(crate_name: &str) -> Option<&str> {
     }
 }
 
-pub fn doc_search(args: Args) -> Result<()> {
+pub fn doc_search(args: Args) -> Result<(), Error> {
     let query = args
         .params
         .get("query")
@@ -114,7 +111,7 @@ pub fn doc_search(args: Args) -> Result<()> {
 }
 
 /// Print the help message
-pub fn help(args: Args) -> Result<()> {
+pub fn help(args: Args) -> Result<(), Error> {
     let help_string = "search for a crate on crates.io
 ```
 ?crate query...
@@ -124,7 +121,7 @@ pub fn help(args: Args) -> Result<()> {
 }
 
 /// Print the help message
-pub fn doc_help(args: Args) -> Result<()> {
+pub fn doc_help(args: Args) -> Result<(), Error> {
     let help_string = "retrieve documentation for a given crate
 ```
 ?docs crate_name...

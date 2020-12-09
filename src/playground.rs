@@ -1,9 +1,6 @@
 //! run rust code on the rust-lang playground
 
-use crate::{
-    api,
-    commands::{Args, Result},
-};
+use crate::{api, commands::Args, Error};
 
 use reqwest::header;
 use serde::{Deserialize, Serialize};
@@ -70,7 +67,7 @@ enum Channel {
 impl FromStr for Channel {
     type Err = Box<dyn std::error::Error>;
 
-    fn from_str(s: &str) -> Result<Self> {
+    fn from_str(s: &str) -> Result<Self, Error> {
         match s {
             "stable" => Ok(Channel::Stable),
             "beta" => Ok(Channel::Beta),
@@ -91,7 +88,7 @@ enum Edition {
 impl FromStr for Edition {
     type Err = Box<dyn std::error::Error>;
 
-    fn from_str(s: &str) -> Result<Self> {
+    fn from_str(s: &str) -> Result<Self, Error> {
         match s {
             "2015" => Ok(Edition::E2015),
             "2018" => Ok(Edition::E2018),
@@ -118,7 +115,7 @@ enum Mode {
 impl FromStr for Mode {
     type Err = Box<dyn std::error::Error>;
 
-    fn from_str(s: &str) -> Result<Self> {
+    fn from_str(s: &str) -> Result<Self, Error> {
         match s {
             "debug" => Ok(Mode::Debug),
             "release" => Ok(Mode::Release),
@@ -134,7 +131,7 @@ struct PlayResult {
     stderr: String,
 }
 
-fn run_code(args: &Args, code: &str) -> Result<String> {
+fn run_code(args: &Args, code: &str) -> Result<String, Error> {
     let mut errors = String::new();
 
     let warnings = args.params.get("warn").unwrap_or_else(|| &"false");
@@ -196,7 +193,7 @@ fn run_code(args: &Args, code: &str) -> Result<String> {
     )
 }
 
-fn get_playground_link(args: &Args, code: &str, request: &PlaygroundCode) -> Result<String> {
+fn get_playground_link(args: &Args, code: &str, request: &PlaygroundCode) -> Result<String, Error> {
     let mut payload = HashMap::new();
     payload.insert("code", code);
 
@@ -215,7 +212,7 @@ fn get_playground_link(args: &Args, code: &str, request: &PlaygroundCode) -> Res
         .ok_or_else(|| "no gist found".into())
 }
 
-pub fn run(args: Args) -> Result<()> {
+pub fn run(args: Args) -> Result<(), Error> {
     let code = args
         .params
         .get("code")
@@ -226,7 +223,7 @@ pub fn run(args: Args) -> Result<()> {
     Ok(())
 }
 
-pub fn help(args: Args, name: &str) -> Result<()> {
+pub fn help(args: Args, name: &str) -> Result<(), Error> {
     let message = format!(
         "Compile and run rust code. All code is executed on https://play.rust-lang.org.
 ```?{} mode={{}} channel={{}} edition={{}} warn={{}} ``\u{200B}`code``\u{200B}` ```
@@ -243,7 +240,7 @@ Optional arguments:
     Ok(())
 }
 
-pub fn err(args: Args) -> Result<()> {
+pub fn err(args: Args) -> Result<(), Error> {
     let message = "Missing code block. Please use the following markdown:
 \\`\\`\\`rust
     code here
@@ -254,7 +251,7 @@ pub fn err(args: Args) -> Result<()> {
     Ok(())
 }
 
-pub fn eval(args: Args) -> Result<()> {
+pub fn eval(args: Args) -> Result<(), Error> {
     let code = args
         .params
         .get("code")
@@ -274,7 +271,7 @@ pub fn eval(args: Args) -> Result<()> {
     Ok(())
 }
 
-pub fn eval_err(args: Args) -> Result<()> {
+pub fn eval_err(args: Args) -> Result<(), Error> {
     let message = "Missing code block. Please use the following markdown:
     \\`code here\\`
     or

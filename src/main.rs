@@ -9,9 +9,11 @@ extern crate log;
 
 mod api;
 mod ban;
+mod command_history;
 mod commands;
 mod crates;
 mod db;
+mod jobs;
 mod playground;
 mod schema;
 mod state_machine;
@@ -20,15 +22,18 @@ mod text;
 mod welcome;
 
 use crate::db::DB;
-use commands::{Args, Commands, GuardFn, Result};
+use commands::{Args, Commands, GuardFn};
 use diesel::prelude::*;
 use envy;
 use indexmap::IndexMap;
 use serde::Deserialize;
-use serenity::{model::prelude::*, prelude::*, utils::CustomMessage};
-use std::time::Duration;
+use serenity::{model::prelude::*, prelude::*};
 
-const MESSAGE_AGE_MAX: Duration = Duration::from_secs(3600);
+pub(crate) type Error = Box<dyn std::error::Error>;
+pub(crate) type SendSyncError = Box<dyn std::error::Error + Send + Sync>;
+
+pub(crate) const HOUR: u64 = 3600;
+
 #[derive(Deserialize)]
 struct Config {
     tags: bool,
@@ -40,13 +45,13 @@ struct Config {
     wg_and_teams_id: Option<String>,
 }
 
-fn init_data(config: &Config) -> Result<()> {
+fn init_data(config: &Config) -> Result<(), Error> {
     use crate::schema::roles;
     info!("Loading data into database");
 
     let conn = DB.get()?;
 
-    let upsert_role = |name: &str, role_id: &str| -> Result<()> {
+    let upsert_role = |name: &str, role_id: &str| -> Result<(), Error> {
         diesel::insert_into(roles::table)
             .values((roles::role.eq(role_id), roles::name.eq(name)))
             .on_conflict(roles::name)
@@ -68,7 +73,7 @@ fn init_data(config: &Config) -> Result<()> {
                 let wg_and_teams_role = config
                     .wg_and_teams_id
                     .as_ref()
-                    .ok_or_else(|| "missing value for field wg_and_teams_id.\n\nIf you enabled tags or crates then you need the WG_AND_TEAMS_ID env var.")?;
+                    .ok_or_else(|| text::WG_AND_TEAMS_MISSING_ENV_VAR)?;
                 upsert_role("wg_and_teams", &wg_and_teams_role)?;
             }
 
@@ -78,7 +83,7 @@ fn init_data(config: &Config) -> Result<()> {
     Ok(())
 }
 
-fn app() -> Result<()> {
+fn app() -> Result<(), Error> {
     let config = envy::from_env::<Config>()?;
 
     info!("starting...");
@@ -223,11 +228,6 @@ fn main() {
     }
 }
 
-struct CommandHistory {}
-impl TypeMapKey for CommandHistory {
-    type Value = IndexMap<MessageId, MessageId>;
-}
-
 struct Events {
     cmds: Commands,
 }
@@ -235,12 +235,12 @@ struct Events {
 impl EventHandler for Events {
     fn ready(&self, cx: Context, ready: Ready) {
         info!("{} connected to discord", ready.user.name);
+        {
+            let mut data = cx.data.write();
+            data.insert::<command_history::CommandHistory>(IndexMap::new());
+        }
 
-        let mut data = cx.data.write();
-        data.insert::<CommandHistory>(IndexMap::new());
-        drop(data);
-
-        ban::start_cleanup_thread(cx);
+        jobs::start_jobs(cx);
     }
 
     fn message(&self, cx: Context, message: Message) {
@@ -254,32 +254,14 @@ impl EventHandler for Events {
         _: Option<Message>,
         ev: MessageUpdateEvent,
     ) {
-        let age = ev.timestamp.and_then(|create| {
-            ev.edited_timestamp
-                .and_then(|edit| edit.signed_duration_since(create).to_std().ok())
-        });
-
-        if age.is_some() && age.unwrap() < MESSAGE_AGE_MAX {
-            let mut msg = CustomMessage::new();
-            msg.id(ev.id)
-                .channel_id(ev.channel_id)
-                .content(ev.content.unwrap_or_else(|| String::new()));
-
-            let msg = msg.build();
-
-            if msg.content.starts_with(commands::PREFIX) {
-                info!(
-                    "sending edited message - {:?} {:?}",
-                    msg.content, msg.author
-                );
-                self.cmds.execute(cx, &msg);
-            }
+        if let Err(e) = command_history::replay_message(cx, ev, &self.cmds) {
+            error!("{}", e);
         }
     }
 
     fn message_delete(&self, cx: Context, channel_id: ChannelId, message_id: MessageId) {
         let mut data = cx.data.write();
-        let history = data.get_mut::<CommandHistory>().unwrap();
+        let history = data.get_mut::<command_history::CommandHistory>().unwrap();
         if let Some(response_id) = history.remove(&message_id) {
             info!("deleting message: {:?}", response_id);
             let _ = channel_id.delete_message(&cx, response_id);
