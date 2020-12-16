@@ -257,17 +257,15 @@ pub fn eval(args: Args) -> Result<(), Error> {
         .get("code")
         .ok_or("Unable to retrieve param: query")?;
 
-    let code = format!(
-        "fn main(){{
-    println!(\"{{:?}}\",{{ 
-    {} 
-    }});
-}}",
-        code
-    );
+    if code.contains("fn main") {
+        api::send_reply(&args, "code passed to ?eval should not contain `fn main`")?;
+    } else {
+        let code = format!("fn main(){{ println!(\"{{:?}}\",{{ {} }}); }}", code);
 
-    let result = run_code(&args, &code)?;
-    api::send_reply(&args, &result)?;
+        let result = run_code(&args, &code)?;
+        api::send_reply(&args, &result)?;
+    }
+
     Ok(())
 }
 
