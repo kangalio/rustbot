@@ -216,6 +216,8 @@ fn main_menu(args: &Args, commands: &IndexMap<&str, (&str, GuardFn)>) -> String 
 
     menu += &format!("\t{help:<12}This menu\n", help = "?help");
     menu += "\nType ?help command for more info on a command.";
+    menu += "\n\nAdditional Info:\n";
+    menu += "\tYou can edit your message to the bot and the bot will edit its response.";
     menu
 }
 
