@@ -18,6 +18,7 @@ struct Crate {
     #[serde(rename = "updated_at")]
     updated: String,
     downloads: u64,
+    #[serde(default)]
     description: String,
     documentation: Option<String>,
 }
