@@ -34,11 +34,11 @@ impl CharacterSet {
         match val {
             0..=63 => {
                 let bit = 1 << val;
-                self.low_mask = self.low_mask | bit;
+                self.low_mask |= bit;
             }
             64..=127 => {
-                let bit = 1 << val - 64;
-                self.high_mask = self.high_mask | bit;
+                let bit = 1 << (val - 64);
+                self.high_mask |= bit;
             }
             _ => {}
         }
@@ -51,11 +51,11 @@ impl CharacterSet {
         match val {
             0..=63 => {
                 let bit = 1 << val;
-                self.low_mask = self.low_mask & !bit;
+                self.low_mask &= !bit;
             }
             64..=127 => {
-                let bit = 1 << val - 64;
-                self.high_mask = self.high_mask & !bit;
+                let bit = 1 << (val - 64);
+                self.high_mask &= !bit;
             }
             _ => {}
         }
@@ -72,7 +72,7 @@ impl CharacterSet {
             }
             64..=127 => {
                 // flip a bit within 0 - 63
-                let bit = 1 << val - 64;
+                let bit = 1 << (val - 64);
                 self.high_mask & bit != 0
             }
             _ => self.any,

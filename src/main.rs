@@ -24,7 +24,6 @@ mod welcome;
 use crate::db::DB;
 use commands::{Args, Commands, GuardFn};
 use diesel::prelude::*;
-use envy;
 use indexmap::IndexMap;
 use serde::Deserialize;
 use serenity::{model::prelude::*, prelude::*};
@@ -203,16 +202,15 @@ fn app() -> Result<(), Error> {
 }
 
 fn main_menu(args: &Args, commands: &IndexMap<&str, (&str, GuardFn)>) -> String {
-    let mut menu = format!("Commands:\n");
-
-    menu = commands
-        .iter()
-        .fold(menu, |mut menu, (base_cmd, (description, guard))| {
+    let mut menu = commands.iter().fold(
+        "Commands:\n".to_owned(),
+        |mut menu, (base_cmd, (description, guard))| {
             if let Ok(true) = (guard)(&args) {
                 menu += &format!("\t{cmd:<12}{desc}\n", cmd = base_cmd, desc = description);
             }
             menu
-        });
+        },
+    );
 
     menu += &format!("\t{help:<12}This menu\n", help = "?help");
     menu += "\nType ?help command for more info on a command.";

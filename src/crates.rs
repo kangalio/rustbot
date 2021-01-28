@@ -39,7 +39,7 @@ fn get_crate(args: &Args) -> Result<Option<Crate>, Error> {
         .send()?
         .json::<Crates>()?;
 
-    Ok(crate_list.crates.into_iter().nth(0))
+    Ok(crate_list.crates.into_iter().next())
 }
 
 pub fn search(args: Args) -> Result<(), Error> {

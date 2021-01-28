@@ -8,12 +8,12 @@ use reqwest::blocking::Client as HttpClient;
 use serenity::{model::channel::Message, prelude::Context};
 use std::{collections::HashMap, sync::Arc};
 
-pub(crate) const PREFIX: &'static str = "?";
+pub(crate) const PREFIX: &str = "?";
 pub(crate) type GuardFn = fn(&Args) -> Result<bool, Error>;
 
 struct Command {
     guard: GuardFn,
-    ptr: Box<dyn for<'m> Fn(Args<'m>) -> Result<(), Error> + Send + Sync>,
+    ptr: Box<dyn Fn(Args<'_>) -> Result<(), Error> + Send + Sync>,
 }
 
 impl Command {
@@ -70,7 +70,7 @@ impl Commands {
 
         command
             .split(' ')
-            .filter(|segment| segment.len() > 0)
+            .filter(|segment| !segment.is_empty())
             .enumerate()
             .for_each(|(i, segment)| {
                 if let Some(name) = key_value_pair(segment) {
@@ -96,9 +96,9 @@ impl Commands {
                         state = self.add_code_segment_multi_line(state, segment);
                     } else if segment.starts_with("```") && segment.ends_with("```") {
                         state = self.add_code_segment_single_line(state, 3, segment);
-                    } else if segment.starts_with("`") && segment.ends_with("`") {
+                    } else if segment.starts_with('`') && segment.ends_with('`') {
                         state = self.add_code_segment_single_line(state, 1, segment);
-                    } else if segment.starts_with("{") && segment.ends_with("}") {
+                    } else if segment.starts_with('{') && segment.ends_with('}') {
                         state = self.add_dynamic_segment(state, segment);
                     } else if segment.ends_with("...") {
                         state = self.add_remaining_segment(state, segment);
@@ -122,7 +122,7 @@ impl Commands {
             });
         } else {
             self.state_machine.set_final_state(state);
-            self.state_machine.set_handler(state, handler.clone());
+            self.state_machine.set_handler(state, handler);
         }
     }
 
@@ -169,7 +169,7 @@ impl Commands {
     pub(crate) fn execute<'m>(&'m self, cx: Context, msg: &Message) {
         let message = &msg.content;
         if !msg.is_own(&cx) && message.starts_with(PREFIX) {
-            self.state_machine.process(message).map(|matched| {
+            if let Some(matched) = self.state_machine.process(message) {
                 info!("Processing command: {}", message);
                 let args = Args {
                     http: &self.client,
@@ -195,7 +195,7 @@ impl Commands {
                     }
                     Err(e) => error!("{}", e),
                 }
-            });
+            };
         }
     }
 
@@ -323,10 +323,10 @@ impl Commands {
 
 fn key_value_pair(s: &'static str) -> Option<&'static str> {
     s.match_indices("={}")
-        .nth(0)
+        .next()
         .map(|pair| {
             let name = &s[0..pair.0];
-            if name.len() > 0 {
+            if !name.is_empty() {
                 Some(name)
             } else {
                 None

@@ -28,7 +28,7 @@ pub(crate) fn replay_message(
         let mut msg = CustomMessage::new();
         msg.id(ev.id)
             .channel_id(ev.channel_id)
-            .content(ev.content.unwrap_or_else(|| String::new()));
+            .content(ev.content.unwrap_or_else(String::new));
 
         let msg = msg.build();
 
@@ -49,7 +49,7 @@ pub(crate) fn clear_command_history(cx: &Context) -> Result<(), SendSyncError> {
     let history = data.get_mut::<CommandHistory>().unwrap();
 
     // always keep the last command in history
-    if history.len() > 0 {
+    if !history.is_empty() {
         info!("Clearing command history");
         history.drain(..history.len() - 1);
     }
