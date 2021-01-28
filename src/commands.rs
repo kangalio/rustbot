@@ -322,15 +322,12 @@ impl Commands {
 }
 
 fn key_value_pair(s: &'static str) -> Option<&'static str> {
-    s.match_indices("={}")
-        .next()
-        .map(|pair| {
-            let name = &s[0..pair.0];
-            if !name.is_empty() {
-                Some(name)
-            } else {
-                None
-            }
-        })
-        .flatten()
+    let (match_index, _) = s.match_indices("={}").next()?;
+    let name = &s[0..match_index];
+
+    if !name.is_empty() {
+        Some(name)
+    } else {
+        None
+    }
 }
