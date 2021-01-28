@@ -13,6 +13,7 @@ mod command_history;
 mod commands;
 mod crates;
 mod db;
+mod godbolt;
 mod jobs;
 mod playground;
 mod schema;
@@ -147,6 +148,34 @@ fn app() -> Result<(), Error> {
         });
     }
 
+    cmds.add("?godbolt ```\ncode```", |args| {
+        let code = args
+            .params
+            .get("code")
+            .ok_or("Unable to retrieve param: code")?;
+        let (lang, text) = match godbolt::compile_rust_source(args.http, code)? {
+            godbolt::Compilation::Success { asm } => ("x86asm", asm),
+            godbolt::Compilation::Error { stderr } => ("rust", stderr),
+        };
+
+        reply_potentially_long_text(
+            &args,
+            &format!("```{}\n{}", lang, text),
+            "\n```",
+            "Note: the output was truncated",
+        )?;
+
+        Ok(())
+    });
+    cmds.help("?godbolt", "View assembly using Godbolt", |args| {
+        api::send_reply(
+            &args,
+            "Compile Rust code using https://rust.godbolt.org. Full optimizations are applied. \
+            ```?godbolt ``\u{200B}`code``\u{200B}` ```",
+        )?;
+        Ok(())
+    });
+
     // Slow mode.
     // 0 seconds disables slowmode
     cmds.add_protected("?slowmode {channel} {seconds}", api::slow_mode, api::is_mod);
@@ -199,6 +228,40 @@ fn app() -> Result<(), Error> {
     client.start()?;
 
     Ok(())
+}
+
+/// Send a Discord reply message and truncate the message with a given truncation message if the
+/// text is too long.
+///
+/// Only `text_body` is truncated. `text_end` will always be appended at the end. This is useful
+/// for example for large code blocks. You will want to truncate the code block contents, but the
+/// finalizing \`\`\` should always stay - that's what `text_end` is for.
+fn reply_potentially_long_text(
+    args: &Args,
+    text_body: &str,
+    text_end: &str,
+    truncation_msg: &str,
+) -> Result<(), Error> {
+    let msg = if text_body.len() + text_end.len() > 2000 {
+        // This is how long the text body may be at max to conform to Discord's limit
+        let available_space = 2000 - text_end.len() - truncation_msg.len();
+
+        let mut cut_off_point = available_space;
+        while !text_body.is_char_boundary(cut_off_point) {
+            cut_off_point -= 1;
+        }
+
+        format!(
+            "{}{}{}",
+            &text_body[..cut_off_point],
+            text_end,
+            truncation_msg
+        )
+    } else {
+        format!("{}{}", text_body, text_end)
+    };
+
+    api::send_reply(args, &msg)
 }
 
 fn main_menu(args: &Args, commands: &IndexMap<&str, (&str, GuardFn)>) -> String {
