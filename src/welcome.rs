@@ -10,7 +10,7 @@ use diesel::prelude::*;
 use serenity::{model::prelude::*, prelude::*};
 
 /// Write the welcome message to the welcome channel.  
-pub(crate) fn post_message(args: Args) -> Result<(), Error> {
+pub fn post_message(args: Args) -> Result<(), Error> {
     use std::str::FromStr;
 
     if api::is_mod(&args)? {
@@ -64,7 +64,7 @@ pub(crate) fn post_message(args: Args) -> Result<(), Error> {
     Ok(())
 }
 
-pub(crate) fn assign_talk_role(cx: &Context, reaction: &Reaction) -> Result<(), Error> {
+pub fn assign_talk_role(cx: &Context, reaction: &Reaction) -> Result<(), Error> {
     let channel = reaction.channel(cx)?;
     let channel_id = ChannelId::from(&channel);
     let message = reaction.message(cx)?;
@@ -126,7 +126,7 @@ pub(crate) fn assign_talk_role(cx: &Context, reaction: &Reaction) -> Result<(), 
     Ok(())
 }
 
-pub(crate) fn help(args: Args) -> Result<(), Error> {
+pub fn help(args: Args) -> Result<(), Error> {
     let help_string = format!(
         "
 Post the welcome message to `channel`

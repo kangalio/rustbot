@@ -29,10 +29,10 @@ use indexmap::IndexMap;
 use serde::Deserialize;
 use serenity::{model::prelude::*, prelude::*};
 
-pub(crate) type Error = Box<dyn std::error::Error>;
-pub(crate) type SendSyncError = Box<dyn std::error::Error + Send + Sync>;
+pub type Error = Box<dyn std::error::Error>;
+pub type SendSyncError = Box<dyn std::error::Error + Send + Sync>;
 
-pub(crate) const HOUR: u64 = 3600;
+pub const HOUR: u64 = 3600;
 
 #[derive(Deserialize)]
 struct Config {

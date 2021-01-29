@@ -5,7 +5,7 @@ use diesel::prelude::*;
 use serenity::{model::prelude::*, prelude::*, utils::parse_username};
 use std::time::{Duration, SystemTime};
 
-pub(crate) fn save_ban(user_id: String, guild_id: String, hours: u64) -> Result<(), Error> {
+pub fn save_ban(user_id: String, guild_id: String, hours: u64) -> Result<(), Error> {
     info!("Recording ban for user {}", &user_id);
     let conn = DB.get()?;
     diesel::insert_into(bans::table)
@@ -22,7 +22,7 @@ pub(crate) fn save_ban(user_id: String, guild_id: String, hours: u64) -> Result<
     Ok(())
 }
 
-pub(crate) fn save_unban(user_id: String, guild_id: String) -> Result<(), Error> {
+pub fn save_unban(user_id: String, guild_id: String) -> Result<(), Error> {
     info!("Recording unban for user {}", &user_id);
     let conn = DB.get()?;
     diesel::update(bans::table)
@@ -37,7 +37,7 @@ pub(crate) fn save_unban(user_id: String, guild_id: String) -> Result<(), Error>
     Ok(())
 }
 
-pub(crate) fn unban_users(cx: &Context) -> Result<(), SendSyncError> {
+pub fn unban_users(cx: &Context) -> Result<(), SendSyncError> {
     use std::str::FromStr;
 
     let conn = DB.get()?;
@@ -60,7 +60,7 @@ pub(crate) fn unban_users(cx: &Context) -> Result<(), SendSyncError> {
 /// Temporarily ban an user from the guild.  
 ///
 /// Requires the ban members permission
-pub(crate) fn temp_ban(args: Args) -> Result<(), Error> {
+pub fn temp_ban(args: Args) -> Result<(), Error> {
     let user_id = parse_username(
         &args
             .params
@@ -100,7 +100,7 @@ pub(crate) fn temp_ban(args: Args) -> Result<(), Error> {
     Ok(())
 }
 
-pub(crate) fn help(args: Args) -> Result<(), Error> {
+pub fn help(args: Args) -> Result<(), Error> {
     let hours = 24;
     let reason = "violating the code of conduct";
 

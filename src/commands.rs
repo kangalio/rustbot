@@ -8,8 +8,8 @@ use reqwest::blocking::Client as HttpClient;
 use serenity::{model::channel::Message, prelude::Context};
 use std::{collections::HashMap, sync::Arc};
 
-pub(crate) const PREFIX: &str = "?";
-pub(crate) type GuardFn = fn(&Args) -> Result<bool, Error>;
+pub const PREFIX: &str = "?";
+pub type GuardFn = fn(&Args) -> Result<bool, Error>;
 
 struct Command {
     guard: GuardFn,
@@ -33,14 +33,14 @@ pub struct Args<'m> {
     pub params: HashMap<&'m str, &'m str>,
 }
 
-pub(crate) struct Commands {
+pub struct Commands {
     state_machine: StateMachine<Arc<Command>>,
     client: HttpClient,
     menu: Option<IndexMap<&'static str, (&'static str, GuardFn)>>,
 }
 
 impl Commands {
-    pub(crate) fn new() -> Self {
+    pub fn new() -> Self {
         Self {
             state_machine: StateMachine::new(),
             client: HttpClient::new(),
@@ -48,7 +48,7 @@ impl Commands {
         }
     }
 
-    pub(crate) fn add(
+    pub fn add(
         &mut self,
         command: &'static str,
         handler: impl Fn(Args) -> Result<(), Error> + Send + Sync + 'static,
@@ -56,7 +56,7 @@ impl Commands {
         self.add_protected(command, handler, |_| Ok(true));
     }
 
-    pub(crate) fn add_protected(
+    pub fn add_protected(
         &mut self,
         command: &'static str,
         handler: impl Fn(Args) -> Result<(), Error> + Send + Sync + 'static,
@@ -126,7 +126,7 @@ impl Commands {
         }
     }
 
-    pub(crate) fn help(
+    pub fn help(
         &mut self,
         cmd: &'static str,
         desc: &'static str,
@@ -135,7 +135,7 @@ impl Commands {
         self.help_protected(cmd, desc, handler, |_| Ok(true));
     }
 
-    pub(crate) fn help_protected(
+    pub fn help_protected(
         &mut self,
         cmd: &'static str,
         desc: &'static str,
@@ -162,11 +162,11 @@ impl Commands {
         );
     }
 
-    pub(crate) fn menu(&mut self) -> Option<IndexMap<&'static str, (&'static str, GuardFn)>> {
+    pub fn menu(&mut self) -> Option<IndexMap<&'static str, (&'static str, GuardFn)>> {
         self.menu.take()
     }
 
-    pub(crate) fn execute<'m>(&'m self, cx: Context, msg: &Message) {
+    pub fn execute<'m>(&'m self, cx: Context, msg: &Message) {
         let message = &msg.content;
         if !msg.is_own(&cx) && message.starts_with(PREFIX) {
             if let Some(matched) = self.state_machine.process(message) {

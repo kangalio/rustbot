@@ -8,17 +8,13 @@ use std::time::Duration;
 
 const MESSAGE_AGE_MAX: Duration = Duration::from_secs(HOUR);
 
-pub(crate) struct CommandHistory;
+pub struct CommandHistory;
 
 impl TypeMapKey for CommandHistory {
     type Value = IndexMap<MessageId, MessageId>;
 }
 
-pub(crate) fn replay_message(
-    cx: Context,
-    ev: MessageUpdateEvent,
-    cmds: &Commands,
-) -> Result<(), Error> {
+pub fn replay_message(cx: Context, ev: MessageUpdateEvent, cmds: &Commands) -> Result<(), Error> {
     let age = ev.timestamp.and_then(|create| {
         ev.edited_timestamp
             .and_then(|edit| edit.signed_duration_since(create).to_std().ok())
@@ -44,7 +40,7 @@ pub(crate) fn replay_message(
     Ok(())
 }
 
-pub(crate) fn clear_command_history(cx: &Context) -> Result<(), SendSyncError> {
+pub fn clear_command_history(cx: &Context) -> Result<(), SendSyncError> {
     let mut data = cx.data.write();
     let history = data.get_mut::<CommandHistory>().unwrap();
 

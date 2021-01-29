@@ -8,7 +8,7 @@ use std::{
 
 static JOBS_THREAD_INITIALIZED: AtomicBool = AtomicBool::new(false);
 
-pub(crate) fn start_jobs(cx: Context) {
+pub fn start_jobs(cx: Context) {
     if !JOBS_THREAD_INITIALIZED.load(Ordering::SeqCst) {
         JOBS_THREAD_INITIALIZED.store(true, Ordering::SeqCst);
         std::thread::spawn(move || -> Result<(), SendSyncError> {
