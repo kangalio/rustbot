@@ -155,6 +155,12 @@ fn app() -> Result<(), Error> {
         );
     }
 
+    cmds.add("?go", |args| api::send_reply(&args, "No"));
+    cmds.add("?go code...", |args| api::send_reply(&args, "No"));
+    cmds.help("?go", "Evaluates Go code", |args| {
+        api::send_reply(&args, "Evaluates Go code")
+    });
+
     cmds.add("?godbolt ```\ncode```", |args| {
         let code = args
             .params
