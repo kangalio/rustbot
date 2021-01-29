@@ -23,16 +23,11 @@ struct Crate {
     documentation: Option<String>,
 }
 
-fn get_crate(args: &Args) -> Result<Option<Crate>, Error> {
-    let query = args
-        .params
-        .get("query")
-        .ok_or("Unable to retrieve param: query")?;
-
+/// Queries the crates.io crates list and yields the first result, if any
+fn get_crate(http: &reqwest::blocking::Client, query: &str) -> Result<Option<Crate>, Error> {
     info!("searching for crate `{}`", query);
 
-    let crate_list = args
-        .http
+    let crate_list = http
         .get("https://crates.io/api/v1/crates")
         .header(header::USER_AGENT, USER_AGENT)
         .query(&[("q", query)])
@@ -43,14 +38,19 @@ fn get_crate(args: &Args) -> Result<Option<Crate>, Error> {
 }
 
 pub fn search(args: Args) -> Result<(), Error> {
-    if let Some(krate) = get_crate(&args)? {
+    if let Some(krate) = get_crate(
+        &args.http,
+        args.params
+            .get("query")
+            .ok_or("Unable to retrieve param: query")?,
+    )? {
         args.msg.channel_id.send_message(&args.cx, |m| {
             m.embed(|e| {
                 e.title(&krate.name)
                     .url(format!("https://crates.io/crates/{}", krate.id))
                     .description(&krate.description)
-                    .field("version", &krate.version, true)
-                    .field("downloads", &krate.downloads, true)
+                    .field("Version", &krate.version, true)
+                    .field("Downloads", &krate.downloads, true)
                     .timestamp(krate.updated.as_str())
             });
 
@@ -64,8 +64,9 @@ pub fn search(args: Args) -> Result<(), Error> {
     Ok(())
 }
 
-fn rustc_crate(crate_name: &str) -> Option<&str> {
-    match crate_name {
+/// Provide the documentation link to an official Rust crate (e.g. std, alloc, nightly)
+fn rustc_crate_link(crate_name: &str) -> Option<&str> {
+    match crate_name.to_ascii_lowercase().as_str() {
         "std" => Some("https://doc.rust-lang.org/stable/std/"),
         "core" => Some("https://doc.rust-lang.org/stable/core/"),
         "alloc" => Some("https://doc.rust-lang.org/stable/alloc/"),
@@ -86,27 +87,25 @@ pub fn doc_search(args: Args) -> Result<(), Error> {
     let mut query_iter = query.splitn(2, "::");
     let crate_name = query_iter.next().unwrap();
 
-    let doc_url = if let Some(rustc_crate) = rustc_crate(crate_name) {
-        Some(rustc_crate.to_string())
-    } else if let Some(krate) = get_crate(&args)? {
-        let name = krate.name;
+    // The base docs url, e.g. `https://docs.rs/syn` or `https://doc.rust-lang.org/stable/std/`
+    let mut doc_url = if let Some(rustc_crate) = rustc_crate_link(crate_name) {
+        rustc_crate.to_string()
+    } else if let Some(krate) = get_crate(&args.http, crate_name)? {
+        let crate_name = krate.name;
         krate
             .documentation
-            .or_else(|| Some(format!("https://docs.rs/{}", name)))
+            .unwrap_or_else(|| format!("https://docs.rs/{}", crate_name))
     } else {
-        None
+        api::send_reply(&args, "No crates found.")?;
+        return Ok(());
     };
 
-    if let Some(mut url) = doc_url {
-        if let Some(item_path) = query_iter.next() {
-            url += &format!("?search={}", item_path);
-        }
-
-        api::send_reply(&args, &url)?;
-    } else {
-        let message = "No crates found.";
-        api::send_reply(&args, message)?;
+    if let Some(item_path) = query_iter.next() {
+        doc_url += "?search=";
+        doc_url += item_path;
     }
+
+    api::send_reply(&args, &doc_url)?;
 
     Ok(())
 }
