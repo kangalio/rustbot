@@ -38,8 +38,6 @@ pub fn save_unban(user_id: String, guild_id: String) -> Result<(), Error> {
 }
 
 pub fn unban_users(cx: &Context) -> Result<(), SendSyncError> {
-    use std::str::FromStr;
-
     let conn = DB.get()?;
     let to_unban = bans::table
         .filter(
@@ -50,9 +48,9 @@ pub fn unban_users(cx: &Context) -> Result<(), SendSyncError> {
         .load::<(i32, String, String, bool, SystemTime, SystemTime)>(&conn)?;
 
     for row in &to_unban {
-        let guild_id = GuildId::from(u64::from_str(&row.2)?);
+        let guild_id: GuildId = row.2.parse::<u64>()?.into();
         info!("Unbanning user {}", &row.1);
-        guild_id.unban(&cx, u64::from_str(&row.1)?)?;
+        guild_id.unban(&cx, row.1.parse::<u64>()?)?;
     }
     Ok(())
 }
@@ -61,26 +59,13 @@ pub fn unban_users(cx: &Context) -> Result<(), SendSyncError> {
 ///
 /// Requires the ban members permission
 pub fn temp_ban(args: Args) -> Result<(), Error> {
-    let user_id = parse_username(
-        &args
-            .params
-            .get("user")
-            .ok_or("unable to retrieve user param")?,
-    )
-    .ok_or("unable to retrieve user id")?;
-
-    use std::str::FromStr;
-
-    let hours = u64::from_str(
-        args.params
-            .get("hours")
-            .ok_or("unable to retrieve hours param")?,
-    )?;
-
-    let reason = args
-        .params
-        .get("reason")
-        .ok_or("unable to retrieve reason param")?;
+    let mut token = args.body.splitn(3, ' ');
+    let (user, hours, reason) = match (token.next(), token.next(), token.next()) {
+        (Some(a), Some(b), Some(c)) => (a, b, c),
+        _ => return Err("couldn't retrieve user id, hours, or reason param".into()),
+    };
+    let user_id = parse_username(user).ok_or("unable to retrieve user id")?;
+    let hours = hours.parse::<u64>()?;
 
     if let Some(guild) = args.msg.guild(&args.cx) {
         info!("Banning user from guild");

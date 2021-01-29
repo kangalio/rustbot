@@ -11,15 +11,8 @@ use serenity::{model::prelude::*, prelude::*};
 
 /// Write the welcome message to the welcome channel.  
 pub fn post_message(args: Args) -> Result<(), Error> {
-    use std::str::FromStr;
-
     if api::is_mod(&args)? {
-        let channel_name = &args
-            .params
-            .get("channel")
-            .ok_or("unable to retrieve channel param")?;
-
-        let channel_id = ChannelId::from_str(channel_name)?;
+        let channel_id = args.body.parse::<ChannelId>()?;
         info!("Posting welcome message");
         let message = channel_id.say(&args.cx, WELCOME_BILLBOARD)?;
         let bot_id = &message.author.id;

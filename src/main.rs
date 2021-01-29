@@ -97,11 +97,7 @@ fn app() -> Result<(), Error> {
     if config.tags {
         // Tags
         cmds.add_protected("tags delete {key}", tags::delete, api::is_wg_and_teams);
-        cmds.add_protected(
-            "tags create {key} value...",
-            tags::post,
-            api::is_wg_and_teams,
-        );
+        cmds.add_protected("tags create", tags::post, api::is_wg_and_teams);
         cmds.add("tag", tags::get);
         cmds.add("tags", tags::get_all);
         cmds.help("tags", "A key value store", tags::help);
@@ -170,7 +166,7 @@ fn app() -> Result<(), Error> {
 
     // Slow mode.
     // 0 seconds disables slowmode
-    cmds.add_protected("slowmode {channel} {seconds}", api::slow_mode, api::is_mod);
+    cmds.add_protected("slowmode", api::slow_mode, api::is_mod);
     cmds.help_protected(
         "slowmode",
         "Set slowmode on a channel",
@@ -179,7 +175,7 @@ fn app() -> Result<(), Error> {
     );
 
     // Kick
-    cmds.add_protected("kick {user}", api::kick, api::is_mod);
+    cmds.add_protected("kick", api::kick, api::is_mod);
     cmds.help_protected(
         "kick",
         "Kick a user from the guild",
@@ -188,7 +184,7 @@ fn app() -> Result<(), Error> {
     );
 
     // Ban
-    cmds.add_protected("ban {user} {hours} reason...", ban::temp_ban, api::is_mod);
+    cmds.add_protected("ban", ban::temp_ban, api::is_mod);
     cmds.help_protected(
         "ban",
         "Temporarily ban a user from the guild",
@@ -197,7 +193,7 @@ fn app() -> Result<(), Error> {
     );
 
     // Post the welcome message to the welcome channel.
-    cmds.add_protected("CoC {channel}", welcome::post_message, api::is_mod);
+    cmds.add_protected("CoC", welcome::post_message, api::is_mod);
     cmds.help_protected(
         "CoC",
         "Post the code of conduct message to a channel",

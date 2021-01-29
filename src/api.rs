@@ -39,12 +39,11 @@ pub fn has_role(args: &Args, role: &RoleId) -> Result<bool, Error> {
 }
 
 fn check_permission(args: &Args, role: Option<String>) -> Result<bool, Error> {
-    use std::str::FromStr;
-    if let Some(role_id) = role {
-        Ok(has_role(args, &RoleId::from(u64::from_str(&role_id)?))?)
+    Ok(if let Some(role_id) = role {
+        has_role(args, &role_id.parse::<u64>()?.into())?
     } else {
-        Ok(false)
-    }
+        false
+    })
 }
 
 /// Return whether or not the user is a mod.  
@@ -70,23 +69,22 @@ pub fn is_wg_and_teams(args: &Args) -> Result<bool, Error> {
 ///
 /// A `seconds` value of 0 will disable slowmode
 pub fn slow_mode(args: Args) -> Result<(), Error> {
-    use std::str::FromStr;
-
-    if is_mod(&args)? {
-        let seconds = &args
-            .params
-            .get("seconds")
-            .ok_or("unable to retrieve seconds param")?
-            .parse::<u64>()?;
-
-        let channel_name = &args
-            .params
-            .get("channel")
-            .ok_or("unable to retrieve channel param")?;
-
-        info!("Applying slowmode to channel {}", &channel_name);
-        ChannelId::from_str(channel_name)?.edit(&args.cx, |c| c.slow_mode_rate(*seconds))?;
+    if !is_mod(&args)? {
+        return Ok(());
     }
+
+    let mut token = args.body.splitn(2, ' ');
+    let (seconds, channel) = match (token.next(), token.next()) {
+        (Some(a), Some(b)) => (a, b),
+        _ => return Err("unable to retrieve seconds or channel param".into()),
+    };
+
+    let seconds = seconds.parse::<u64>()?;
+    let channel = channel.parse::<ChannelId>()?;
+
+    info!("Applying slowmode to channel {}", &channel);
+    channel.edit(&args.cx, |c| c.slow_mode_rate(seconds))?;
+
     Ok(())
 }
 
@@ -116,13 +114,7 @@ will disable slowmode on the `#bot-usage` channel.";
 /// Requires the kick members permission
 pub fn kick(args: Args) -> Result<(), Error> {
     if is_mod(&args)? {
-        let user_id = parse_username(
-            &args
-                .params
-                .get("user")
-                .ok_or("unable to retrieve user param")?,
-        )
-        .ok_or("unable to retrieve user id")?;
+        let user_id = parse_username(args.body).ok_or("unable to retrieve user id")?;
 
         if let Some(guild) = args.msg.guild(&args.cx) {
             info!("Kicking user from guild");

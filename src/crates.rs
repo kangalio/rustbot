@@ -74,9 +74,7 @@ fn rustc_crate_link(crate_name: &str) -> Option<&str> {
 }
 
 pub fn doc_search(args: Args) -> Result<(), Error> {
-    let query = args.body;
-
-    let mut query_iter = query.splitn(2, "::");
+    let mut query_iter = args.body.splitn(2, "::");
     let crate_name = query_iter.next().unwrap();
 
     // The base docs url, e.g. `https://docs.rs/syn` or `https://doc.rust-lang.org/stable/std/`

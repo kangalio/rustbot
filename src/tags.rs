@@ -21,15 +21,11 @@ pub fn post(args: Args) -> Result<(), Error> {
     if api::is_wg_and_teams(&args)? {
         let conn = DB.get()?;
 
-        let key = args
-            .params
-            .get("key")
-            .ok_or("Unable to retrieve param: key")?;
-
-        let value = args
-            .params
-            .get("value")
-            .ok_or("Unable to retrieve param: value")?;
+        let mut token = args.body.splitn(2, ' ');
+        let (key, value) = match (token.next(), token.next()) {
+            (Some(a), Some(b)) => (a, b),
+            _ => return Err("unable to retrieve key or value param".into()),
+        };
 
         match diesel::insert_into(tags::table)
             .values((tags::key.eq(key), tags::value.eq(value)))
