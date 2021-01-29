@@ -17,7 +17,7 @@ mod godbolt;
 mod jobs;
 mod playground;
 mod schema;
-mod state_machine;
+// mod state_machine;
 mod tags;
 mod text;
 mod welcome;
@@ -102,52 +102,36 @@ fn app() -> Result<(), Error> {
             tags::post,
             api::is_wg_and_teams,
         );
-        cmds.add("?tag {key}", tags::get);
+        cmds.add("?tag", tags::get);
         cmds.add("?tags", tags::get_all);
         cmds.help("?tags", "A key value store", tags::help);
     }
 
     if config.crates {
         // crates.io
-        cmds.add("?crate query...", crates::search);
+        cmds.add("?crate", crates::search);
         cmds.help("?crate", "Lookup crates on crates.io", crates::help);
 
         // docs.rs
-        cmds.add("?docs query...", crates::doc_search);
+        cmds.add("?docs", crates::doc_search);
         cmds.help("?docs", "Lookup documentation", crates::doc_help);
     }
 
     if config.eval {
         // rust playground
-        cmds.add(
-            "?play mode={} edition={} channel={} warn={} ```\ncode```",
-            playground::run,
-        );
-        cmds.add("?play code...", playground::err);
+        cmds.add("?play", playground::run);
         cmds.help(
             "?play",
             "Compile and run rust code in a playground",
             |args| playground::help(args, "play"),
         );
 
-        cmds.add(
-            "?eval mode={} edition={} channel={} warn={} ```\ncode```",
-            playground::eval,
-        );
-        cmds.add(
-            "?eval mode={} edition={} channel={} warn={} ```code```",
-            playground::eval,
-        );
-        cmds.add(
-            "?eval mode={} edition={} channel={} warn={} `code`",
-            playground::eval,
-        );
-        cmds.add("?eval code...", playground::eval_err);
+        cmds.add("?eval", playground::eval);
         cmds.help("?eval", "Evaluate a single rust expression", |args| {
             playground::help(args, "eval")
         });
 
-        cmds.add("?miri edition={} warn={} ```\ncode```", playground::miri);
+        cmds.add("?miri", playground::miri);
         cmds.help(
             "?miri",
             "Run code and detect undefined behavior using Miri",
@@ -156,17 +140,12 @@ fn app() -> Result<(), Error> {
     }
 
     cmds.add("?go", |args| api::send_reply(&args, "No"));
-    cmds.add("?go code...", |args| api::send_reply(&args, "No"));
     cmds.help("?go", "Evaluates Go code", |args| {
         api::send_reply(&args, "Evaluates Go code")
     });
 
-    cmds.add("?godbolt ```\ncode```", |args| {
-        let code = args
-            .params
-            .get("code")
-            .ok_or("Unable to retrieve param: code")?;
-        let (lang, text) = match godbolt::compile_rust_source(args.http, code)? {
+    cmds.add("?godbolt", |args| {
+        let (lang, text) = match godbolt::compile_rust_source(args.http, args.body)? {
             godbolt::Compilation::Success { asm } => ("x86asm", asm),
             godbolt::Compilation::Error { stderr } => ("rust", stderr),
         };
@@ -226,7 +205,7 @@ fn app() -> Result<(), Error> {
         api::is_mod,
     );
 
-    let menu = cmds.menu();
+    let menu = cmds.take_menu();
     cmds.add("?help", move |args: Args| {
         let output = main_menu(&args, menu.as_ref().unwrap());
         api::send_reply(&args, &format!("```{}```", &output))?;
@@ -254,7 +233,7 @@ fn app() -> Result<(), Error> {
 /// ```rust,no_run
 /// # let args = todo!();
 /// // This will send "```\nvery long stringvery long stringver...long stringve\n```"
-/// //                  Character limit reached ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^
+/// //                Character limit reached, text_end starts ~~~~~~~~~~~~~~~~^
 /// reply_potentially_long_text(
 ///     args,
 ///     format!("```\n{}", "very long string".repeat(500)),
@@ -303,6 +282,35 @@ fn reply_potentially_long_text(
     api::send_reply(args, &msg)
 }
 
+/// Extract code from a Discord code block on a best-effort basis
+///
+/// ```rust
+/// assert_eq!(extract_code("`hello`"), Some("hello"));
+/// assert_eq!(extract_code("`    hello `"), Some("hello"));
+/// assert_eq!(extract_code("``` hello ```"), Some("hello"));
+/// assert_eq!(extract_code("```rust hello ```"), Some("hello"));
+/// assert_eq!(extract_code("```rust\nhello\n```"), Some("hello"));
+/// assert_eq!(extract_code("``` rust\nhello\n```"), Some("rust\nhello"));
+/// ```
+pub fn extract_code(input: &str) -> Option<&str> {
+    let input = input.trim();
+
+    let extracted_code = if input.starts_with("```") && input.ends_with("```") {
+        let code_starting_point = input.find(char::is_whitespace)?; // skip over lang specifier
+        let code_end_point = input.len() - 3;
+
+        // can't fail but you can never be too sure
+        input.get(code_starting_point..code_end_point)?
+    } else if input.starts_with('`') && input.ends_with('`') {
+        // can't fail but you can never be too sure
+        input.get(1..(input.len() - 1))?
+    } else {
+        return None;
+    };
+
+    Some(extracted_code.trim())
+}
+
 fn main_menu(args: &Args, commands: &IndexMap<&str, (&str, GuardFn)>) -> String {
     let mut menu = "Commands:\n".to_owned();
     for (base_cmd, (description, guard)) in commands {
@@ -343,7 +351,7 @@ impl EventHandler for Events {
     }
 
     fn message(&self, cx: Context, message: Message) {
-        self.cmds.execute(cx, &message);
+        self.cmds.execute(&cx, &message);
     }
 
     fn message_update(

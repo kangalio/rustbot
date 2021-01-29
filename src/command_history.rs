@@ -33,7 +33,7 @@ pub fn replay_message(cx: Context, ev: MessageUpdateEvent, cmds: &Commands) -> R
                 "sending edited message - {:?} {:?}",
                 msg.content, msg.author
             );
-            cmds.execute(cx, &msg);
+            cmds.execute(&cx, &msg);
         }
     }
 

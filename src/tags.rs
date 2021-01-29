@@ -6,10 +6,7 @@ use diesel::prelude::*;
 pub fn delete(args: Args) -> Result<(), Error> {
     if api::is_wg_and_teams(&args)? {
         let conn = DB.get()?;
-        let key = args
-            .params
-            .get("key")
-            .ok_or("Unable to retrieve param: key")?;
+        let key = args.body;
 
         match diesel::delete(tags::table.filter(tags::key.eq(key))).execute(&conn) {
             Ok(_) => args.msg.react(args.cx, "✅")?,
@@ -55,7 +52,7 @@ pub fn post(args: Args) -> Result<(), Error> {
 pub fn get(args: Args) -> Result<(), Error> {
     let conn = DB.get()?;
 
-    let key = args.params.get("key").ok_or("unable to read params")?;
+    let key = args.body;
 
     let results = tags::table
         .filter(tags::key.eq(key))

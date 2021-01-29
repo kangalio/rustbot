@@ -229,12 +229,10 @@ fn post_gist(args: &Args, code: &str) -> Result<String, Error> {
 }
 
 pub fn run(args: Args) -> Result<(), Error> {
-    let code = args
-        .params
-        .get("code")
-        .ok_or("Unable to retrieve param: query")?;
-
-    run_code_and_reply(&args, code)
+    match crate::extract_code(args.body) {
+        Some(code) => run_code_and_reply(&args, code),
+        None => err(args),
+    }
 }
 
 pub fn help(args: Args, name: &str) -> Result<(), Error> {
@@ -267,22 +265,11 @@ Optional arguments:
     Ok(())
 }
 
-pub fn err(args: Args) -> Result<(), Error> {
-    let message = "Missing code block. Please use the following markdown:
-\\`\\`\\`rust
-    code here
-\\`\\`\\`
-    ";
-
-    api::send_reply(&args, message)?;
-    Ok(())
-}
-
 pub fn eval(args: Args) -> Result<(), Error> {
-    let code = args
-        .params
-        .get("code")
-        .ok_or("Unable to retrieve param: query")?;
+    let code = match crate::extract_code(args.body) {
+        Some(x) => x,
+        None => return err(args),
+    };
 
     if code.contains("fn main") {
         api::send_reply(&args, "code passed to ?eval should not contain `fn main`")?;
@@ -300,7 +287,7 @@ pub fn eval(args: Args) -> Result<(), Error> {
     run_code_and_reply(&args, &full_code)
 }
 
-pub fn eval_err(args: Args) -> Result<(), Error> {
+pub fn err(args: Args) -> Result<(), Error> {
     let message = "Missing code block. Please use the following markdown:
 \\`code here\\`
 or
@@ -313,10 +300,10 @@ code here
 }
 
 pub fn miri(args: Args) -> Result<(), Error> {
-    let code = args
-        .params
-        .get("code")
-        .ok_or("Unable to retrieve param: query")?;
+    let code = match crate::extract_code(args.body) {
+        Some(x) => x,
+        None => return err(args),
+    };
 
     let mut errors = String::new();
 

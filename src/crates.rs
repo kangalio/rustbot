@@ -38,12 +38,7 @@ fn get_crate(http: &reqwest::blocking::Client, query: &str) -> Result<Option<Cra
 }
 
 pub fn search(args: Args) -> Result<(), Error> {
-    if let Some(krate) = get_crate(
-        &args.http,
-        args.params
-            .get("query")
-            .ok_or("Unable to retrieve param: query")?,
-    )? {
+    if let Some(krate) = get_crate(&args.http, args.body)? {
         args.msg.channel_id.send_message(&args.cx, |m| {
             m.embed(|e| {
                 e.title(&krate.name)
@@ -79,10 +74,7 @@ fn rustc_crate_link(crate_name: &str) -> Option<&str> {
 }
 
 pub fn doc_search(args: Args) -> Result<(), Error> {
-    let query = args
-        .params
-        .get("query")
-        .ok_or("Unable to retrieve param: query")?;
+    let query = args.body;
 
     let mut query_iter = query.splitn(2, "::");
     let crate_name = query_iter.next().unwrap();
