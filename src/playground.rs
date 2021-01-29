@@ -7,10 +7,8 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::str::FromStr;
 
-const MAX_OUTPUT_LINES: usize = 45;
-
 #[derive(Debug, Serialize)]
-struct PlaygroundCode<'a> {
+struct PlaygroundRequest<'a> {
     channel: Channel,
     edition: Edition,
     code: &'a str,
@@ -20,9 +18,9 @@ struct PlaygroundCode<'a> {
     tests: bool,
 }
 
-impl<'a> PlaygroundCode<'a> {
+impl<'a> PlaygroundRequest<'a> {
     fn new(code: &'a str) -> Self {
-        PlaygroundCode {
+        PlaygroundRequest {
             channel: Channel::Nightly,
             edition: Edition::E2018,
             code,
@@ -32,7 +30,7 @@ impl<'a> PlaygroundCode<'a> {
         }
     }
 
-    fn url_from_gist(&self, gist: &str) -> String {
+    fn url_from_gist(&self, gist_id: &str) -> String {
         let version = match self.channel {
             Channel::Nightly => "nightly",
             Channel::Beta => "beta",
@@ -51,7 +49,26 @@ impl<'a> PlaygroundCode<'a> {
 
         format!(
             "https://play.rust-lang.org/?version={}&mode={}&edition={}&gist={}",
-            version, mode, edition, gist
+            version, mode, edition, gist_id
+        )
+    }
+}
+
+#[derive(Debug, Serialize)]
+struct MiriRequest<'a> {
+    edition: Edition,
+    code: &'a str,
+}
+
+impl MiriRequest<'_> {
+    fn url_from_gist(&self, gist_id: &str) -> String {
+        format!(
+            "https://play.rust-lang.org/?edition={}&gist={}",
+            match self.edition {
+                Edition::E2015 => "2015",
+                Edition::E2018 => "2018",
+            },
+            gist_id
         )
     }
 }
@@ -131,29 +148,30 @@ struct PlayResult {
     stderr: String,
 }
 
-fn run_code(args: &Args, code: &str) -> Result<String, Error> {
+fn run_code_and_reply(args: &Args, code: &str) -> Result<(), Error> {
     let mut errors = String::new();
 
-    let warnings = args.params.get("warn").unwrap_or_else(|| &"false");
-    let channel = args.params.get("channel").unwrap_or_else(|| &"nightly");
-    let mode = args.params.get("mode").unwrap_or_else(|| &"debug");
-    let edition = args.params.get("edition").unwrap_or_else(|| &"2018");
+    let mut warnings = false;
+    let mut request = PlaygroundRequest::new(code);
 
-    let mut request = PlaygroundCode::new(code);
-
-    match Channel::from_str(channel) {
+    match Channel::from_str(args.params.get("channel").unwrap_or(&"nightly")) {
         Ok(c) => request.channel = c,
         Err(e) => errors += &format!("{}\n", e),
     }
 
-    match Mode::from_str(mode) {
+    match Mode::from_str(args.params.get("mode").unwrap_or(&"debug")) {
         Ok(m) => request.mode = m,
         Err(e) => errors += &format!("{}\n", e),
     }
 
-    match Edition::from_str(edition) {
+    match Edition::from_str(args.params.get("edition").unwrap_or(&"2018")) {
         Ok(e) => request.edition = e,
         Err(e) => errors += &format!("{}\n", e),
+    }
+
+    match bool::from_str(args.params.get("warn").unwrap_or(&"false")) {
+        Ok(e) => warnings = e,
+        Err(_) => errors += "invalid warn bool\n",
     }
 
     if !code.contains("fn main") {
@@ -168,7 +186,7 @@ fn run_code(args: &Args, code: &str) -> Result<String, Error> {
 
     let result: PlayResult = resp.json()?;
 
-    let result = if *warnings == "true" {
+    let result = if warnings {
         format!("{}\n{}", result.stderr, result.stdout)
     } else if result.success {
         result.stdout
@@ -176,24 +194,23 @@ fn run_code(args: &Args, code: &str) -> Result<String, Error> {
         result.stderr
     };
 
-    let lines = result.lines().count();
-
-    Ok(
-        if result.len() + errors.len() > 1993 || lines > MAX_OUTPUT_LINES {
-            format!(
-                "{}Output too large. Playground link: {}",
-                errors,
-                get_playground_link(args, code, &request)?
-            )
-        } else if result.is_empty() {
-            format!("{}compilation succeeded.", errors)
-        } else {
-            format!("{}```\n{}```", errors, result)
-        },
-    )
+    if result.is_empty() {
+        api::send_reply(&args, &format!("{}compilation succeeded.", errors))
+    } else {
+        crate::reply_potentially_long_text(
+            &args,
+            &format!("{}```\n{}", errors, result),
+            "```",
+            &format!(
+                "Output too large. Playground link: {}",
+                request.url_from_gist(&post_gist(&args, code)?),
+            ),
+        )
+    }
 }
 
-fn get_playground_link(args: &Args, code: &str, request: &PlaygroundCode) -> Result<String, Error> {
+/// Returns a gist ID
+fn post_gist(args: &Args, code: &str) -> Result<String, Error> {
     let mut payload = HashMap::new();
     payload.insert("code", code);
 
@@ -204,12 +221,11 @@ fn get_playground_link(args: &Args, code: &str, request: &PlaygroundCode) -> Res
         .json(&payload)
         .send()?;
 
-    let resp: HashMap<String, String> = resp.json()?;
+    let mut resp: HashMap<String, String> = resp.json()?;
     info!("gist response: {:?}", resp);
 
-    resp.get("id")
-        .map(|id| request.url_from_gist(id))
-        .ok_or_else(|| "no gist found".into())
+    let gist_id = resp.remove("id").ok_or("no gist found")?;
+    Ok(gist_id)
 }
 
 pub fn run(args: Args) -> Result<(), Error> {
@@ -218,9 +234,7 @@ pub fn run(args: Args) -> Result<(), Error> {
         .get("code")
         .ok_or("Unable to retrieve param: query")?;
 
-    let result = run_code(&args, code)?;
-    api::send_reply(&args, &result)?;
-    Ok(())
+    run_code_and_reply(&args, code)
 }
 
 pub fn help(args: Args, name: &str) -> Result<(), Error> {
@@ -237,6 +251,19 @@ Optional arguments:
     );
 
     api::send_reply(&args, &message)?;
+    Ok(())
+}
+
+pub fn miri_help(args: Args) -> Result<(), Error> {
+    api::send_reply(
+        &args,
+        "Execute this program in the Miri interpreter to detect certain cases of undefined behavior
+(like out-of-bounds memory access). All code is executed on https://play.rust-lang.org.
+```?{} edition={{}} warn={{}} ``\u{200B}`code``\u{200B}` ```
+Optional arguments:
+    \tedition: 2015, 2018 (default: 2018)
+    \twarn: boolean flag to enable compilation warnings",
+    )?;
     Ok(())
 }
 
@@ -259,31 +286,83 @@ pub fn eval(args: Args) -> Result<(), Error> {
 
     if code.contains("fn main") {
         api::send_reply(&args, "code passed to ?eval should not contain `fn main`")?;
-    } else {
-        let mut full_code = String::from("fn main() {\n    println!(\"{:?}\", {\n");
-        for line in code.lines() {
-            full_code.push_str("        ");
-            full_code.push_str(line);
-            full_code.push_str("\n");
-        }
-        full_code.push_str("    });\n}");
-
-        let result = run_code(&args, &full_code)?;
-        api::send_reply(&args, &result)?;
+        return Ok(());
     }
 
-    Ok(())
+    let mut full_code = String::from("fn main() {\n    println!(\"{:?}\", {\n");
+    for line in code.lines() {
+        full_code.push_str("        ");
+        full_code.push_str(line);
+        full_code.push_str("\n");
+    }
+    full_code.push_str("    });\n}");
+
+    run_code_and_reply(&args, &full_code)
 }
 
 pub fn eval_err(args: Args) -> Result<(), Error> {
     let message = "Missing code block. Please use the following markdown:
-    \\`code here\\`
-    or
-    \\`\\`\\`rust
-        code here
-    \\`\\`\\`
-    ";
+\\`code here\\`
+or
+\\`\\`\\`rust
+code here
+\\`\\`\\`";
 
     api::send_reply(&args, message)?;
     Ok(())
+}
+
+pub fn miri(args: Args) -> Result<(), Error> {
+    let code = args
+        .params
+        .get("code")
+        .ok_or("Unable to retrieve param: query")?;
+
+    let mut errors = String::new();
+
+    let mut warnings = false;
+    let mut request = MiriRequest {
+        code,
+        edition: Edition::E2018,
+    };
+
+    match Edition::from_str(args.params.get("edition").unwrap_or(&"2018")) {
+        Ok(e) => request.edition = e,
+        Err(e) => errors += &format!("{}\n", e),
+    }
+
+    match bool::from_str(args.params.get("warn").unwrap_or(&"false")) {
+        Ok(e) => warnings = e,
+        Err(_) => errors += "invalid warn bool\n",
+    }
+
+    let resp = args
+        .http
+        .post("https://play.rust-lang.org/miri")
+        .json(&request)
+        .send()?;
+
+    let result: PlayResult = resp.json()?;
+
+    let result = if warnings {
+        format!("{}\n{}", result.stderr, result.stdout)
+    } else if result.success {
+        result.stdout
+    } else {
+        result.stderr
+    };
+
+    if result.is_empty() {
+        api::send_reply(&args, &format!("{}compilation succeeded.", errors))
+    } else {
+        crate::reply_potentially_long_text(
+            &args,
+            &format!("{}```\n{}", errors, result),
+            "```",
+            &format!(
+                "Output too large. Playground link: {}",
+                request.url_from_gist(&post_gist(&args, code)?),
+            ),
+        )
+    }
 }
