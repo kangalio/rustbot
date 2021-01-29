@@ -260,9 +260,15 @@ pub fn eval(args: Args) -> Result<(), Error> {
     if code.contains("fn main") {
         api::send_reply(&args, "code passed to ?eval should not contain `fn main`")?;
     } else {
-        let code = format!("fn main(){{ println!(\"{{:?}}\",{{ {} }}); }}", code);
+        let mut full_code = String::from("fn main() {\n    println!(\"{:?}\", {\n");
+        for line in code.lines() {
+            full_code.push_str("        ");
+            full_code.push_str(line);
+            full_code.push_str("\n");
+        }
+        full_code.push_str("    });\n}");
 
-        let result = run_code(&args, &code)?;
+        let result = run_code(&args, &full_code)?;
         api::send_reply(&args, &result)?;
     }
 
