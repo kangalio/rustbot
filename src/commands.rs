@@ -4,7 +4,21 @@ use reqwest::blocking::Client as HttpClient;
 use serenity::{model::channel::Message, prelude::Context};
 use std::collections::HashMap;
 
-pub const PREFIX: &str = "?";
+pub const PREFIXES: &[&str] = &[
+    "?",
+    "🦀 ",
+    "🦀",
+    "<:ferris:358652670585733120> ",
+    "<:ferris:358652670585733120>",
+    "hey ferris can you please ",
+    "hey ferris, can you please ",
+    "hey fewwis can you please ",
+    "hey fewwis, can you please ",
+    "hey ferris can you ",
+    "hey ferris, can you ",
+    "hey fewwis can you ",
+    "hey fewwis, can you ",
+];
 pub type GuardFn = fn(&Args) -> Result<bool, Error>;
 
 struct Command {
@@ -73,8 +87,7 @@ impl Commands {
         handler: impl Fn(Args) -> Result<(), Error> + Send + Sync + 'static,
         guard: GuardFn,
     ) {
-        let base_cmd = &cmd[1..];
-        info!("Adding command ?help {}", &base_cmd);
+        info!("Adding command ?help {}", &cmd);
 
         self.menu.as_mut().map(|menu| {
             menu.insert(cmd, (desc, guard));
@@ -82,7 +95,7 @@ impl Commands {
         });
 
         self.new_commands.push(Command {
-            name: format!("?help {}", base_cmd),
+            name: format!("help {}", cmd),
             guard,
             handler: Box::new(handler),
         });
@@ -93,9 +106,19 @@ impl Commands {
     }
 
     pub fn execute(&self, cx: &Context, serenity_msg: &Message) {
+        // find the first matching prefix and strip it
+        let msg = match PREFIXES
+            .iter()
+            .filter_map(|prefix| serenity_msg.content.strip_prefix(prefix))
+            .next()
+        {
+            Some(x) => x,
+            None => return,
+        };
+
         for command in &self.new_commands {
-            // Extract "body" from something like "?command_name body"
-            let msg = match serenity_msg.content.strip_prefix(&command.name) {
+            // Extract "body" from something like "command_name body"
+            let msg = match msg.strip_prefix(&command.name) {
                 Some(msg) => msg.trim(),
                 None => continue,
             };

@@ -96,55 +96,55 @@ fn app() -> Result<(), Error> {
 
     if config.tags {
         // Tags
-        cmds.add_protected("?tags delete {key}", tags::delete, api::is_wg_and_teams);
+        cmds.add_protected("tags delete {key}", tags::delete, api::is_wg_and_teams);
         cmds.add_protected(
-            "?tags create {key} value...",
+            "tags create {key} value...",
             tags::post,
             api::is_wg_and_teams,
         );
-        cmds.add("?tag", tags::get);
-        cmds.add("?tags", tags::get_all);
-        cmds.help("?tags", "A key value store", tags::help);
+        cmds.add("tag", tags::get);
+        cmds.add("tags", tags::get_all);
+        cmds.help("tags", "A key value store", tags::help);
     }
 
     if config.crates {
         // crates.io
-        cmds.add("?crate", crates::search);
-        cmds.help("?crate", "Lookup crates on crates.io", crates::help);
+        cmds.add("crate", crates::search);
+        cmds.help("crate", "Lookup crates on crates.io", crates::help);
 
         // docs.rs
-        cmds.add("?docs", crates::doc_search);
-        cmds.help("?docs", "Lookup documentation", crates::doc_help);
+        cmds.add("docs", crates::doc_search);
+        cmds.help("docs", "Lookup documentation", crates::doc_help);
     }
 
     if config.eval {
         // rust playground
-        cmds.add("?play", playground::run);
+        cmds.add("play", playground::run);
         cmds.help(
-            "?play",
+            "play",
             "Compile and run rust code in a playground",
             |args| playground::help(args, "play"),
         );
 
-        cmds.add("?eval", playground::eval);
-        cmds.help("?eval", "Evaluate a single rust expression", |args| {
+        cmds.add("eval", playground::eval);
+        cmds.help("eval", "Evaluate a single rust expression", |args| {
             playground::help(args, "eval")
         });
 
-        cmds.add("?miri", playground::miri);
+        cmds.add("miri", playground::miri);
         cmds.help(
-            "?miri",
+            "miri",
             "Run code and detect undefined behavior using Miri",
             playground::miri_help,
         );
     }
 
-    cmds.add("?go", |args| api::send_reply(&args, "No"));
-    cmds.help("?go", "Evaluates Go code", |args| {
+    cmds.add("go", |args| api::send_reply(&args, "No"));
+    cmds.help("go", "Evaluates Go code", |args| {
         api::send_reply(&args, "Evaluates Go code")
     });
 
-    cmds.add("?godbolt", |args| {
+    cmds.add("godbolt", |args| {
         let (lang, text) = match godbolt::compile_rust_source(args.http, args.body)? {
             godbolt::Compilation::Success { asm } => ("x86asm", asm),
             godbolt::Compilation::Error { stderr } => ("rust", stderr),
@@ -159,7 +159,7 @@ fn app() -> Result<(), Error> {
 
         Ok(())
     });
-    cmds.help("?godbolt", "View assembly using Godbolt", |args| {
+    cmds.help("godbolt", "View assembly using Godbolt", |args| {
         api::send_reply(
             &args,
             "Compile Rust code using https://rust.godbolt.org. Full optimizations are applied. \
@@ -170,43 +170,43 @@ fn app() -> Result<(), Error> {
 
     // Slow mode.
     // 0 seconds disables slowmode
-    cmds.add_protected("?slowmode {channel} {seconds}", api::slow_mode, api::is_mod);
+    cmds.add_protected("slowmode {channel} {seconds}", api::slow_mode, api::is_mod);
     cmds.help_protected(
-        "?slowmode",
+        "slowmode",
         "Set slowmode on a channel",
         api::slow_mode_help,
         api::is_mod,
     );
 
     // Kick
-    cmds.add_protected("?kick {user}", api::kick, api::is_mod);
+    cmds.add_protected("kick {user}", api::kick, api::is_mod);
     cmds.help_protected(
-        "?kick",
+        "kick",
         "Kick a user from the guild",
         api::kick_help,
         api::is_mod,
     );
 
     // Ban
-    cmds.add_protected("?ban {user} {hours} reason...", ban::temp_ban, api::is_mod);
+    cmds.add_protected("ban {user} {hours} reason...", ban::temp_ban, api::is_mod);
     cmds.help_protected(
-        "?ban",
+        "ban",
         "Temporarily ban a user from the guild",
         ban::help,
         api::is_mod,
     );
 
     // Post the welcome message to the welcome channel.
-    cmds.add_protected("?CoC {channel}", welcome::post_message, api::is_mod);
+    cmds.add_protected("CoC {channel}", welcome::post_message, api::is_mod);
     cmds.help_protected(
-        "?CoC",
+        "CoC",
         "Post the code of conduct message to a channel",
         welcome::help,
         api::is_mod,
     );
 
     let menu = cmds.take_menu();
-    cmds.add("?help", move |args: Args| {
+    cmds.add("help", move |args: Args| {
         let output = main_menu(&args, menu.as_ref().unwrap());
         api::send_reply(&args, &format!("```{}```", &output))?;
         Ok(())
@@ -315,7 +315,7 @@ fn main_menu(args: &Args, commands: &IndexMap<&str, (&str, GuardFn)>) -> String 
     let mut menu = "Commands:\n".to_owned();
     for (base_cmd, (description, guard)) in commands {
         if let Ok(true) = (guard)(&args) {
-            menu += &format!("\t{cmd:<12}{desc}\n", cmd = base_cmd, desc = description);
+            menu += &format!("\t?{cmd:<12}{desc}\n", cmd = base_cmd, desc = description);
         }
     }
 

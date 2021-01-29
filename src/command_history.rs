@@ -1,5 +1,5 @@
 use crate::{
-    commands::{Commands, PREFIX},
+    commands::{Commands, PREFIXES},
     Error, SendSyncError, HOUR,
 };
 use indexmap::IndexMap;
@@ -28,7 +28,7 @@ pub fn replay_message(cx: Context, ev: MessageUpdateEvent, cmds: &Commands) -> R
 
         let msg = msg.build();
 
-        if msg.content.starts_with(PREFIX) {
+        if PREFIXES.iter().any(|p| msg.content.starts_with(p)) {
             info!(
                 "sending edited message - {:?} {:?}",
                 msg.content, msg.author
