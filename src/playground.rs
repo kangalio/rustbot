@@ -195,7 +195,7 @@ fn run_code_and_reply(args: &Args, code: &str) -> Result<(), Error> {
     };
 
     if result.is_empty() {
-        api::send_reply(&args, &format!("{}compilation succeeded.", errors))
+        api::send_reply(&args, &format!("{}``` ```", errors))
     } else {
         crate::reply_potentially_long_text(
             &args,
@@ -353,7 +353,7 @@ pub fn miri(args: Args) -> Result<(), Error> {
     };
 
     if result.is_empty() {
-        api::send_reply(&args, &format!("{}compilation succeeded.", errors))
+        api::send_reply(&args, &format!("{}``` ```", errors))
     } else {
         crate::reply_potentially_long_text(
             &args,
