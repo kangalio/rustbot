@@ -24,6 +24,17 @@ struct MiriRequest<'a> {
     code: &'a str,
 }
 
+// has the same fields
+type MacroExpansionRequest<'a> = MiriRequest<'a>;
+
+#[derive(Debug, Serialize)]
+struct ClippyRequest<'a> {
+    edition: Edition,
+    #[serde(rename = "crateType")]
+    crate_type: CrateType,
+    code: &'a str,
+}
+
 #[derive(Debug, Clone, Copy, Serialize)]
 #[serde(rename_all = "snake_case")]
 enum Channel {
@@ -186,6 +197,29 @@ fn parse_flags(args: &Args) -> (CommandFlags, bool, String) {
     (flags, warnings, errors)
 }
 
+fn generic_help(args: &Args, cmd: &str, desc: &str, full: bool) -> Result<(), Error> {
+    let mut reply = format!(
+        "{}. All code is executed on https://play.rust-lang.org.\n",
+        desc
+    );
+
+    reply += &format!(
+        "```?{} {}edition={{}} warn={{}} ``\u{200B}`code``\u{200B}` ```\n",
+        cmd,
+        if full { "mode={} channel={} " } else { "" },
+    );
+
+    reply += "Optional arguments:\n";
+    if full {
+        reply += "    \tmode: debug, release (default: debug)\n";
+        reply += "    \tchannel: stable, beta, nightly (default: nightly)\n";
+    }
+    reply += "    \tedition: 2015, 2018 (default: 2018)\n";
+    reply += "    \twarn: boolean flag to enable compilation warnings\n";
+
+    api::send_reply(args, &reply)
+}
+
 fn send_play_result_reply(
     args: &Args,
     result: PlayResult,
@@ -272,23 +306,14 @@ pub fn eval(args: Args) -> Result<(), Error> {
 }
 
 pub fn play_and_eval_help(args: Args, name: &str) -> Result<(), Error> {
-    let message = format!(
-        "Compile and run rust code. All code is executed on https://play.rust-lang.org.
-```?{} mode={{}} channel={{}} edition={{}} warn={{}} ``\u{200B}`code``\u{200B}` ```
-Optional arguments:
-    \tmode: debug, release (default: debug)
-    \tchannel: stable, beta, nightly (default: nightly)
-    \tedition: 2015, 2018 (default: 2018)
-    \twarn: boolean flag to enable compilation warnings
-    ",
-        name
-    );
-
-    api::send_reply(&args, &message)?;
-    Ok(())
+    generic_help(&args, name, "Compile and run Rust code", true)
 }
 
-pub fn miri(args: Args) -> Result<(), Error> {
+fn generic_command<'a, R: Serialize + 'a>(
+    args: Args<'a>,
+    url: &str,
+    request_builder: impl FnOnce(&'a str, &CommandFlags) -> R,
+) -> Result<(), Error> {
     let code = match crate::extract_code(args.body) {
         Some(x) => x,
         None => return crate::reply_missing_code_block_err(&args),
@@ -298,26 +323,59 @@ pub fn miri(args: Args) -> Result<(), Error> {
 
     let result: PlayResult = args
         .http
-        .post("https://play.rust-lang.org/miri")
-        .json(&MiriRequest {
-            code,
-            edition: flags.edition,
-        })
+        .post(url)
+        .json(&(request_builder)(code, &flags))
         .send()?
         .json()?;
 
     send_play_result_reply(&args, result, code, &flags, warn, &flag_parse_errors)
 }
 
+pub fn miri(args: Args) -> Result<(), Error> {
+    generic_command(args, "https://play.rust-lang.org/miri", |code, flags| {
+        MiriRequest {
+            code,
+            edition: flags.edition,
+        }
+    })
+}
+
 pub fn miri_help(args: Args) -> Result<(), Error> {
-    api::send_reply(
-        &args,
-        "Execute this program in the Miri interpreter to detect certain cases of undefined behavior
-(like out-of-bounds memory access). All code is executed on https://play.rust-lang.org.
-```?{} edition={{}} warn={{}} ``\u{200B}`code``\u{200B}` ```
-Optional arguments:
-    \tedition: 2015, 2018 (default: 2018)
-    \twarn: boolean flag to enable compilation warnings",
-    )?;
-    Ok(())
+    let desc = "Execute this program in the Miri interpreter to detect certain cases of undefined behavior (like out-of-bounds memory access)";
+    generic_help(&args, "miri", desc, false)
+}
+
+pub fn expand_macros(args: Args) -> Result<(), Error> {
+    generic_command(
+        args,
+        "https://play.rust-lang.org/macro-expansion",
+        |code, flags| MacroExpansionRequest {
+            code,
+            edition: flags.edition,
+        },
+    )
+}
+
+pub fn expand_macros_help(args: Args) -> Result<(), Error> {
+    let desc = "Expand macros to their raw desugared form";
+    generic_help(&args, "expand", desc, false)
+}
+
+pub fn clippy(args: Args) -> Result<(), Error> {
+    generic_command(args, "https://play.rust-lang.org/clippy", |code, flags| {
+        ClippyRequest {
+            code,
+            edition: flags.edition,
+            crate_type: if code.contains("fn main") {
+                CrateType::Binary
+            } else {
+                CrateType::Library
+            },
+        }
+    })
+}
+
+pub fn clippy_help(args: Args) -> Result<(), Error> {
+    let desc = "Catch common mistakes and improve the code using the Clippy linter";
+    generic_help(&args, "clippy", desc, false)
 }

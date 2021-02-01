@@ -133,6 +133,20 @@ fn app() -> Result<(), Error> {
             "Run code and detect undefined behavior using Miri",
             playground::miri_help,
         );
+
+        cmds.add("expand", playground::expand_macros);
+        cmds.help(
+            "expand",
+            "Expand macros to their raw desugared form",
+            playground::expand_macros_help,
+        );
+
+        cmds.add("clippy", playground::clippy);
+        cmds.help(
+            "clippy",
+            "Catch common mistakes and improve the code using the Clippy linter",
+            playground::clippy_help,
+        );
     }
 
     cmds.add("go", |args| api::send_reply(&args, "No"));
@@ -206,10 +220,11 @@ fn app() -> Result<(), Error> {
         api::is_mod,
     );
 
-    let menu = cmds.take_menu();
+    let menu = cmds.take_menu().unwrap();
     cmds.add("help", move |args: Args| {
-        let output = main_menu(&args, menu.as_ref().unwrap());
-        api::send_reply(&args, &format!("```{}```", &output))?;
+        if args.body.is_empty() {
+            api::send_reply(&args, &format!("```{}```", &main_menu(&args, &menu)))?;
+        }
         Ok(())
     });
 
