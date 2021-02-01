@@ -18,62 +18,13 @@ struct PlaygroundRequest<'a> {
     tests: bool,
 }
 
-impl<'a> PlaygroundRequest<'a> {
-    fn new(code: &'a str) -> Self {
-        PlaygroundRequest {
-            channel: Channel::Nightly,
-            edition: Edition::E2018,
-            code,
-            crate_type: CrateType::Binary,
-            mode: Mode::Debug,
-            tests: false,
-        }
-    }
-
-    fn url_from_gist(&self, gist_id: &str) -> String {
-        let version = match self.channel {
-            Channel::Nightly => "nightly",
-            Channel::Beta => "beta",
-            Channel::Stable => "stable",
-        };
-
-        let edition = match self.edition {
-            Edition::E2015 => "2015",
-            Edition::E2018 => "2018",
-        };
-
-        let mode = match self.mode {
-            Mode::Debug => "debug",
-            Mode::Release => "release",
-        };
-
-        format!(
-            "https://play.rust-lang.org/?version={}&mode={}&edition={}&gist={}",
-            version, mode, edition, gist_id
-        )
-    }
-}
-
 #[derive(Debug, Serialize)]
 struct MiriRequest<'a> {
     edition: Edition,
     code: &'a str,
 }
 
-impl MiriRequest<'_> {
-    fn url_from_gist(&self, gist_id: &str) -> String {
-        format!(
-            "https://play.rust-lang.org/?edition={}&gist={}",
-            match self.edition {
-                Edition::E2015 => "2015",
-                Edition::E2018 => "2018",
-            },
-            gist_id
-        )
-    }
-}
-
-#[derive(Debug, Serialize)]
+#[derive(Debug, Clone, Copy, Serialize)]
 #[serde(rename_all = "snake_case")]
 enum Channel {
     Stable,
@@ -94,7 +45,7 @@ impl FromStr for Channel {
     }
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Clone, Copy, Serialize)]
 enum Edition {
     #[serde(rename = "2015")]
     E2015,
@@ -114,7 +65,7 @@ impl FromStr for Edition {
     }
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Clone, Copy, Serialize)]
 enum CrateType {
     #[serde(rename = "bin")]
     Binary,
@@ -122,7 +73,7 @@ enum CrateType {
     Library,
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Clone, Copy, Serialize)]
 #[serde(rename_all = "snake_case")]
 enum Mode {
     Debug,
@@ -148,67 +99,6 @@ struct PlayResult {
     stderr: String,
 }
 
-fn run_code_and_reply(args: &Args, code: &str) -> Result<(), Error> {
-    let mut errors = String::new();
-
-    let mut warnings = false;
-    let mut request = PlaygroundRequest::new(code);
-
-    match Channel::from_str(args.params.get("channel").unwrap_or(&"nightly")) {
-        Ok(c) => request.channel = c,
-        Err(e) => errors += &format!("{}\n", e),
-    }
-
-    match Mode::from_str(args.params.get("mode").unwrap_or(&"debug")) {
-        Ok(m) => request.mode = m,
-        Err(e) => errors += &format!("{}\n", e),
-    }
-
-    match Edition::from_str(args.params.get("edition").unwrap_or(&"2018")) {
-        Ok(e) => request.edition = e,
-        Err(e) => errors += &format!("{}\n", e),
-    }
-
-    match bool::from_str(args.params.get("warn").unwrap_or(&"false")) {
-        Ok(e) => warnings = e,
-        Err(_) => errors += "invalid warn bool\n",
-    }
-
-    if !code.contains("fn main") {
-        request.crate_type = CrateType::Library;
-    }
-
-    let resp = args
-        .http
-        .post("https://play.rust-lang.org/execute")
-        .json(&request)
-        .send()?;
-
-    let result: PlayResult = resp.json()?;
-
-    let result = if warnings {
-        format!("{}\n{}", result.stderr, result.stdout)
-    } else if result.success {
-        result.stdout
-    } else {
-        result.stderr
-    };
-
-    if result.is_empty() {
-        api::send_reply(&args, &format!("{}``` ```", errors))
-    } else {
-        crate::reply_potentially_long_text(
-            &args,
-            &format!("{}```\n{}", errors, result),
-            "```",
-            &format!(
-                "Output too large. Playground link: {}",
-                request.url_from_gist(&post_gist(&args, code)?),
-            ),
-        )
-    }
-}
-
 /// Returns a gist ID
 fn post_gist(args: &Args, code: &str) -> Result<String, Error> {
     let mut payload = HashMap::new();
@@ -228,47 +118,141 @@ fn post_gist(args: &Args, code: &str) -> Result<String, Error> {
     Ok(gist_id)
 }
 
-pub fn run(args: Args) -> Result<(), Error> {
-    match crate::extract_code(args.body) {
-        Some(code) => run_code_and_reply(&args, code),
-        None => err(args),
+fn url_from_gist(flags: &CommandFlags, gist_id: &str) -> String {
+    format!(
+        "https://play.rust-lang.org/?version={}&mode={}&edition={}&gist={}",
+        match flags.channel {
+            Channel::Nightly => "nightly",
+            Channel::Beta => "beta",
+            Channel::Stable => "stable",
+        },
+        match flags.mode {
+            Mode::Debug => "debug",
+            Mode::Release => "release",
+        },
+        match flags.edition {
+            Edition::E2015 => "2015",
+            Edition::E2018 => "2018",
+        },
+        gist_id
+    )
+}
+
+struct CommandFlags {
+    channel: Channel,
+    mode: Mode,
+    edition: Edition,
+}
+
+/// Returns the parsed flags, a bool whether stderr output is desired, and a String of parse errors
+fn parse_flags(args: &Args) -> (CommandFlags, bool, String) {
+    let mut errors = String::new();
+
+    let mut flags = CommandFlags {
+        channel: Channel::Nightly,
+        mode: Mode::Debug,
+        edition: Edition::E2018,
+    };
+    let mut warnings = false;
+
+    if let Some(channel) = args.params.get("channel") {
+        match channel.parse() {
+            Ok(c) => flags.channel = c,
+            Err(e) => errors += &format!("{}\n", e),
+        }
+    }
+
+    if let Some(mode) = args.params.get("mode") {
+        match mode.parse() {
+            Ok(m) => flags.mode = m,
+            Err(e) => errors += &format!("{}\n", e),
+        }
+    }
+
+    if let Some(edition) = args.params.get("edition") {
+        match edition.parse() {
+            Ok(e) => flags.edition = e,
+            Err(e) => errors += &format!("{}\n", e),
+        }
+    }
+
+    if let Some(warn) = args.params.get("warn") {
+        match warn.parse() {
+            Ok(e) => warnings = e,
+            Err(_) => errors += "invalid warn bool\n",
+        }
+    }
+
+    (flags, warnings, errors)
+}
+
+fn send_play_result_reply(
+    args: &Args,
+    result: PlayResult,
+    code: &str,
+    flags: &CommandFlags,
+    warn: bool,
+    flag_parse_errors: &str,
+) -> Result<(), Error> {
+    let result = if warn {
+        format!("{}\n{}", result.stderr, result.stdout)
+    } else if result.success {
+        result.stdout
+    } else {
+        result.stderr
+    };
+
+    if result.is_empty() {
+        api::send_reply(&args, &format!("{}``` ```", flag_parse_errors))
+    } else {
+        crate::reply_potentially_long_text(
+            &args,
+            &format!("{}```\n{}", flag_parse_errors, result),
+            "```",
+            &format!(
+                "Output too large. Playground link: {}",
+                url_from_gist(&flags, &post_gist(&args, code)?),
+            ),
+        )
     }
 }
 
-pub fn help(args: Args, name: &str) -> Result<(), Error> {
-    let message = format!(
-        "Compile and run rust code. All code is executed on https://play.rust-lang.org.
-```?{} mode={{}} channel={{}} edition={{}} warn={{}} ``\u{200B}`code``\u{200B}` ```
-Optional arguments:
-    \tmode: debug, release (default: debug)
-    \tchannel: stable, beta, nightly (default: nightly)
-    \tedition: 2015, 2018 (default: 2018)
-    \twarn: boolean flag to enable compilation warnings
-    ",
-        name
-    );
+// Generic function used for both `?eval` and `?play`
+fn run_code_and_reply(args: &Args, code: &str) -> Result<(), Error> {
+    let (flags, warn, flag_parse_errors) = parse_flags(args);
 
-    api::send_reply(&args, &message)?;
-    Ok(())
+    let result: PlayResult = args
+        .http
+        .post("https://play.rust-lang.org/execute")
+        .json(&PlaygroundRequest {
+            code,
+            channel: flags.channel,
+            crate_type: if code.contains("fn main") {
+                CrateType::Binary
+            } else {
+                CrateType::Library
+            },
+            edition: flags.edition,
+            mode: flags.mode,
+            tests: false,
+        })
+        .send()?
+        .json()?;
+
+    send_play_result_reply(args, result, code, &flags, warn, &flag_parse_errors)
 }
 
-pub fn miri_help(args: Args) -> Result<(), Error> {
-    api::send_reply(
-        &args,
-        "Execute this program in the Miri interpreter to detect certain cases of undefined behavior
-(like out-of-bounds memory access). All code is executed on https://play.rust-lang.org.
-```?{} edition={{}} warn={{}} ``\u{200B}`code``\u{200B}` ```
-Optional arguments:
-    \tedition: 2015, 2018 (default: 2018)
-    \twarn: boolean flag to enable compilation warnings",
-    )?;
-    Ok(())
+pub fn play(args: Args) -> Result<(), Error> {
+    match crate::extract_code(args.body) {
+        Some(code) => run_code_and_reply(&args, code),
+        None => crate::reply_missing_code_block_err(&args),
+    }
 }
 
 pub fn eval(args: Args) -> Result<(), Error> {
     let code = match crate::extract_code(args.body) {
         Some(x) => x,
-        None => return err(args),
+        None => return crate::reply_missing_code_block_err(&args),
     };
 
     if code.contains("fn main") {
@@ -287,69 +271,53 @@ pub fn eval(args: Args) -> Result<(), Error> {
     run_code_and_reply(&args, &full_code)
 }
 
-pub fn err(args: Args) -> Result<(), Error> {
-    let message = "Missing code block. Please use the following markdown:
-\\`code here\\`
-or
-\\`\\`\\`rust
-code here
-\\`\\`\\`";
+pub fn play_and_eval_help(args: Args, name: &str) -> Result<(), Error> {
+    let message = format!(
+        "Compile and run rust code. All code is executed on https://play.rust-lang.org.
+```?{} mode={{}} channel={{}} edition={{}} warn={{}} ``\u{200B}`code``\u{200B}` ```
+Optional arguments:
+    \tmode: debug, release (default: debug)
+    \tchannel: stable, beta, nightly (default: nightly)
+    \tedition: 2015, 2018 (default: 2018)
+    \twarn: boolean flag to enable compilation warnings
+    ",
+        name
+    );
 
-    api::send_reply(&args, message)?;
+    api::send_reply(&args, &message)?;
     Ok(())
 }
 
 pub fn miri(args: Args) -> Result<(), Error> {
     let code = match crate::extract_code(args.body) {
         Some(x) => x,
-        None => return err(args),
+        None => return crate::reply_missing_code_block_err(&args),
     };
 
-    let mut errors = String::new();
+    let (flags, warn, flag_parse_errors) = parse_flags(&args);
 
-    let mut warnings = false;
-    let mut request = MiriRequest {
-        code,
-        edition: Edition::E2018,
-    };
-
-    match Edition::from_str(args.params.get("edition").unwrap_or(&"2018")) {
-        Ok(e) => request.edition = e,
-        Err(e) => errors += &format!("{}\n", e),
-    }
-
-    match bool::from_str(args.params.get("warn").unwrap_or(&"false")) {
-        Ok(e) => warnings = e,
-        Err(_) => errors += "invalid warn bool\n",
-    }
-
-    let resp = args
+    let result: PlayResult = args
         .http
         .post("https://play.rust-lang.org/miri")
-        .json(&request)
-        .send()?;
+        .json(&MiriRequest {
+            code,
+            edition: flags.edition,
+        })
+        .send()?
+        .json()?;
 
-    let result: PlayResult = resp.json()?;
+    send_play_result_reply(&args, result, code, &flags, warn, &flag_parse_errors)
+}
 
-    let result = if warnings {
-        format!("{}\n{}", result.stderr, result.stdout)
-    } else if result.success {
-        result.stdout
-    } else {
-        result.stderr
-    };
-
-    if result.is_empty() {
-        api::send_reply(&args, &format!("{}``` ```", errors))
-    } else {
-        crate::reply_potentially_long_text(
-            &args,
-            &format!("{}```\n{}", errors, result),
-            "```",
-            &format!(
-                "Output too large. Playground link: {}",
-                request.url_from_gist(&post_gist(&args, code)?),
-            ),
-        )
-    }
+pub fn miri_help(args: Args) -> Result<(), Error> {
+    api::send_reply(
+        &args,
+        "Execute this program in the Miri interpreter to detect certain cases of undefined behavior
+(like out-of-bounds memory access). All code is executed on https://play.rust-lang.org.
+```?{} edition={{}} warn={{}} ``\u{200B}`code``\u{200B}` ```
+Optional arguments:
+    \tedition: 2015, 2018 (default: 2018)
+    \twarn: boolean flag to enable compilation warnings",
+    )?;
+    Ok(())
 }

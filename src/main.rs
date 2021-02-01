@@ -115,16 +115,16 @@ fn app() -> Result<(), Error> {
 
     if config.eval {
         // rust playground
-        cmds.add("play", playground::run);
+        cmds.add("play", playground::play);
         cmds.help(
             "play",
             "Compile and run rust code in a playground",
-            |args| playground::help(args, "play"),
+            |args| playground::play_and_eval_help(args, "play"),
         );
 
         cmds.add("eval", playground::eval);
         cmds.help("eval", "Evaluate a single rust expression", |args| {
-            playground::help(args, "eval")
+            playground::play_and_eval_help(args, "eval")
         });
 
         cmds.add("miri", playground::miri);
@@ -141,7 +141,12 @@ fn app() -> Result<(), Error> {
     });
 
     cmds.add("godbolt", |args| {
-        let (lang, text) = match godbolt::compile_rust_source(args.http, args.body)? {
+        let code = match extract_code(&args.body) {
+            Some(x) => x,
+            None => return reply_missing_code_block_err(&args),
+        };
+
+        let (lang, text) = match godbolt::compile_rust_source(args.http, code)? {
             godbolt::Compilation::Success { asm } => ("x86asm", asm),
             godbolt::Compilation::Error { stderr } => ("rust", stderr),
         };
@@ -305,6 +310,18 @@ pub fn extract_code(input: &str) -> Option<&str> {
     };
 
     Some(extracted_code.trim())
+}
+
+pub fn reply_missing_code_block_err(args: &Args) -> Result<(), Error> {
+    let message = "Missing code block. Please use the following markdown:
+\\`code here\\`
+or
+\\`\\`\\`rust
+code here
+\\`\\`\\`";
+
+    api::send_reply(args, message)?;
+    Ok(())
 }
 
 fn main_menu(args: &Args, commands: &IndexMap<&str, (&str, GuardFn)>) -> String {
