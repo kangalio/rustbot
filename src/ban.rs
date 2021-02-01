@@ -58,7 +58,7 @@ pub fn unban_users(cx: &Context) -> Result<(), SendSyncError> {
 /// Temporarily ban an user from the guild.  
 ///
 /// Requires the ban members permission
-pub fn temp_ban(args: Args) -> Result<(), Error> {
+pub fn temp_ban(args: &Args) -> Result<(), Error> {
     let mut token = args.body.splitn(3, ' ');
     let (user, hours, reason) = match (token.next(), token.next(), token.next()) {
         (Some(a), Some(b), Some(c)) => (a, b, c),
@@ -85,7 +85,7 @@ pub fn temp_ban(args: Args) -> Result<(), Error> {
     Ok(())
 }
 
-pub fn help(args: Args) -> Result<(), Error> {
+pub fn help(args: &Args) -> Result<(), Error> {
     let hours = 24;
     let reason = "violating the code of conduct";
 

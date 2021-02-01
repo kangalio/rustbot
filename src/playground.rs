@@ -281,14 +281,14 @@ fn run_code_and_reply(args: &Args, code: &str) -> Result<(), Error> {
     send_play_result_reply(args, result, code, &flags, &flag_parse_errors)
 }
 
-pub fn play(args: Args) -> Result<(), Error> {
+pub fn play(args: &Args) -> Result<(), Error> {
     match crate::extract_code(args.body) {
         Some(code) => run_code_and_reply(&args, code),
         None => crate::reply_missing_code_block_err(&args),
     }
 }
 
-pub fn eval(args: Args) -> Result<(), Error> {
+pub fn eval(args: &Args) -> Result<(), Error> {
     let code = match crate::extract_code(args.body) {
         Some(x) => x,
         None => return crate::reply_missing_code_block_err(&args),
@@ -310,12 +310,12 @@ pub fn eval(args: Args) -> Result<(), Error> {
     run_code_and_reply(&args, &full_code)
 }
 
-pub fn play_and_eval_help(args: Args, name: &str) -> Result<(), Error> {
+pub fn play_and_eval_help(args: &Args, name: &str) -> Result<(), Error> {
     generic_help(&args, name, "Compile and run Rust code", true)
 }
 
 fn generic_command<'a, R: Serialize + 'a>(
-    args: Args<'a>,
+    args: &Args<'a>,
     url: &str,
     request_builder: impl FnOnce(&'a str, &CommandFlags) -> R,
 ) -> Result<(), Error> {
@@ -336,7 +336,7 @@ fn generic_command<'a, R: Serialize + 'a>(
     send_play_result_reply(&args, result, code, &flags, &flag_parse_errors)
 }
 
-pub fn miri(args: Args) -> Result<(), Error> {
+pub fn miri(args: &Args) -> Result<(), Error> {
     generic_command(args, "https://play.rust-lang.org/miri", |code, flags| {
         MiriRequest {
             code,
@@ -345,12 +345,12 @@ pub fn miri(args: Args) -> Result<(), Error> {
     })
 }
 
-pub fn miri_help(args: Args) -> Result<(), Error> {
+pub fn miri_help(args: &Args) -> Result<(), Error> {
     let desc = "Execute this program in the Miri interpreter to detect certain cases of undefined behavior (like out-of-bounds memory access)";
     generic_help(&args, "miri", desc, false)
 }
 
-pub fn expand_macros(args: Args) -> Result<(), Error> {
+pub fn expand_macros(args: &Args) -> Result<(), Error> {
     generic_command(
         args,
         "https://play.rust-lang.org/macro-expansion",
@@ -361,12 +361,12 @@ pub fn expand_macros(args: Args) -> Result<(), Error> {
     )
 }
 
-pub fn expand_macros_help(args: Args) -> Result<(), Error> {
+pub fn expand_macros_help(args: &Args) -> Result<(), Error> {
     let desc = "Expand macros to their raw desugared form";
     generic_help(&args, "expand", desc, false)
 }
 
-pub fn clippy(args: Args) -> Result<(), Error> {
+pub fn clippy(args: &Args) -> Result<(), Error> {
     generic_command(args, "https://play.rust-lang.org/clippy", |code, flags| {
         ClippyRequest {
             code,
@@ -380,7 +380,7 @@ pub fn clippy(args: Args) -> Result<(), Error> {
     })
 }
 
-pub fn clippy_help(args: Args) -> Result<(), Error> {
+pub fn clippy_help(args: &Args) -> Result<(), Error> {
     let desc = "Catch common mistakes and improve the code using the Clippy linter";
     generic_help(&args, "clippy", desc, false)
 }

@@ -10,14 +10,14 @@ An example command using an anonymous function as a handler.
 ```rust
 let mut cmds = Commands::new();
 
-cmds.add("?greet {name}", |args: Args<'_>| -> Result {
+cmds.add("?greet {name}", |args: &Args<'_>| -> Result {
   println!("Hello {}!", args.params.get("name").unwrap());
 });
 ```
 
 The same command using a function pointer as a handler.  
 ```rust
-fn print_hello_name(args: Args) -> Result {
+fn print_hello_name(args: &Args) -> Result {
   println!("Hello {}!", args.params.get("name").unwrap());
 };
 

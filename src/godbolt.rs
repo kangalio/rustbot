@@ -62,7 +62,7 @@ fn compile_rust_source(
     })
 }
 
-pub fn godbolt(args: crate::Args) -> Result<(), crate::Error> {
+pub fn godbolt(args: &crate::Args) -> Result<(), crate::Error> {
     let code = match crate::extract_code(&args.body) {
         Some(x) => x,
         None => return crate::reply_missing_code_block_err(&args),
@@ -83,7 +83,7 @@ pub fn godbolt(args: crate::Args) -> Result<(), crate::Error> {
     Ok(())
 }
 
-pub fn help(args: crate::Args) -> Result<(), crate::Error> {
+pub fn help(args: &crate::Args) -> Result<(), crate::Error> {
     crate::api::send_reply(
         &args,
         "Compile Rust code using https://rust.godbolt.org. Full optimizations are applied. \

@@ -195,7 +195,7 @@ fn app() -> Result<(), Error> {
     );
 
     let menu = cmds.take_menu().unwrap();
-    cmds.add("help", move |args: Args| {
+    cmds.add("help", move |args| {
         if args.body.is_empty() {
             api::send_reply(&args, &format!("```{}```", &main_menu(&args, &menu)))?;
         }

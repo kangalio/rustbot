@@ -3,7 +3,7 @@ use crate::{api, commands::Args, db::DB, schema::tags, Error};
 use diesel::prelude::*;
 
 /// Remove a key value pair from the tags.  
-pub fn delete(args: Args) -> Result<(), Error> {
+pub fn delete(args: &Args) -> Result<(), Error> {
     if api::is_wg_and_teams(&args)? {
         let conn = DB.get()?;
         let key = args.body;
@@ -17,7 +17,7 @@ pub fn delete(args: Args) -> Result<(), Error> {
 }
 
 /// Add a key value pair to the tags.  
-pub fn post(args: Args) -> Result<(), Error> {
+pub fn post(args: &Args) -> Result<(), Error> {
     if api::is_wg_and_teams(&args)? {
         let conn = DB.get()?;
 
@@ -45,7 +45,7 @@ pub fn post(args: Args) -> Result<(), Error> {
 }
 
 /// Retrieve a value by key from the tags.  
-pub fn get(args: Args) -> Result<(), Error> {
+pub fn get(args: &Args) -> Result<(), Error> {
     let conn = DB.get()?;
 
     let key = args.body;
@@ -64,7 +64,7 @@ pub fn get(args: Args) -> Result<(), Error> {
 }
 
 /// Retrieve all tags
-pub fn get_all(args: Args) -> Result<(), Error> {
+pub fn get_all(args: &Args) -> Result<(), Error> {
     let conn = DB.get()?;
 
     let results = tags::table.load::<(i32, String, String)>(&conn)?;
@@ -87,7 +87,7 @@ pub fn get_all(args: Args) -> Result<(), Error> {
 }
 
 /// Print the help message
-pub fn help(args: Args) -> Result<(), Error> {
+pub fn help(args: &Args) -> Result<(), Error> {
     let help_string = "```
 ?tags create {key} value...     Create a tag.  Limited to WG & Teams.
 ?tags delete {key}              Delete a tag.  Limited to WG & Teams.

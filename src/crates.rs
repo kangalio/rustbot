@@ -37,7 +37,7 @@ fn get_crate(http: &reqwest::blocking::Client, query: &str) -> Result<Option<Cra
     Ok(crate_list.crates.into_iter().next())
 }
 
-pub fn search(args: Args) -> Result<(), Error> {
+pub fn search(args: &Args) -> Result<(), Error> {
     if let Some(krate) = get_crate(&args.http, args.body)? {
         args.msg.channel_id.send_message(&args.cx, |m| {
             m.embed(|e| {
@@ -73,7 +73,7 @@ fn rustc_crate_link(crate_name: &str) -> Option<&str> {
     }
 }
 
-pub fn doc_search(args: Args) -> Result<(), Error> {
+pub fn doc_search(args: &Args) -> Result<(), Error> {
     let mut query_iter = args.body.splitn(2, "::");
     let crate_name = query_iter.next().unwrap();
 
@@ -101,7 +101,7 @@ pub fn doc_search(args: Args) -> Result<(), Error> {
 }
 
 /// Print the help message
-pub fn help(args: Args) -> Result<(), Error> {
+pub fn help(args: &Args) -> Result<(), Error> {
     let help_string = "search for a crate on crates.io
 ```
 ?crate query...
@@ -111,7 +111,7 @@ pub fn help(args: Args) -> Result<(), Error> {
 }
 
 /// Print the help message
-pub fn doc_help(args: Args) -> Result<(), Error> {
+pub fn doc_help(args: &Args) -> Result<(), Error> {
     let help_string = "retrieve documentation for a given crate
 ```
 ?docs crate_name...

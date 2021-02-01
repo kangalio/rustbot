@@ -68,7 +68,7 @@ pub fn is_wg_and_teams(args: &Args) -> Result<bool, Error> {
 /// Set slow mode for a channel.  
 ///
 /// A `seconds` value of 0 will disable slowmode
-pub fn slow_mode(args: Args) -> Result<(), Error> {
+pub fn slow_mode(args: &Args) -> Result<(), Error> {
     if !is_mod(&args)? {
         return Ok(());
     }
@@ -88,7 +88,7 @@ pub fn slow_mode(args: Args) -> Result<(), Error> {
     Ok(())
 }
 
-pub fn slow_mode_help(args: Args) -> Result<(), Error> {
+pub fn slow_mode_help(args: &Args) -> Result<(), Error> {
     let help_string = "
 Set slowmode on a channel
 ```
@@ -112,7 +112,7 @@ will disable slowmode on the `#bot-usage` channel.";
 /// Kick a user from the guild.  
 ///
 /// Requires the kick members permission
-pub fn kick(args: Args) -> Result<(), Error> {
+pub fn kick(args: &Args) -> Result<(), Error> {
     if is_mod(&args)? {
         let user_id = parse_username(args.body).ok_or("unable to retrieve user id")?;
 
@@ -124,7 +124,7 @@ pub fn kick(args: Args) -> Result<(), Error> {
     Ok(())
 }
 
-pub fn kick_help(args: Args) -> Result<(), Error> {
+pub fn kick_help(args: &Args) -> Result<(), Error> {
     let help_string = "
 Kick a user from the guild
 ```

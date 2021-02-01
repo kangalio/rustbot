@@ -24,15 +24,14 @@ pub type GuardFn = fn(&Args) -> Result<bool, Error>;
 struct Command {
     name: String,
     guard: GuardFn,
-    handler: Box<dyn Fn(Args<'_>) -> Result<(), Error> + Send + Sync>,
+    handler: Box<dyn Fn(&Args<'_>) -> Result<(), Error> + Send + Sync>,
 }
 
-#[derive(Clone)]
 pub struct Args<'a> {
     pub http: &'a HttpClient,
     pub cx: &'a Context,
     pub msg: &'a Message,
-    pub params: &'a HashMap<&'a str, &'a str>,
+    pub params: HashMap<&'a str, &'a str>,
     pub body: &'a str,
 }
 
@@ -54,7 +53,7 @@ impl Commands {
     pub fn add(
         &mut self,
         command: &'static str,
-        handler: impl Fn(Args) -> Result<(), Error> + Send + Sync + 'static,
+        handler: impl Fn(&Args) -> Result<(), Error> + Send + Sync + 'static,
     ) {
         self.add_protected(command, handler, |_| Ok(true));
     }
@@ -62,7 +61,7 @@ impl Commands {
     pub fn add_protected(
         &mut self,
         command: &'static str,
-        handler: impl Fn(Args) -> Result<(), Error> + Send + Sync + 'static,
+        handler: impl Fn(&Args) -> Result<(), Error> + Send + Sync + 'static,
         guard: GuardFn,
     ) {
         self.new_commands.push(Command {
@@ -76,7 +75,7 @@ impl Commands {
         &mut self,
         cmd: &'static str,
         desc: &'static str,
-        handler: impl Fn(Args) -> Result<(), Error> + Send + Sync + 'static,
+        handler: impl Fn(&Args) -> Result<(), Error> + Send + Sync + 'static,
     ) {
         self.help_protected(cmd, desc, handler, |_| Ok(true));
     }
@@ -85,7 +84,7 @@ impl Commands {
         &mut self,
         cmd: &'static str,
         desc: &'static str,
-        handler: impl Fn(Args) -> Result<(), Error> + Send + Sync + 'static,
+        handler: impl Fn(&Args) -> Result<(), Error> + Send + Sync + 'static,
         guard: GuardFn,
     ) {
         info!("Adding command ?help {}", &cmd);
@@ -142,15 +141,15 @@ impl Commands {
 
             let args = Args {
                 body,
-                params: &params,
+                params,
                 cx: &cx,
-                msg: serenity_msg,
+                msg: &serenity_msg,
                 http: &self.client,
             };
 
             match (command.guard)(&args) {
                 Ok(true) => {
-                    if let Err(e) = (command.handler)(args.clone()) {
+                    if let Err(e) = (command.handler)(&args) {
                         error!("Error when executing command {}: {}", command.name, e);
                         if let Err(e) =
                             crate::api::send_reply(&args, &format!("Encountered error ({})", e))
