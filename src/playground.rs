@@ -155,8 +155,8 @@ struct CommandFlags {
     edition: Edition,
 }
 
-/// Returns the parsed flags, a bool whether stderr output is desired, and a String of parse errors
-fn parse_flags(args: &Args) -> (CommandFlags, bool, String) {
+/// Returns the parsed flags and a String of parse errors
+fn parse_flags(args: &Args) -> (CommandFlags, String) {
     let mut errors = String::new();
 
     let mut flags = CommandFlags {
@@ -164,7 +164,6 @@ fn parse_flags(args: &Args) -> (CommandFlags, bool, String) {
         mode: Mode::Debug,
         edition: Edition::E2018,
     };
-    let mut warnings = false;
 
     if let Some(channel) = args.params.get("channel") {
         match channel.parse() {
@@ -187,14 +186,7 @@ fn parse_flags(args: &Args) -> (CommandFlags, bool, String) {
         }
     }
 
-    if let Some(warn) = args.params.get("warn") {
-        match warn.parse() {
-            Ok(e) => warnings = e,
-            Err(_) => errors += "invalid warn bool\n",
-        }
-    }
-
-    (flags, warnings, errors)
+    (flags, errors)
 }
 
 fn generic_help(args: &Args, cmd: &str, desc: &str, full: bool) -> Result<(), Error> {
@@ -204,7 +196,7 @@ fn generic_help(args: &Args, cmd: &str, desc: &str, full: bool) -> Result<(), Er
     );
 
     reply += &format!(
-        "```?{} {}edition={{}} warn={{}} ``\u{200B}`code``\u{200B}` ```\n",
+        "```?{} {}edition={{}} ``\u{200B}`code``\u{200B}` ```\n",
         cmd,
         if full { "mode={} channel={} " } else { "" },
     );
@@ -215,7 +207,6 @@ fn generic_help(args: &Args, cmd: &str, desc: &str, full: bool) -> Result<(), Er
         reply += "    \tchannel: stable, beta, nightly (default: nightly)\n";
     }
     reply += "    \tedition: 2015, 2018 (default: 2018)\n";
-    reply += "    \twarn: boolean flag to enable compilation warnings\n";
 
     api::send_reply(args, &reply)
 }
@@ -225,15 +216,29 @@ fn send_play_result_reply(
     result: PlayResult,
     code: &str,
     flags: &CommandFlags,
-    warn: bool,
     flag_parse_errors: &str,
 ) -> Result<(), Error> {
-    let result = if warn {
-        format!("{}\n{}", result.stderr, result.stdout)
-    } else if result.success {
-        result.stdout
+    let PlayResult {
+        stderr,
+        stdout,
+        success,
+    } = result;
+    let mut stderr = stderr.lines();
+    while let Some(line) = stderr.next() {
+        if line.contains("Running `target") {
+            break;
+        }
+    }
+    let stderr = stderr.collect::<Vec<_>>().join("\n");
+    dbg!(&stdout);
+    dbg!(&stderr);
+
+    let result = if !success {
+        stderr
+    } else if stderr.is_empty() {
+        stdout
     } else {
-        result.stderr
+        format!("{}\n{}", stderr, stdout)
     };
 
     if result.is_empty() {
@@ -253,7 +258,7 @@ fn send_play_result_reply(
 
 // Generic function used for both `?eval` and `?play`
 fn run_code_and_reply(args: &Args, code: &str) -> Result<(), Error> {
-    let (flags, warn, flag_parse_errors) = parse_flags(args);
+    let (flags, flag_parse_errors) = parse_flags(args);
 
     let result: PlayResult = args
         .http
@@ -273,7 +278,7 @@ fn run_code_and_reply(args: &Args, code: &str) -> Result<(), Error> {
         .send()?
         .json()?;
 
-    send_play_result_reply(args, result, code, &flags, warn, &flag_parse_errors)
+    send_play_result_reply(args, result, code, &flags, &flag_parse_errors)
 }
 
 pub fn play(args: Args) -> Result<(), Error> {
@@ -319,7 +324,7 @@ fn generic_command<'a, R: Serialize + 'a>(
         None => return crate::reply_missing_code_block_err(&args),
     };
 
-    let (flags, warn, flag_parse_errors) = parse_flags(&args);
+    let (flags, flag_parse_errors) = parse_flags(&args);
 
     let result: PlayResult = args
         .http
@@ -328,7 +333,7 @@ fn generic_command<'a, R: Serialize + 'a>(
         .send()?
         .json()?;
 
-    send_play_result_reply(&args, result, code, &flags, warn, &flag_parse_errors)
+    send_play_result_reply(&args, result, code, &flags, &flag_parse_errors)
 }
 
 pub fn miri(args: Args) -> Result<(), Error> {
