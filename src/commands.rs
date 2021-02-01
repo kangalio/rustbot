@@ -27,6 +27,7 @@ struct Command {
     handler: Box<dyn Fn(Args<'_>) -> Result<(), Error> + Send + Sync>,
 }
 
+#[derive(Clone)]
 pub struct Args<'a> {
     pub http: &'a HttpClient,
     pub cx: &'a Context,
@@ -146,9 +147,29 @@ impl Commands {
                 msg: serenity_msg,
                 http: &self.client,
             };
-            if let Ok(true) = (command.guard)(&args).map_err(|e| error!("{}", e)) {
-                if let Err(e) = (command.handler)(args) {
-                    error!("{}", e)
+
+            match (command.guard)(&args) {
+                Ok(true) => {
+                    if let Err(e) = (command.handler)(args.clone()) {
+                        error!("Error when executing command {}: {}", command.name, e);
+                        if let Err(e) =
+                            crate::api::send_reply(&args, &format!("Encountered error ({})", e))
+                        {
+                            error!("{}", e)
+                        }
+                    }
+                }
+                Ok(false) => {} // user doesn't have permission for command
+                Err(e) => {
+                    error!(
+                        "Error when checking command permissions for {}: {}",
+                        command.name, e
+                    );
+                    if let Err(e) =
+                        crate::api::send_reply(&args, &format!("Encountered error ({})", e))
+                    {
+                        error!("{}", e)
+                    }
                 }
             }
         }
