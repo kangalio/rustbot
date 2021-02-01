@@ -1,12 +1,12 @@
 use crate::{
     commands::{Commands, PREFIXES},
-    Error, SendSyncError, HOUR,
+    Error,
 };
 use indexmap::IndexMap;
 use serenity::{model::prelude::*, prelude::*, utils::CustomMessage};
 use std::time::Duration;
 
-const MESSAGE_AGE_MAX: Duration = Duration::from_secs(HOUR);
+const MESSAGE_AGE_MAX: Duration = Duration::from_secs(3600);
 
 pub struct CommandHistory;
 
@@ -40,7 +40,7 @@ pub fn replay_message(cx: Context, ev: MessageUpdateEvent, cmds: &Commands) -> R
     Ok(())
 }
 
-pub fn clear_command_history(cx: &Context) -> Result<(), SendSyncError> {
+pub fn clear_command_history(cx: &Context) -> Result<(), Error> {
     let mut data = cx.data.write();
     let history = data.get_mut::<CommandHistory>().unwrap();
 

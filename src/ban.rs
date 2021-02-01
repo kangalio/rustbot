@@ -1,6 +1,4 @@
-use crate::{
-    api, commands::Args, db::DB, schema::bans, text::ban_message, Error, SendSyncError, HOUR,
-};
+use crate::{api, commands::Args, db::DB, schema::bans, text::ban_message, Error};
 use diesel::prelude::*;
 use serenity::{model::prelude::*, prelude::*, utils::parse_username};
 use std::time::{Duration, SystemTime};
@@ -14,7 +12,7 @@ pub fn save_ban(user_id: String, guild_id: String, hours: u64) -> Result<(), Err
             bans::guild_id.eq(guild_id),
             bans::start_time.eq(SystemTime::now()),
             bans::end_time.eq(SystemTime::now()
-                .checked_add(Duration::new(hours * HOUR, 0))
+                .checked_add(Duration::from_secs(hours * 3600))
                 .ok_or("out of range Duration for ban end_time")?),
         ))
         .execute(&conn)?;
@@ -37,7 +35,7 @@ pub fn save_unban(user_id: String, guild_id: String) -> Result<(), Error> {
     Ok(())
 }
 
-pub fn unban_users(cx: &Context) -> Result<(), SendSyncError> {
+pub fn unban_users(cx: &Context) -> Result<(), Error> {
     let conn = DB.get()?;
     let to_unban = bans::table
         .filter(

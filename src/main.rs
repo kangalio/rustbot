@@ -29,10 +29,7 @@ use indexmap::IndexMap;
 use serde::Deserialize;
 use serenity::{model::prelude::*, prelude::*};
 
-pub type Error = Box<dyn std::error::Error>;
-pub type SendSyncError = Box<dyn std::error::Error + Send + Sync>;
-
-pub const HOUR: u64 = 3600;
+pub type Error = Box<dyn std::error::Error + Send + Sync>;
 
 #[derive(Deserialize)]
 struct Config {
@@ -65,7 +62,7 @@ fn init_data(config: &Config) -> Result<(), Error> {
     let _ = conn
         .build_transaction()
         .read_write()
-        .run::<_, Box<dyn std::error::Error>, _>(|| {
+        .run::<_, Error, _>(|| {
             upsert_role("mod", &config.mod_id)?;
             upsert_role("talk", &config.talk_id)?;
 

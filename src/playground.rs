@@ -44,7 +44,7 @@ enum Channel {
 }
 
 impl FromStr for Channel {
-    type Err = Box<dyn std::error::Error>;
+    type Err = Error;
 
     fn from_str(s: &str) -> Result<Self, Error> {
         match s {
@@ -65,7 +65,7 @@ enum Edition {
 }
 
 impl FromStr for Edition {
-    type Err = Box<dyn std::error::Error>;
+    type Err = Error;
 
     fn from_str(s: &str) -> Result<Self, Error> {
         match s {
@@ -92,7 +92,7 @@ enum Mode {
 }
 
 impl FromStr for Mode {
-    type Err = Box<dyn std::error::Error>;
+    type Err = Error;
 
     fn from_str(s: &str) -> Result<Self, Error> {
         match s {

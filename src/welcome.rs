@@ -22,7 +22,7 @@ pub fn post_message(args: &Args) -> Result<(), Error> {
         let _ = conn
             .build_transaction()
             .read_write()
-            .run::<_, Box<dyn std::error::Error>, _>(|| {
+            .run::<_, Error, _>(|| {
                 let message_id = message.id.0.to_string();
                 let channel_id = channel_id.0.to_string();
 
@@ -67,7 +67,7 @@ pub fn assign_talk_role(cx: &Context, reaction: &Reaction) -> Result<(), Error> 
     let (msg, talk_role, me) = conn
         .build_transaction()
         .read_only()
-        .run::<_, Box<dyn std::error::Error>, _>(|| {
+        .run::<_, Error, _>(|| {
             let msg: Option<_> = messages::table
                 .filter(messages::name.eq("welcome"))
                 .first::<(i32, String, String, String)>(&conn)
