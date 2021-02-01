@@ -29,7 +29,42 @@ use indexmap::IndexMap;
 use serde::Deserialize;
 use serenity::{model::prelude::*, prelude::*};
 
-pub type Error = Box<dyn std::error::Error + Send + Sync>;
+pub enum Error {
+    MissingCodeblock,
+    NoCratesFound,
+    MissingPermissions,
+    EvalWithFnMain,
+    Unknown(Box<dyn std::error::Error + Send + Sync>),
+}
+
+impl<T> From<T> for Error
+where
+    Box<dyn std::error::Error + Send + Sync>: From<T>,
+{
+    fn from(error: T) -> Self {
+        Self::Unknown(error.into())
+    }
+}
+
+impl std::fmt::Display for Error {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::MissingCodeblock => write!(
+                f,
+                "Missing code block. Please use the following markdown:
+\\`code here\\`
+or
+\\`\\`\\`rust
+code here
+\\`\\`\\`",
+            ),
+            Self::NoCratesFound => write!(f, "No crates found"),
+            Self::MissingPermissions => write!(f, "You are not allowed to use this command"),
+            Self::EvalWithFnMain => write!(f, "Code passed to ?eval should not contain `fn main`"),
+            Self::Unknown(error) => write!(f, "Unexpected error ({})", error),
+        }
+    }
+}
 
 #[derive(Deserialize)]
 struct Config {
@@ -156,7 +191,7 @@ fn app() -> Result<(), Error> {
 
     // Slow mode.
     // 0 seconds disables slowmode
-    cmds.add_protected("slowmode", api::slow_mode, api::is_mod);
+    cmds.add("slowmode", api::slow_mode);
     cmds.help_protected(
         "slowmode",
         "Set slowmode on a channel",
@@ -165,7 +200,7 @@ fn app() -> Result<(), Error> {
     );
 
     // Kick
-    cmds.add_protected("kick", api::kick, api::is_mod);
+    cmds.add("kick", api::kick);
     cmds.help_protected(
         "kick",
         "Kick a user from the guild",
@@ -174,7 +209,7 @@ fn app() -> Result<(), Error> {
     );
 
     // Ban
-    cmds.add_protected("ban", ban::temp_ban, api::is_mod);
+    cmds.add("ban", ban::temp_ban);
     cmds.help_protected(
         "ban",
         "Temporarily ban a user from the guild",
@@ -183,7 +218,7 @@ fn app() -> Result<(), Error> {
     );
 
     // Post the welcome message to the welcome channel.
-    cmds.add_protected("CoC", welcome::post_message, api::is_mod);
+    cmds.add("CoC", welcome::post_message);
     cmds.help_protected(
         "CoC",
         "Post the code of conduct message to a channel",
@@ -279,35 +314,26 @@ fn reply_potentially_long_text(
 /// assert_eq!(extract_code("```rust\nhello\n```"), Some("hello"));
 /// assert_eq!(extract_code("``` rust\nhello\n```"), Some("rust\nhello"));
 /// ```
-pub fn extract_code(input: &str) -> Option<&str> {
-    let input = input.trim();
+pub fn extract_code(input: &str) -> Result<&str, Error> {
+    fn inner(input: &str) -> Option<&str> {
+        let input = input.trim();
 
-    let extracted_code = if input.starts_with("```") && input.ends_with("```") {
-        let code_starting_point = input.find(char::is_whitespace)?; // skip over lang specifier
-        let code_end_point = input.len() - 3;
+        let extracted_code = if input.starts_with("```") && input.ends_with("```") {
+            let code_starting_point = input.find(char::is_whitespace)?; // skip over lang specifier
+            let code_end_point = input.len() - 3;
 
-        // can't fail but you can never be too sure
-        input.get(code_starting_point..code_end_point)?
-    } else if input.starts_with('`') && input.ends_with('`') {
-        // can't fail but you can never be too sure
-        input.get(1..(input.len() - 1))?
-    } else {
-        return None;
-    };
+            // can't fail but you can never be too sure
+            input.get(code_starting_point..code_end_point)?
+        } else if input.starts_with('`') && input.ends_with('`') {
+            // can't fail but you can never be too sure
+            input.get(1..(input.len() - 1))?
+        } else {
+            return None;
+        };
 
-    Some(extracted_code.trim())
-}
-
-pub fn reply_missing_code_block_err(args: &Args) -> Result<(), Error> {
-    let message = "Missing code block. Please use the following markdown:
-\\`code here\\`
-or
-\\`\\`\\`rust
-code here
-\\`\\`\\`";
-
-    api::send_reply(args, message)?;
-    Ok(())
+        Some(extracted_code.trim())
+    }
+    inner(input).ok_or(Error::MissingCodeblock)
 }
 
 fn main_menu(args: &Args, commands: &IndexMap<&str, (&str, GuardFn)>) -> String {

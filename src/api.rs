@@ -69,8 +69,8 @@ pub fn is_wg_and_teams(args: &Args) -> Result<bool, Error> {
 ///
 /// A `seconds` value of 0 will disable slowmode
 pub fn slow_mode(args: &Args) -> Result<(), Error> {
-    if !is_mod(&args)? {
-        return Ok(());
+    if !is_mod(args)? {
+        return Err(Error::MissingPermissions);
     }
 
     let mut token = args.body.splitn(2, ' ');

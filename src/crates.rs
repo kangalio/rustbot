@@ -24,7 +24,7 @@ struct Crate {
 }
 
 /// Queries the crates.io crates list and yields the first result, if any
-fn get_crate(http: &reqwest::blocking::Client, query: &str) -> Result<Option<Crate>, Error> {
+fn get_crate(http: &reqwest::blocking::Client, query: &str) -> Result<Crate, Error> {
     info!("searching for crate `{}`", query);
 
     let crate_list = http
@@ -34,28 +34,27 @@ fn get_crate(http: &reqwest::blocking::Client, query: &str) -> Result<Option<Cra
         .send()?
         .json::<Crates>()?;
 
-    Ok(crate_list.crates.into_iter().next())
+    crate_list
+        .crates
+        .into_iter()
+        .next()
+        .ok_or(Error::NoCratesFound)
 }
 
 pub fn search(args: &Args) -> Result<(), Error> {
-    if let Some(krate) = get_crate(&args.http, args.body)? {
-        args.msg.channel_id.send_message(&args.cx, |m| {
-            m.embed(|e| {
-                e.title(&krate.name)
-                    .url(format!("https://crates.io/crates/{}", krate.id))
-                    .description(&krate.description)
-                    .field("Version", &krate.version, true)
-                    .field("Downloads", &krate.downloads, true)
-                    .timestamp(krate.updated.as_str())
-            });
+    let krate = get_crate(&args.http, args.body)?;
+    args.msg.channel_id.send_message(&args.cx, |m| {
+        m.embed(|e| {
+            e.title(&krate.name)
+                .url(format!("https://crates.io/crates/{}", krate.id))
+                .description(&krate.description)
+                .field("Version", &krate.version, true)
+                .field("Downloads", &krate.downloads, true)
+                .timestamp(krate.updated.as_str())
+        });
 
-            m
-        })?;
-    } else {
-        let message = "No crates found.";
-        api::send_reply(&args, message)?;
-    }
-
+        m
+    })?;
     Ok(())
 }
 
@@ -80,14 +79,12 @@ pub fn doc_search(args: &Args) -> Result<(), Error> {
     // The base docs url, e.g. `https://docs.rs/syn` or `https://doc.rust-lang.org/stable/std/`
     let mut doc_url = if let Some(rustc_crate) = rustc_crate_link(crate_name) {
         rustc_crate.to_string()
-    } else if let Some(krate) = get_crate(&args.http, crate_name)? {
+    } else {
+        let krate = get_crate(&args.http, crate_name)?;
         let crate_name = krate.name;
         krate
             .documentation
             .unwrap_or_else(|| format!("https://docs.rs/{}", crate_name))
-    } else {
-        api::send_reply(&args, "No crates found.")?;
-        return Ok(());
     };
 
     if let Some(item_path) = query_iter.next() {

@@ -151,9 +151,7 @@ impl Commands {
                 Ok(true) => {
                     if let Err(e) = (command.handler)(&args) {
                         error!("Error when executing command {}: {}", command.name, e);
-                        if let Err(e) =
-                            crate::api::send_reply(&args, &format!("Encountered error ({})", e))
-                        {
+                        if let Err(e) = crate::api::send_reply(&args, &e.to_string()) {
                             error!("{}", e)
                         }
                     }
@@ -164,9 +162,7 @@ impl Commands {
                         "Error when checking command permissions for {}: {}",
                         command.name, e
                     );
-                    if let Err(e) =
-                        crate::api::send_reply(&args, &format!("Encountered error ({})", e))
-                    {
+                    if let Err(e) = crate::api::send_reply(&args, &e.to_string()) {
                         error!("{}", e)
                     }
                 }

@@ -63,12 +63,7 @@ fn compile_rust_source(
 }
 
 pub fn godbolt(args: &crate::Args) -> Result<(), crate::Error> {
-    let code = match crate::extract_code(&args.body) {
-        Some(x) => x,
-        None => return crate::reply_missing_code_block_err(&args),
-    };
-
-    let (lang, text) = match compile_rust_source(args.http, code)? {
+    let (lang, text) = match compile_rust_source(args.http, crate::extract_code(&args.body)?)? {
         Compilation::Success { asm } => ("x86asm", asm),
         Compilation::Error { stderr } => ("rust", stderr),
     };

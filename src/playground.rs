@@ -282,21 +282,14 @@ fn run_code_and_reply(args: &Args, code: &str) -> Result<(), Error> {
 }
 
 pub fn play(args: &Args) -> Result<(), Error> {
-    match crate::extract_code(args.body) {
-        Some(code) => run_code_and_reply(&args, code),
-        None => crate::reply_missing_code_block_err(&args),
-    }
+    run_code_and_reply(&args, crate::extract_code(args.body)?)
 }
 
 pub fn eval(args: &Args) -> Result<(), Error> {
-    let code = match crate::extract_code(args.body) {
-        Some(x) => x,
-        None => return crate::reply_missing_code_block_err(&args),
-    };
+    let code = crate::extract_code(args.body)?;
 
     if code.contains("fn main") {
-        api::send_reply(&args, "code passed to ?eval should not contain `fn main`")?;
-        return Ok(());
+        return Err(Error::EvalWithFnMain);
     }
 
     let mut full_code = String::from("fn main() {\n    println!(\"{:?}\", {\n");
@@ -319,10 +312,7 @@ fn generic_command<'a, R: Serialize + 'a>(
     url: &str,
     request_builder: impl FnOnce(&'a str, &CommandFlags) -> R,
 ) -> Result<(), Error> {
-    let code = match crate::extract_code(args.body) {
-        Some(x) => x,
-        None => return crate::reply_missing_code_block_err(&args),
-    };
+    let code = crate::extract_code(args.body)?;
 
     let (flags, flag_parse_errors) = parse_flags(&args);
 
