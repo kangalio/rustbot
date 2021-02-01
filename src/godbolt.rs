@@ -1,4 +1,4 @@
-pub enum Compilation {
+enum Compilation {
     Success { asm: String },
     Error { stderr: String },
 }
@@ -35,7 +35,7 @@ struct GodboltResponse {
 /// Compile a given Rust source code file on Godbolt using the latest nightly compiler with
 /// full optimizations (-O3)
 /// Returns a multiline string with the pretty printed assembly
-pub fn compile_rust_source(
+fn compile_rust_source(
     http: &reqwest::blocking::Client,
     source_code: &str,
 ) -> Result<Compilation, crate::Error> {
@@ -60,4 +60,33 @@ pub fn compile_rust_source(
             stderr: response.stderr.full_with_ansi_codes_stripped()?,
         }
     })
+}
+
+pub fn godbolt(args: crate::Args) -> Result<(), crate::Error> {
+    let code = match crate::extract_code(&args.body) {
+        Some(x) => x,
+        None => return crate::reply_missing_code_block_err(&args),
+    };
+
+    let (lang, text) = match compile_rust_source(args.http, code)? {
+        Compilation::Success { asm } => ("x86asm", asm),
+        Compilation::Error { stderr } => ("rust", stderr),
+    };
+
+    crate::reply_potentially_long_text(
+        &args,
+        &format!("```{}\n{}", lang, text),
+        "\n```",
+        "Note: the output was truncated",
+    )?;
+
+    Ok(())
+}
+
+pub fn help(args: crate::Args) -> Result<(), crate::Error> {
+    crate::api::send_reply(
+        &args,
+        "Compile Rust code using https://rust.godbolt.org. Full optimizations are applied. \
+        ```?godbolt ``\u{200B}`code``\u{200B}` ```",
+    )
 }

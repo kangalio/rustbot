@@ -144,7 +144,7 @@ fn app() -> Result<(), Error> {
         cmds.add("clippy", playground::clippy);
         cmds.help(
             "clippy",
-            "Catch common mistakes and improve the code using the Clippy linter",
+            "Catch common mistakes using the Clippy linter",
             playground::clippy_help,
         );
     }
@@ -154,34 +154,8 @@ fn app() -> Result<(), Error> {
         api::send_reply(&args, "Evaluates Go code")
     });
 
-    cmds.add("godbolt", |args| {
-        let code = match extract_code(&args.body) {
-            Some(x) => x,
-            None => return reply_missing_code_block_err(&args),
-        };
-
-        let (lang, text) = match godbolt::compile_rust_source(args.http, code)? {
-            godbolt::Compilation::Success { asm } => ("x86asm", asm),
-            godbolt::Compilation::Error { stderr } => ("rust", stderr),
-        };
-
-        reply_potentially_long_text(
-            &args,
-            &format!("```{}\n{}", lang, text),
-            "\n```",
-            "Note: the output was truncated",
-        )?;
-
-        Ok(())
-    });
-    cmds.help("godbolt", "View assembly using Godbolt", |args| {
-        api::send_reply(
-            &args,
-            "Compile Rust code using https://rust.godbolt.org. Full optimizations are applied. \
-            ```?godbolt ``\u{200B}`code``\u{200B}` ```",
-        )?;
-        Ok(())
-    });
+    cmds.add("godbolt", godbolt::godbolt);
+    cmds.help("godbolt", "View assembly using Godbolt", godbolt::help);
 
     // Slow mode.
     // 0 seconds disables slowmode
@@ -347,7 +321,7 @@ fn main_menu(args: &Args, commands: &IndexMap<&str, (&str, GuardFn)>) -> String 
         }
     }
 
-    menu += &format!("\t{help:<12}This menu\n", help = "?help");
+    menu += &format!("\t?{cmd:<12}This menu\n", cmd = "help");
     menu += "\nType ?help command for more info on a command.";
     menu += "\n\nAdditional Info:\n";
     menu += "\tYou can edit your message to the bot and the bot will edit its response.";
