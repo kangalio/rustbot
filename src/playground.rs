@@ -7,6 +7,10 @@ use serde::{Deserialize, Serialize};
 use std::str::FromStr;
 use std::{borrow::Cow, collections::HashMap};
 
+// ================================
+// PLAYGROUND API WRAPPER BEGINS HERE
+// ================================
+
 #[derive(Debug, Serialize)]
 struct PlaygroundRequest<'a> {
     channel: Channel,
@@ -149,6 +153,10 @@ fn url_from_gist(flags: &CommandFlags, gist_id: &str) -> String {
     )
 }
 
+// ================================
+// UTILITY FUNCTIONS BEGIN HERE
+// ================================
+
 struct CommandFlags {
     channel: Channel,
     mode: Mode,
@@ -211,25 +219,9 @@ fn generic_help(args: &Args, cmd: &str, desc: &str, full: bool) -> Result<(), Er
     api::send_reply(args, &reply)
 }
 
-/// ```rust
-/// let stderr = "   Compiling playground v0.0.1 (/playground)
-/// ACTUAL ERRORS
-///
-/// error: aborting due to previous error
-///
-/// error: could not compile `playground`
-///
-/// To learn more, run the command again with --verbose.";
-///
-/// assert_eq!(
-///     extract_stderr_relevant(
-///         stderr,
-///         &["Compiling playground", "Running `target"],
-///         &["error: aborting due"]
-///     ).trim(),
-///     "ACTUAL ERRORS",
-/// );
-/// ```
+/// Strip the input so that only the lines from the first matching strip_start_token up to the
+/// first matching strip_end_token remain. The lines with the tokens themselves are stripped as
+/// well.
 fn extract_relevant_lines<'a>(
     mut stderr: &'a str,
     strip_start_tokens: &[&str],
@@ -256,77 +248,38 @@ fn extract_relevant_lines<'a>(
     stderr
 }
 
-// Generic function used for both `?eval` and `?play`
-fn run_code_and_reply(args: &Args, code: &str) -> Result<(), Error> {
-    let (flags, flag_parse_errors) = parse_flags(args);
-
-    let mut result: PlayResult = args
-        .http
-        .post("https://play.rust-lang.org/execute")
-        .json(&PlaygroundRequest {
-            code,
-            channel: flags.channel,
-            crate_type: if code.contains("fn main") {
-                CrateType::Binary
-            } else {
-                CrateType::Library
-            },
-            edition: flags.edition,
-            mode: flags.mode,
-            tests: false,
-        })
-        .send()?
-        .json()?;
-
-    result.stderr =
-        extract_relevant_lines(&result.stderr, &["Running `target"], &["error: aborting"])
-            .to_owned();
-
-    send_reply(args, result, code, &flags, &flag_parse_errors)
+enum ResultHandling {
+    // /// Don't consume results at all, which makes rustc throw an error when the result isn't ()
+    // None,
+    /// Consume using `let _ = { ... };`
+    Discard,
+    /// Print the result with `println!("{:?}")`
+    Print,
 }
 
-pub fn play(args: &Args) -> Result<(), Error> {
-    run_code_and_reply(&args, crate::extract_code(args.body)?)
-}
-
-pub fn eval(args: &Args) -> Result<(), Error> {
-    let code = crate::extract_code(args.body)?;
-
-    if code.contains("fn main") {
-        return Err(Error::EvalWithFnMain);
-    }
-
-    let mut full_code = String::from("fn main() {\n    println!(\"{:?}\", {\n");
-    for line in code.lines() {
-        full_code.push_str("        ");
-        full_code.push_str(line);
-        full_code.push_str("\n");
-    }
-    full_code.push_str("    });\n}");
-
-    run_code_and_reply(&args, &full_code)
-}
-
-pub fn play_and_eval_help(args: &Args, name: &str) -> Result<(), Error> {
-    generic_help(&args, name, "Compile and run Rust code", true)
-}
-
-// Wraps this code in a `fn main`, if it isn't already
-fn maybe_wrap(code: &str) -> Cow<'_, str> {
+/// Utility used by the commands to wrap the given code in a `fn main`, if it isn't already
+fn maybe_wrap(code: &str, result_handling: ResultHandling) -> Cow<'_, str> {
     if code.contains("fn main") {
         Cow::Borrowed(code)
     } else {
-        let mut output = String::from("fn main() { let _ = {\n");
+        let (start, end) = match result_handling {
+            ResultHandling::Discard => ("fn main() { let _ = {\n", "}; }"),
+            ResultHandling::Print => ("fn main() { println!(\"{:?}\", {\n", "}); }"),
+        };
+
+        let mut output = String::from(start);
         for line in code.lines() {
-            output.push_str("    ");
+            output.push_str("        ");
             output.push_str(line);
             output.push_str("\n");
         }
-        output.push_str("}; }");
+        output.push_str(end);
+
         Cow::Owned(output)
     }
 }
 
+/// Send a Discord reply with the formatted contents of a Playground result
 fn send_reply(
     args: &Args<'_>,
     result: PlayResult,
@@ -357,8 +310,57 @@ fn send_reply(
     }
 }
 
+// ================================
+// ACTUAL BOT COMMANDS BEGIN HERE
+// ================================
+
+// play and eval work similarly, so this function abstracts over the two
+pub fn play_or_eval(args: &Args, attempt_to_wrap_and_display: bool) -> Result<(), Error> {
+    let code = match attempt_to_wrap_and_display {
+        true => maybe_wrap(crate::extract_code(args.body)?, ResultHandling::Print),
+        false => Cow::Borrowed(crate::extract_code(args.body)?),
+    };
+    let (flags, flag_parse_errors) = parse_flags(args);
+
+    let mut result: PlayResult = args
+        .http
+        .post("https://play.rust-lang.org/execute")
+        .json(&PlaygroundRequest {
+            code: &code,
+            channel: flags.channel,
+            crate_type: if code.contains("fn main") {
+                CrateType::Binary
+            } else {
+                CrateType::Library
+            },
+            edition: flags.edition,
+            mode: flags.mode,
+            tests: false,
+        })
+        .send()?
+        .json()?;
+
+    result.stderr =
+        extract_relevant_lines(&result.stderr, &["Running `target"], &["error: aborting"])
+            .to_owned();
+
+    send_reply(args, result, &code, &flags, &flag_parse_errors)
+}
+
+pub fn play(args: &Args) -> Result<(), Error> {
+    play_or_eval(args, false)
+}
+
+pub fn eval(args: &Args) -> Result<(), Error> {
+    play_or_eval(args, true)
+}
+
+pub fn play_and_eval_help(args: &Args, name: &str) -> Result<(), Error> {
+    generic_help(&args, name, "Compile and run Rust code", true)
+}
+
 pub fn miri(args: &Args) -> Result<(), Error> {
-    let code = &maybe_wrap(crate::extract_code(args.body)?);
+    let code = &maybe_wrap(crate::extract_code(args.body)?, ResultHandling::Discard);
     let (flags, flag_parse_errors) = parse_flags(&args);
 
     let mut result: PlayResult = args
@@ -451,7 +453,6 @@ pub fn expand_macros(args: &Args) -> Result<(), Error> {
         // Remove all the fn main boilerplate and also dedent appropriately
         let mut output = String::new();
         for line in extract_relevant_lines(&result.stdout, &["fn main() {"], &["}"]).lines() {
-            dbg!(line);
             output.push_str(line.strip_prefix("    ").unwrap_or(line));
             output.push_str("\n");
         }
@@ -469,7 +470,7 @@ pub fn expand_macros_help(args: &Args) -> Result<(), Error> {
 }
 
 pub fn clippy(args: &Args) -> Result<(), Error> {
-    let code = &maybe_wrap(crate::extract_code(args.body)?);
+    let code = &maybe_wrap(crate::extract_code(args.body)?, ResultHandling::Discard);
     let (flags, flag_parse_errors) = parse_flags(&args);
 
     let mut result: PlayResult = args
