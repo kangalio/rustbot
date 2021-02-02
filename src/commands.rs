@@ -149,6 +149,9 @@ impl Commands {
 
             match (command.guard)(&args) {
                 Ok(true) => {
+                    if let Err(e) = serenity_msg.channel_id.broadcast_typing(&cx.http) {
+                        warn!("Can't broadcast typing: {}", e);
+                    }
                     if let Err(e) = (command.handler)(&args) {
                         error!("Error when executing command {}: {}", command.name, e);
                         if let Err(e) = crate::api::send_reply(&args, &e.to_string()) {
