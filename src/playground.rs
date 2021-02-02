@@ -472,10 +472,10 @@ pub fn expand_macros(args: &Args) -> Result<(), Error> {
     )
     .to_owned();
 
-    result.stdout = apply_rustfmt(&result.stdout).map_err(|e| {
-        warn!("Couldn't run rustfmt: {}", e);
-        e
-    })?;
+    match apply_rustfmt(&result.stdout) {
+        Ok(formatted_code) => result.stdout = formatted_code,
+        Err(e) => warn!("Couldn't run rustfmt: {}", e),
+    };
 
     result.stdout = if was_fn_main_wrapped {
         // Remove all the fn main boilerplate and also dedent appropriately
