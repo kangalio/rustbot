@@ -260,7 +260,7 @@ fn extract_relevant_lines<'a>(
 fn run_code_and_reply(args: &Args, code: &str) -> Result<(), Error> {
     let (flags, flag_parse_errors) = parse_flags(args);
 
-    let result: PlayResult = args
+    let mut result: PlayResult = args
         .http
         .post("https://play.rust-lang.org/execute")
         .json(&PlaygroundRequest {
@@ -277,6 +277,10 @@ fn run_code_and_reply(args: &Args, code: &str) -> Result<(), Error> {
         })
         .send()?
         .json()?;
+
+    result.stderr =
+        extract_relevant_lines(&result.stderr, &["Running `target"], &["error: aborting"])
+            .to_owned();
 
     send_reply(args, result, code, &flags, &flag_parse_errors)
 }
@@ -338,7 +342,7 @@ fn send_reply(
         format!("{}\n{}", result.stderr, result.stdout)
     };
 
-    if result.is_empty() {
+    if result.trim().is_empty() {
         api::send_reply(&args, &format!("{}``` ```", flag_parse_errors))
     } else {
         crate::reply_potentially_long_text(
@@ -382,6 +386,28 @@ pub fn miri_help(args: &Args) -> Result<(), Error> {
     generic_help(&args, "miri", desc, false)
 }
 
+fn apply_rustfmt(text: &str) -> Result<String, Error> {
+    use std::io::Write as _;
+
+    let mut child = std::process::Command::new("rustfmt")
+        .stdin(std::process::Stdio::piped())
+        .stdout(std::process::Stdio::piped())
+        .spawn()?;
+
+    child
+        .stdin
+        .as_mut()
+        .ok_or("This can't happen, we captured by pipe")?
+        .write_all(text.as_bytes())?;
+
+    let output = child.wait_with_output()?;
+    if output.status.success() {
+        Ok(String::from_utf8_lossy(&output.stdout).into_owned())
+    } else {
+        Err(String::from_utf8_lossy(&output.stderr).into())
+    }
+}
+
 pub fn expand_macros(args: &Args) -> Result<(), Error> {
     let code = crate::extract_code(args.body)?;
     let (flags, flag_parse_errors) = parse_flags(&args);
@@ -416,19 +442,23 @@ pub fn expand_macros(args: &Args) -> Result<(), Error> {
     )
     .to_owned();
 
-    // result.stdout = if was_fn_main_wrapped {
-    //     // Remove all the fn main boilerplate and also dedent appropriately
-    //     let mut output = String::new();
-    //     println!("{:?}", result.stdout);
-    //     for line in extract_relevant_lines(&result.stdout, &["fn main() {"], &["}"]).lines() {
-    //         dbg!(line);
-    //         output.push_str(line.strip_prefix("    ").unwrap_or(line));
-    //         output.push_str("\n");
-    //     }
-    //     output
-    // } else {
-    //     result.stdout
-    // };
+    result.stdout = apply_rustfmt(&result.stdout).map_err(|e| {
+        warn!("Couldn't run rustfmt: {}", e);
+        e
+    })?;
+
+    result.stdout = if was_fn_main_wrapped {
+        // Remove all the fn main boilerplate and also dedent appropriately
+        let mut output = String::new();
+        for line in extract_relevant_lines(&result.stdout, &["fn main() {"], &["}"]).lines() {
+            dbg!(line);
+            output.push_str(line.strip_prefix("    ").unwrap_or(line));
+            output.push_str("\n");
+        }
+        output
+    } else {
+        result.stdout
+    };
 
     send_reply(args, result, &code, &flags, &flag_parse_errors)
 }
