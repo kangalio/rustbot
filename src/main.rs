@@ -189,9 +189,16 @@ fn app() -> Result<(), Error> {
     cmds.add("godbolt", godbolt::godbolt);
     cmds.help("godbolt", "View assembly using Godbolt", godbolt::help);
 
+    cmds.add("cleanup", command_history::cleanup);
+    cmds.help(
+        "cleanup",
+        "Deletes the bot's messages for cleanup",
+        command_history::cleanup_help,
+    );
+
     // Slow mode.
     // 0 seconds disables slowmode
-    cmds.add("slowmode", api::slow_mode);
+    cmds.add_protected("slowmode", api::slow_mode, api::is_mod);
     cmds.help_protected(
         "slowmode",
         "Set slowmode on a channel",
@@ -200,7 +207,7 @@ fn app() -> Result<(), Error> {
     );
 
     // Kick
-    cmds.add("kick", api::kick);
+    cmds.add_protected("kick", api::kick, api::is_mod);
     cmds.help_protected(
         "kick",
         "Kick a user from the guild",
@@ -209,7 +216,7 @@ fn app() -> Result<(), Error> {
     );
 
     // Ban
-    cmds.add("ban", ban::temp_ban);
+    cmds.add_protected("ban", ban::temp_ban, api::is_mod);
     cmds.help_protected(
         "ban",
         "Temporarily ban a user from the guild",
@@ -218,7 +225,7 @@ fn app() -> Result<(), Error> {
     );
 
     // Post the welcome message to the welcome channel.
-    cmds.add("CoC", welcome::post_message);
+    cmds.add_protected("CoC", welcome::post_message, api::is_mod);
     cmds.help_protected(
         "CoC",
         "Post the code of conduct message to a channel",
@@ -360,6 +367,12 @@ fn main() {
     }
 }
 
+struct BotUserId;
+
+impl TypeMapKey for BotUserId {
+    type Value = UserId;
+}
+
 struct Events {
     cmds: Commands,
 }
@@ -370,6 +383,7 @@ impl EventHandler for Events {
         {
             let mut data = cx.data.write();
             data.insert::<command_history::CommandHistory>(IndexMap::new());
+            data.insert::<BotUserId>(ready.user.id);
         }
 
         jobs::start_jobs(cx);
