@@ -4,8 +4,8 @@ use crate::{api, commands::Args, Error};
 
 use reqwest::header;
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
 use std::str::FromStr;
+use std::{borrow::Cow, collections::HashMap};
 
 #[derive(Debug, Serialize)]
 struct PlaygroundRequest<'a> {
@@ -211,49 +211,49 @@ fn generic_help(args: &Args, cmd: &str, desc: &str, full: bool) -> Result<(), Er
     api::send_reply(args, &reply)
 }
 
-fn send_play_result_reply(
-    args: &Args,
-    result: PlayResult,
-    code: &str,
-    flags: &CommandFlags,
-    flag_parse_errors: &str,
-) -> Result<(), Error> {
-    let PlayResult {
-        stderr,
-        stdout,
-        success,
-    } = result;
-    let mut stderr = stderr.lines();
-    while let Some(line) = stderr.next() {
-        if line.contains("Running `target") {
-            break;
+/// ```rust
+/// let stderr = "   Compiling playground v0.0.1 (/playground)
+/// ACTUAL ERRORS
+///
+/// error: aborting due to previous error
+///
+/// error: could not compile `playground`
+///
+/// To learn more, run the command again with --verbose.";
+///
+/// assert_eq!(
+///     extract_stderr_relevant(
+///         stderr,
+///         &["Compiling playground", "Running `target"],
+///         &["error: aborting due"]
+///     ).trim(),
+///     "ACTUAL ERRORS",
+/// );
+/// ```
+fn extract_relevant_lines<'a>(
+    mut stderr: &'a str,
+    strip_start_tokens: &[&str],
+    strip_end_tokens: &[&str],
+) -> &'a str {
+    for token in strip_start_tokens {
+        if let Some(token_start) = stderr.find(token) {
+            stderr = match stderr[token_start..].find('\n') {
+                Some(line_end) => &stderr[(line_end + token_start + 1)..],
+                None => "",
+            };
         }
     }
-    let stderr = stderr.collect::<Vec<_>>().join("\n");
-    dbg!(&stdout);
-    dbg!(&stderr);
 
-    let result = if !success {
-        stderr
-    } else if stderr.is_empty() {
-        stdout
-    } else {
-        format!("{}\n{}", stderr, stdout)
-    };
-
-    if result.is_empty() {
-        api::send_reply(&args, &format!("{}``` ```", flag_parse_errors))
-    } else {
-        crate::reply_potentially_long_text(
-            &args,
-            &format!("{}```\n{}", flag_parse_errors, result),
-            "```",
-            &format!(
-                "Output too large. Playground link: {}",
-                url_from_gist(&flags, &post_gist(&args, code)?),
-            ),
-        )
+    for token in strip_end_tokens {
+        if let Some(token_start) = stderr.rfind(token) {
+            stderr = match stderr[..token_start].rfind('\n') {
+                Some(prev_line_end) => &stderr[..prev_line_end],
+                None => "",
+            };
+        }
     }
+
+    stderr
 }
 
 // Generic function used for both `?eval` and `?play`
@@ -278,7 +278,7 @@ fn run_code_and_reply(args: &Args, code: &str) -> Result<(), Error> {
         .send()?
         .json()?;
 
-    send_play_result_reply(args, result, code, &flags, &flag_parse_errors)
+    send_reply(args, result, code, &flags, &flag_parse_errors)
 }
 
 pub fn play(args: &Args) -> Result<(), Error> {
@@ -307,32 +307,74 @@ pub fn play_and_eval_help(args: &Args, name: &str) -> Result<(), Error> {
     generic_help(&args, name, "Compile and run Rust code", true)
 }
 
-fn generic_command<'a, R: Serialize + 'a>(
-    args: &Args<'a>,
-    url: &str,
-    request_builder: impl FnOnce(&'a str, &CommandFlags) -> R,
+// Wraps this code in a `fn main`, if it isn't already
+fn maybe_wrap(code: &str) -> Cow<'_, str> {
+    if code.contains("fn main") {
+        Cow::Borrowed(code)
+    } else {
+        let mut output = String::from("fn main() { let _ = {\n");
+        for line in code.lines() {
+            output.push_str("    ");
+            output.push_str(line);
+            output.push_str("\n");
+        }
+        output.push_str("}; }");
+        Cow::Owned(output)
+    }
+}
+
+fn send_reply(
+    args: &Args<'_>,
+    result: PlayResult,
+    code: &str,
+    flags: &CommandFlags,
+    flag_parse_errors: &str,
 ) -> Result<(), Error> {
-    let code = crate::extract_code(args.body)?;
+    let result = if !result.success {
+        result.stderr
+    } else if result.stderr.is_empty() {
+        result.stdout
+    } else {
+        format!("{}\n{}", result.stderr, result.stdout)
+    };
 
-    let (flags, flag_parse_errors) = parse_flags(&args);
-
-    let result: PlayResult = args
-        .http
-        .post(url)
-        .json(&(request_builder)(code, &flags))
-        .send()?
-        .json()?;
-
-    send_play_result_reply(&args, result, code, &flags, &flag_parse_errors)
+    if result.is_empty() {
+        api::send_reply(&args, &format!("{}``` ```", flag_parse_errors))
+    } else {
+        crate::reply_potentially_long_text(
+            &args,
+            &format!("{}```\n{}", flag_parse_errors, result),
+            "```",
+            &format!(
+                "Output too large. Playground link: {}",
+                url_from_gist(&flags, &post_gist(&args, code)?),
+            ),
+        )
+    }
 }
 
 pub fn miri(args: &Args) -> Result<(), Error> {
-    generic_command(args, "https://play.rust-lang.org/miri", |code, flags| {
-        MiriRequest {
+    let code = &maybe_wrap(crate::extract_code(args.body)?);
+    let (flags, flag_parse_errors) = parse_flags(&args);
+
+    let mut result: PlayResult = args
+        .http
+        .post("https://play.rust-lang.org/miri")
+        .json(&MiriRequest {
             code,
             edition: flags.edition,
-        }
-    })
+        })
+        .send()?
+        .json()?;
+
+    result.stderr = extract_relevant_lines(
+        &result.stderr,
+        &["Running `/playground"],
+        &["error: aborting"],
+    )
+    .to_owned();
+
+    send_reply(args, result, code, &flags, &flag_parse_errors)
 }
 
 pub fn miri_help(args: &Args) -> Result<(), Error> {
@@ -341,14 +383,54 @@ pub fn miri_help(args: &Args) -> Result<(), Error> {
 }
 
 pub fn expand_macros(args: &Args) -> Result<(), Error> {
-    generic_command(
-        args,
-        "https://play.rust-lang.org/macro-expansion",
-        |code, flags| MacroExpansionRequest {
-            code,
+    let code = crate::extract_code(args.body)?;
+    let (flags, flag_parse_errors) = parse_flags(&args);
+
+    let (code, was_fn_main_wrapped) = if code.contains("fn main") {
+        (Cow::Borrowed(code), false)
+    } else {
+        let mut output = String::from("fn main() {\n");
+        for line in code.lines() {
+            output.push_str("    ");
+            output.push_str(line);
+            output.push_str("\n");
+        }
+        output.push_str("}");
+        (Cow::Owned(output), true)
+    };
+
+    let mut result: PlayResult = args
+        .http
+        .post("https://play.rust-lang.org/macro-expansion")
+        .json(&MacroExpansionRequest {
+            code: &code,
             edition: flags.edition,
-        },
+        })
+        .send()?
+        .json()?;
+
+    result.stderr = extract_relevant_lines(
+        &result.stderr,
+        &["Finished dev", "Compiling playground"],
+        &["error: aborting"],
     )
+    .to_owned();
+
+    // result.stdout = if was_fn_main_wrapped {
+    //     // Remove all the fn main boilerplate and also dedent appropriately
+    //     let mut output = String::new();
+    //     println!("{:?}", result.stdout);
+    //     for line in extract_relevant_lines(&result.stdout, &["fn main() {"], &["}"]).lines() {
+    //         dbg!(line);
+    //         output.push_str(line.strip_prefix("    ").unwrap_or(line));
+    //         output.push_str("\n");
+    //     }
+    //     output
+    // } else {
+    //     result.stdout
+    // };
+
+    send_reply(args, result, &code, &flags, &flag_parse_errors)
 }
 
 pub fn expand_macros_help(args: &Args) -> Result<(), Error> {
@@ -357,8 +439,13 @@ pub fn expand_macros_help(args: &Args) -> Result<(), Error> {
 }
 
 pub fn clippy(args: &Args) -> Result<(), Error> {
-    generic_command(args, "https://play.rust-lang.org/clippy", |code, flags| {
-        ClippyRequest {
+    let code = &maybe_wrap(crate::extract_code(args.body)?);
+    let (flags, flag_parse_errors) = parse_flags(&args);
+
+    let mut result: PlayResult = args
+        .http
+        .post("https://play.rust-lang.org/clippy")
+        .json(&ClippyRequest {
             code,
             edition: flags.edition,
             crate_type: if code.contains("fn main") {
@@ -366,8 +453,23 @@ pub fn clippy(args: &Args) -> Result<(), Error> {
             } else {
                 CrateType::Library
             },
-        }
-    })
+        })
+        .send()?
+        .json()?;
+
+    result.stderr = extract_relevant_lines(
+        &result.stderr,
+        &["Checking playground", "Running `/playground"],
+        &[
+            "error: aborting",
+            "1 warning emitted",
+            "warnings emitted",
+            "Finished dev",
+        ],
+    )
+    .to_owned();
+
+    send_reply(args, result, code, &flags, &flag_parse_errors)
 }
 
 pub fn clippy_help(args: &Args) -> Result<(), Error> {
