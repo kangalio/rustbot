@@ -300,7 +300,7 @@ fn send_reply(
     } else {
         crate::reply_potentially_long_text(
             &args,
-            &format!("{}```\n{}", flag_parse_errors, result),
+            &format!("{}```rust\n{}", flag_parse_errors, result),
             "```",
             &format!(
                 "Output too large. Playground link: {}",
