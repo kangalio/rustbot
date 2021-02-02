@@ -260,23 +260,51 @@ enum ResultHandling {
 /// Utility used by the commands to wrap the given code in a `fn main`, if it isn't already
 fn maybe_wrap(code: &str, result_handling: ResultHandling) -> Cow<'_, str> {
     if code.contains("fn main") {
-        Cow::Borrowed(code)
-    } else {
-        let (start, end) = match result_handling {
-            ResultHandling::Discard => ("fn main() { let _ = {\n", "}; }"),
-            ResultHandling::Print => ("fn main() { println!(\"{:?}\", {\n", "}); }"),
-        };
+        return Cow::Borrowed(code);
+    }
 
-        let mut output = String::from(start);
-        for line in code.lines() {
-            output.push_str("        ");
+    let mut lines = code.lines().peekable();
+
+    let mut output = String::new();
+
+    // First go through the input lines and extract the crate attributes at the start. Those will
+    // be put right at the beginning of the generated code, else they won't work (crate attributes
+    // need to be at the top of the file)
+    while let Some(line) = lines.peek() {
+        let line = line.trim();
+        if line.starts_with("#![") {
             output.push_str(line);
             output.push_str("\n");
+        } else if line.is_empty() {
+            // do nothing, maybe more crate attributes are coming
+        } else {
+            break;
         }
-        output.push_str(end);
-
-        Cow::Owned(output)
+        lines.next(); // Advance the iterator
     }
+
+    // fn main boilerplate
+    output.push_str(match result_handling {
+        ResultHandling::Discard => "fn main() { let _ = {\n",
+        ResultHandling::Print => "fn main() { println!(\"{:?}\", {\n",
+    });
+
+    // Write the rest of the lines that don't contain crate attributes
+    for line in lines {
+        output.push_str("        ");
+        output.push_str(line);
+        output.push_str("\n");
+    }
+
+    // fn main boilerplate counterpart
+    output.push_str(match result_handling {
+        ResultHandling::Discard => "}; }",
+        ResultHandling::Print => "}); }",
+    });
+
+    dbg!(&output);
+
+    Cow::Owned(output)
 }
 
 /// Send a Discord reply with the formatted contents of a Playground result
