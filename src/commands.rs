@@ -123,6 +123,13 @@ impl Commands {
                 None => continue,
             };
 
+            // Make sure that `?go` doesn't match when the user typed `?godbolt`
+            if let Some(first_char) = msg.chars().next() {
+                if first_char.is_alphanumeric() {
+                    continue;
+                }
+            }
+
             let mut params = HashMap::new();
             let mut body = "";
             for token in msg.split_whitespace() {
