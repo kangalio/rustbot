@@ -1,5 +1,5 @@
 enum Compilation {
-    Success { asm: String },
+    Success { asm: String, stderr: String },
     Error { stderr: String },
 }
 
@@ -51,9 +51,11 @@ fn compile_rust_source(
 
     dbg!(&response);
 
+    // TODO: use the extract_relevant_lines utility to strip stderr nicely
     Ok(if response.code == 0 {
         Compilation::Success {
             asm: response.asm.full_with_ansi_codes_stripped()?,
+            stderr: response.stderr.full_with_ansi_codes_stripped()?,
         }
     } else {
         Compilation::Error {
@@ -64,7 +66,7 @@ fn compile_rust_source(
 
 pub fn godbolt(args: &crate::Args) -> Result<(), crate::Error> {
     let (lang, text) = match compile_rust_source(args.http, crate::extract_code(&args.body)?)? {
-        Compilation::Success { asm } => ("x86asm", asm),
+        Compilation::Success { asm, stderr } => ("x86asm", format!("{}\n{}", stderr, asm)),
         Compilation::Error { stderr } => ("rust", stderr),
     };
 
