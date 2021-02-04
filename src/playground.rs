@@ -157,6 +157,17 @@ fn url_from_gist(flags: &CommandFlags, gist_id: &str) -> String {
 // UTILITY FUNCTIONS BEGIN HERE
 // ================================
 
+// Small thing about multiline strings: while hacking on this file I was unsure how to handle
+// trailing newlines in multiline strings:
+// - should they have one ("hello\nworld\n")
+// - or not? ("hello\nworld")
+// After considering several use cases and intensely thinking about it, I arrived at the
+// most mathematically sound and natural way: always have a trailing newline, except for the empty
+// string. This means, that there'll always be exactly as many newlines as lines, which is
+// mathematically sensible. It also means you can also naturally concat multiple multiline
+// strings, and `is_empty` will still work.
+// So that's how (hopefully) all semantically-multiline strings in this code work
+
 struct CommandFlags {
     channel: Channel,
     mode: Mode,
@@ -219,30 +230,50 @@ fn generic_help(args: &Args, cmd: &str, desc: &str, full: bool) -> Result<(), Er
     api::send_reply(args, &reply)
 }
 
-/// Strip the input so that only the lines from the first matching strip_start_token up to the
-/// first matching strip_end_token remain. The lines with the tokens themselves are stripped as
+/// Strip the input according to a list of start tokens and end tokens. Everything after the start
+/// token up to the end token is stripped. Remaining trailing or loading empty lines are removed as
 /// well.
+///
+/// If multiple potential tokens could be used as a stripping point, this function will make the
+/// stripped output as compact as possible and choose from the matching tokens accordingly.
+///
+/// If none of the start tokens or none of the end tokens matches, this function returns None
+/// to stay correct
 fn extract_relevant_lines<'a>(
     mut stderr: &'a str,
     strip_start_tokens: &[&str],
     strip_end_tokens: &[&str],
 ) -> &'a str {
-    for token in strip_start_tokens {
-        if let Some(token_start) = stderr.find(token) {
-            stderr = match stderr[token_start..].find('\n') {
-                Some(line_end) => &stderr[(line_end + token_start + 1)..],
-                None => "",
-            };
-        }
+    // Find best matching start token
+    if let Some(start_token_pos) = strip_start_tokens
+        .iter()
+        .filter_map(|t| stderr.rfind(t))
+        .max()
+    {
+        // Keep only lines after that
+        stderr = match stderr[start_token_pos..].find('\n') {
+            Some(line_end) => &stderr[(line_end + start_token_pos + 1)..],
+            None => "",
+        };
     }
 
-    for token in strip_end_tokens {
-        if let Some(token_start) = stderr.rfind(token) {
-            stderr = match stderr[..token_start].rfind('\n') {
-                Some(prev_line_end) => &stderr[..prev_line_end],
-                None => "",
-            };
-        }
+    // Find best matching end token
+    if let Some(end_token_pos) = strip_end_tokens
+        .iter()
+        .filter_map(|t| stderr.rfind(t))
+        .min()
+    {
+        // Keep only lines before that
+        stderr = match stderr[..end_token_pos].rfind('\n') {
+            Some(prev_line_end) => &stderr[..=prev_line_end],
+            None => "",
+        };
+    }
+
+    // Strip trailing or leading empty lines
+    stderr = stderr.trim_start_matches('\n');
+    while stderr.ends_with("\n\n") {
+        stderr = &stderr[..(stderr.len() - 1)];
     }
 
     stderr
@@ -368,9 +399,24 @@ pub fn play_or_eval(args: &Args, attempt_to_wrap_and_display: bool) -> Result<()
         .send()?
         .json()?;
 
-    result.stderr =
-        extract_relevant_lines(&result.stderr, &["Running `target"], &["error: aborting"])
-            .to_owned();
+    let compiler_warnings = extract_relevant_lines(
+        &result.stderr,
+        &["Compiling playground"],
+        &[
+            "warning emitted",
+            "warnings emitted",
+            "error: aborting",
+            "Finished dev",
+        ],
+    );
+    let program_stderr = extract_relevant_lines(&result.stderr, &["Running `target"], &[]);
+
+    result.stderr = match (compiler_warnings, program_stderr) {
+        ("", "") => String::new(),
+        (warnings, "") => warnings.to_owned(),
+        ("", stderr) => stderr.to_owned(),
+        (warnings, stderr) => format!("{}\n{}", warnings, stderr),
+    };
 
     send_reply(args, result, &code, &flags, &flag_parse_errors)
 }
