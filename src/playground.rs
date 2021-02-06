@@ -322,7 +322,6 @@ fn maybe_wrap(code: &str, result_handling: ResultHandling) -> Cow<'_, str> {
 
     // Write the rest of the lines that don't contain crate attributes
     for line in lines {
-        output.push_str("        ");
         output.push_str(line);
         output.push_str("\n");
     }
@@ -491,14 +490,8 @@ pub fn expand_macros(args: &Args) -> Result<(), Error> {
     let (code, was_fn_main_wrapped) = if code.contains("fn main") {
         (Cow::Borrowed(code), false)
     } else {
-        let mut output = String::from("fn main() {\n");
-        for line in code.lines() {
-            output.push_str("    ");
-            output.push_str(line);
-            output.push_str("\n");
-        }
-        output.push_str("}");
-        (Cow::Owned(output), true)
+        let code = format!("fn main() {{\n{}\n}}", code.trim());
+        (Cow::Owned(code), true)
     };
 
     let mut result: PlayResult = args
@@ -524,7 +517,7 @@ pub fn expand_macros(args: &Args) -> Result<(), Error> {
     };
 
     result.stdout = if was_fn_main_wrapped {
-        // Remove all the fn main boilerplate and also dedent appropriately
+        // Remove all the fn main boilerplate and also revert the indent introduced by rustfmt
         let mut output = String::new();
         for line in extract_relevant_lines(&result.stdout, &["fn main() {"], &["}"]).lines() {
             output.push_str(line.strip_prefix("    ").unwrap_or(line));
