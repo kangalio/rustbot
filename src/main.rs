@@ -196,6 +196,13 @@ fn app() -> Result<(), Error> {
         command_history::cleanup_help,
     );
 
+    cmds.add("source", |args| {
+        api::send_reply(args, "https://github.com/kangalioo/discord-mods-bot")
+    });
+    cmds.help("source", "Links to the bot GitHub repo", |args| {
+        api::send_reply(args, "?source\n\nLinks to the bot GitHub repo")
+    });
+
     // Slow mode.
     // 0 seconds disables slowmode
     cmds.add_protected("slowmode", api::slow_mode, api::is_mod);
