@@ -119,16 +119,17 @@ impl Commands {
         for command in &self.new_commands {
             // Extract "body" from something like "command_name body"
             let msg = match msg.strip_prefix(&command.name) {
-                Some(msg) => msg.trim(),
+                Some(msg) => msg, // don't trim now, or the check below will fail
                 None => continue,
             };
 
             // Make sure that `?go` doesn't match when the user typed `?godbolt`
             if let Some(first_char) = msg.chars().next() {
-                if first_char.is_alphanumeric() {
+                if !first_char.is_whitespace() {
                     continue;
                 }
             }
+            let msg = msg.trim();
 
             let mut params = HashMap::new();
             let mut body = "";
