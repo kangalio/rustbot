@@ -281,7 +281,7 @@ fn extract_relevant_lines<'a>(
 
 enum ResultHandling {
     // /// Don't consume results at all, which makes rustc throw an error when the result isn't ()
-    // None,
+    None,
     /// Consume using `let _ = { ... };`
     Discard,
     /// Print the result with `println!("{:?}")`
@@ -316,6 +316,7 @@ fn maybe_wrap(code: &str, result_handling: ResultHandling) -> Cow<'_, str> {
 
     // fn main boilerplate
     output.push_str(match result_handling {
+        ResultHandling::None => "fn main() {\n",
         ResultHandling::Discard => "fn main() { let _ = {\n",
         ResultHandling::Print => "fn main() { println!(\"{:?}\", {\n",
     });
@@ -328,6 +329,7 @@ fn maybe_wrap(code: &str, result_handling: ResultHandling) -> Cow<'_, str> {
 
     // fn main boilerplate counterpart
     output.push_str(match result_handling {
+        ResultHandling::None => "}",
         ResultHandling::Discard => "}; }",
         ResultHandling::Print => "}); }",
     });
@@ -373,11 +375,8 @@ fn send_reply(
 // ================================
 
 // play and eval work similarly, so this function abstracts over the two
-pub fn play_or_eval(args: &Args, attempt_to_wrap_and_display: bool) -> Result<(), Error> {
-    let code = match attempt_to_wrap_and_display {
-        true => maybe_wrap(crate::extract_code(args.body)?, ResultHandling::Print),
-        false => Cow::Borrowed(crate::extract_code(args.body)?),
-    };
+fn play_or_eval(args: &Args, result_handling: ResultHandling) -> Result<(), Error> {
+    let code = maybe_wrap(crate::extract_code(args.body)?, result_handling);
     let (flags, flag_parse_errors) = parse_flags(args);
 
     let mut result: PlayResult = args
@@ -421,11 +420,11 @@ pub fn play_or_eval(args: &Args, attempt_to_wrap_and_display: bool) -> Result<()
 }
 
 pub fn play(args: &Args) -> Result<(), Error> {
-    play_or_eval(args, false)
+    play_or_eval(args, ResultHandling::None)
 }
 
 pub fn eval(args: &Args) -> Result<(), Error> {
-    play_or_eval(args, true)
+    play_or_eval(args, ResultHandling::Print)
 }
 
 pub fn play_and_eval_help(args: &Args, name: &str) -> Result<(), Error> {
