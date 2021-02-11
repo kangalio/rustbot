@@ -56,15 +56,6 @@ pub fn is_mod(args: &Args) -> Result<bool, Error> {
     check_permission(args, role.map(|(_, role_id, _)| role_id))
 }
 
-pub fn is_wg_and_teams(args: &Args) -> Result<bool, Error> {
-    let role = roles::table
-        .filter(roles::name.eq("wg_and_teams"))
-        .first::<(i32, String, String)>(&DB.get()?)
-        .optional()?;
-
-    check_permission(args, role.map(|(_, role_id, _)| role_id))
-}
-
 /// Set slow mode for a channel.  
 ///
 /// A `seconds` value of 0 will disable slowmode

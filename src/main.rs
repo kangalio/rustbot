@@ -17,8 +17,6 @@ mod godbolt;
 mod jobs;
 mod playground;
 mod schema;
-// mod state_machine;
-mod tags;
 mod text;
 mod welcome;
 
@@ -68,13 +66,11 @@ code here
 
 #[derive(Deserialize)]
 struct Config {
-    tags: bool,
     crates: bool,
     eval: bool,
     discord_token: String,
     mod_id: String,
     talk_id: String,
-    wg_and_teams_id: Option<String>,
 }
 
 fn init_data(config: &Config) -> Result<(), Error> {
@@ -101,14 +97,6 @@ fn init_data(config: &Config) -> Result<(), Error> {
             upsert_role("mod", &config.mod_id)?;
             upsert_role("talk", &config.talk_id)?;
 
-            if config.tags || config.crates {
-                let wg_and_teams_role = config
-                    .wg_and_teams_id
-                    .as_ref()
-                    .ok_or_else(|| text::WG_AND_TEAMS_MISSING_ENV_VAR)?;
-                upsert_role("wg_and_teams", &wg_and_teams_role)?;
-            }
-
             Ok(())
         })?;
 
@@ -125,15 +113,6 @@ fn app() -> Result<(), Error> {
     let _ = init_data(&config)?;
 
     let mut cmds = Commands::new();
-
-    if config.tags {
-        // Tags
-        cmds.add_protected("tags delete {key}", tags::delete, api::is_wg_and_teams);
-        cmds.add_protected("tags create", tags::post, api::is_wg_and_teams);
-        cmds.add("tag", tags::get);
-        cmds.add("tags", tags::get_all);
-        cmds.help("tags", "A key value store", tags::help);
-    }
 
     if config.crates {
         // crates.io

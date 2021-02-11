@@ -7,5 +7,3 @@ If you see someone behaving inappropriately, or otherwise against the Code of Co
 pub fn ban_message(reason: &str, hours: u64) -> String {
     format!("You have been banned from The Rust Programming Language discord server for {}. The ban will expire in {} hours. If you feel this action was taken unfairly, you can reach the Rust moderation team at discord-mods@rust-lang.org", reason, hours)
 }
-
-pub const WG_AND_TEAMS_MISSING_ENV_VAR: &str = "missing value for field wg_and_teams_id.\n\nIf you enabled tags or crates then you need the WG_AND_TEAMS_ID env var.";
