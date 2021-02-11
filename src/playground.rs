@@ -288,7 +288,8 @@ enum ResultHandling {
     Print,
 }
 
-/// Utility used by the commands to wrap the given code in a `fn main`, if it isn't already
+/// Utility used by the commands to wrap the given code in a `fn main` if not already wrapped.
+/// To check, whether a wrap was done, check if the return type is Cow::Borrowed vs Cow::Owned
 fn maybe_wrap(code: &str, result_handling: ResultHandling) -> Cow<'_, str> {
     if code.contains("fn main") {
         return Cow::Borrowed(code);
@@ -347,6 +348,7 @@ fn send_reply(
     flags: &CommandFlags,
     flag_parse_errors: &str,
 ) -> Result<(), Error> {
+    dbg!(&result);
     let result = if !result.success {
         result.stderr
     } else if result.stderr.is_empty() {
@@ -368,6 +370,48 @@ fn send_reply(
             ),
         )
     }
+}
+
+fn apply_rustfmt(text: &str, edition: Edition) -> Result<PlayResult, Error> {
+    use std::io::Write as _;
+
+    let mut child = std::process::Command::new("rustfmt")
+        .args(&[
+            "--edition",
+            match edition {
+                Edition::E2015 => "2015",
+                Edition::E2018 => "2018",
+            },
+            "--color",
+            "never",
+        ])
+        .stdin(std::process::Stdio::piped())
+        .stdout(std::process::Stdio::piped())
+        .stderr(std::process::Stdio::piped())
+        .spawn()?;
+
+    child
+        .stdin
+        .as_mut()
+        .ok_or("This can't happen, we captured by pipe")?
+        .write_all(text.as_bytes())?;
+
+    let output = child.wait_with_output()?;
+    Ok(PlayResult {
+        stdout: String::from_utf8_lossy(&output.stdout).into_owned(),
+        stderr: String::from_utf8_lossy(&output.stderr).into_owned(),
+        success: output.status.success(),
+    })
+}
+
+fn strip_fn_main_boilerplate_from_formatted(text: &str) -> String {
+    // Remove all the fn main boilerplate and also revert the indent introduced by rustfmt
+    let mut output = String::new();
+    for line in extract_relevant_lines(text, &["fn main() {"], &["}"]).lines() {
+        output.push_str(line.strip_prefix("    ").unwrap_or(line));
+        output.push_str("\n");
+    }
+    output
 }
 
 // ================================
@@ -460,38 +504,10 @@ pub fn miri_help(args: &Args) -> Result<(), Error> {
     generic_help(&args, "miri", desc, false)
 }
 
-fn apply_rustfmt(text: &str) -> Result<String, Error> {
-    use std::io::Write as _;
-
-    let mut child = std::process::Command::new("rustfmt")
-        .stdin(std::process::Stdio::piped())
-        .stdout(std::process::Stdio::piped())
-        .spawn()?;
-
-    child
-        .stdin
-        .as_mut()
-        .ok_or("This can't happen, we captured by pipe")?
-        .write_all(text.as_bytes())?;
-
-    let output = child.wait_with_output()?;
-    if output.status.success() {
-        Ok(String::from_utf8_lossy(&output.stdout).into_owned())
-    } else {
-        Err(String::from_utf8_lossy(&output.stderr).into())
-    }
-}
-
 pub fn expand_macros(args: &Args) -> Result<(), Error> {
-    let code = crate::extract_code(args.body)?;
+    let code = maybe_wrap(crate::extract_code(args.body)?, ResultHandling::None);
+    let was_fn_main_wrapped = matches!(code, Cow::Owned(_));
     let (flags, flag_parse_errors) = parse_flags(&args);
-
-    let (code, was_fn_main_wrapped) = if code.contains("fn main") {
-        (Cow::Borrowed(code), false)
-    } else {
-        let code = format!("fn main() {{\n{}\n}}", code.trim());
-        (Cow::Owned(code), true)
-    };
 
     let mut result: PlayResult = args
         .http
@@ -510,22 +526,16 @@ pub fn expand_macros(args: &Args) -> Result<(), Error> {
     )
     .to_owned();
 
-    match apply_rustfmt(&result.stdout) {
-        Ok(formatted_code) => result.stdout = formatted_code,
-        Err(e) => warn!("Couldn't run rustfmt: {}", e),
-    };
-
-    result.stdout = if was_fn_main_wrapped {
-        // Remove all the fn main boilerplate and also revert the indent introduced by rustfmt
-        let mut output = String::new();
-        for line in extract_relevant_lines(&result.stdout, &["fn main() {"], &["}"]).lines() {
-            output.push_str(line.strip_prefix("    ").unwrap_or(line));
-            output.push_str("\n");
+    if result.success {
+        match apply_rustfmt(&result.stdout, flags.edition) {
+            Ok(PlayResult { success: true, stdout, .. }) => result.stdout = stdout,
+            Ok(PlayResult { success: false, stderr, .. }) => warn!("Huh, rustfmt failed even though this code successfully passed through macro expansion before: {}", stderr),
+            Err(e) => warn!("Couldn't run rustfmt: {}", e),
         }
-        output
-    } else {
-        result.stdout
-    };
+    }
+    if was_fn_main_wrapped {
+        result.stdout = strip_fn_main_boilerplate_from_formatted(&result.stdout);
+    }
 
     send_reply(args, result, &code, &flags, &flag_parse_errors)
 }
@@ -572,4 +582,22 @@ pub fn clippy(args: &Args) -> Result<(), Error> {
 pub fn clippy_help(args: &Args) -> Result<(), Error> {
     let desc = "Catch common mistakes and improve the code using the Clippy linter";
     generic_help(&args, "clippy", desc, false)
+}
+
+pub fn fmt(args: &Args) -> Result<(), Error> {
+    let code = &maybe_wrap(crate::extract_code(args.body)?, ResultHandling::None);
+    let was_fn_main_wrapped = matches!(code, Cow::Owned(_));
+    let (flags, flag_parse_errors) = parse_flags(&args);
+
+    let mut result = apply_rustfmt(&code, flags.edition)?;
+    if was_fn_main_wrapped {
+        result.stdout = strip_fn_main_boilerplate_from_formatted(&result.stdout);
+    }
+
+    send_reply(args, result, code, &flags, &flag_parse_errors)
+}
+
+pub fn fmt_help(args: &Args) -> Result<(), Error> {
+    let desc = "Format code using rustfmt";
+    generic_help(&args, "fmt", desc, false)
 }

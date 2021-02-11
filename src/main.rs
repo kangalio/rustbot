@@ -179,6 +179,9 @@ fn app() -> Result<(), Error> {
             "Catch common mistakes using the Clippy linter",
             playground::clippy_help,
         );
+
+        cmds.add("fmt", playground::fmt);
+        cmds.help("fmt", "Format code using rustfmt", playground::fmt_help);
     }
 
     cmds.add("go", |args| api::send_reply(&args, "No"));
@@ -332,6 +335,7 @@ pub fn extract_code(input: &str) -> Result<&str, Error> {
     fn inner(input: &str) -> Option<&str> {
         let input = input.trim();
 
+        println!("{:?}", input);
         let extracted_code = if input.starts_with("```") && input.ends_with("```") {
             let code_starting_point = input.find(char::is_whitespace)?; // skip over lang specifier
             let code_end_point = input.len() - 3;
