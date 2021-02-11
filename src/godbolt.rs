@@ -83,7 +83,11 @@ pub fn godbolt(args: &crate::Args) -> Result<(), crate::Error> {
 pub fn help(args: &crate::Args) -> Result<(), crate::Error> {
     crate::api::send_reply(
         &args,
-        "Compile Rust code using https://rust.godbolt.org. Full optimizations are applied. \
-        ```?godbolt ``\u{200B}`code``\u{200B}` ```",
+        "Compile Rust code using https://rust.godbolt.org. Full optimizations are applied.
+```?godbolt ``\u{200B}`
+pub fn your_function() {
+    // Code
+}
+``\u{200B}` ```",
     )
 }
