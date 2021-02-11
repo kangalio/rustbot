@@ -109,8 +109,7 @@ impl Commands {
         // find the first matching prefix and strip it
         let msg = match PREFIXES
             .iter()
-            .filter_map(|prefix| serenity_msg.content.strip_prefix(prefix))
-            .next()
+            .find_map(|prefix| serenity_msg.content.strip_prefix(prefix))
         {
             Some(x) => x,
             None => return,
@@ -136,15 +135,19 @@ impl Commands {
             for token in msg.split_whitespace() {
                 let mut splitn_2 = token.splitn(2, '=');
                 if let (Some(param_name), Some(param_val)) = (splitn_2.next(), splitn_2.next()) {
-                    params.insert(param_name, param_val);
-                } else {
-                    // If this whitespace-separated token is not a "key=value" pair, this must
-                    // be the beginning of the command body. So, let's find out where we are within
-                    // the msg string and set the body accordingly
-                    let body_start = token.as_ptr() as usize - msg.as_ptr() as usize;
-                    body = &msg[body_start..];
-                    break;
+                    // Check that the param key is sensible, otherwise any equal sign in arg body
+                    // (think ?eval) will be parsed as a parameter
+                    if param_name.chars().all(|c| c.is_alphanumeric()) {
+                        params.insert(param_name, param_val);
+                        continue;
+                    }
                 }
+                // If this whitespace-separated token is not a "key=value" pair, this must
+                // be the beginning of the command body. So, let's find out where we are within
+                // the msg string and set the body accordingly
+                let body_start = token.as_ptr() as usize - msg.as_ptr() as usize;
+                body = &msg[body_start..];
+                break;
             }
 
             let args = Args {
