@@ -4,7 +4,7 @@ use crate::{
 };
 use indexmap::IndexMap;
 use serenity::{model::prelude::*, prelude::*, utils::CustomMessage};
-use std::time::Duration;
+use std::{collections::HashMap, time::Duration};
 
 const MAX_EDIT_TRACKING_MESSAGE_AGE: Duration = Duration::from_secs(3600);
 
@@ -63,7 +63,6 @@ pub fn cleanup(args: &crate::Args) -> Result<(), crate::Error> {
 
     let is_mod = crate::api::is_mod(args)?;
     let data = args.cx.data.read();
-    let command_history = data.get::<CommandHistory>().unwrap();
     let bot_id = *data.get::<crate::BotUserId>().unwrap();
 
     args.msg
@@ -80,20 +79,39 @@ pub fn cleanup(args: &crate::Args) -> Result<(), crate::Error> {
             if (msg.timestamp - args.msg.timestamp).num_hours() >= 24 {
                 return false;
             }
-            if let Some((&trigger_message, _)) = command_history
-                .iter()
-                .find(|&(_, &response)| response == msg.id)
-            {
-                // Only delete if the command caller triggered this bot response
-                trigger_message == msg.id
-            } else {
-                // Trigger message can't be found; this stray message can definitely be deleted
-                true
-            }
+            true
         })
         .take(num_messages)
-        .map(|msg| msg.delete(&args.cx.http))
-        .collect::<Result<(), _>>()?;
+        // .map(|msg| msg.delete(&args.cx.http))
+        // .collect::<Result<(), _>>()?;
+        .for_each(|_| ());
+
+    // Find the :rustOk: emoji on this server, or fallback to the normal Ok emoji
+    let rust_ok = if let Some(guild_id) = args.msg.guild_id {
+        fn find_rust_ok(emojis: &HashMap<EmojiId, Emoji>) -> Option<&Emoji> {
+            emojis
+                .values()
+                .find(|emoji| emoji.name.eq_ignore_ascii_case("rustOk"))
+        }
+
+        match guild_id.to_guild_cached(args.cx) {
+            Some(cached_guild) => find_rust_ok(&cached_guild.read().emojis).cloned(),
+            None => find_rust_ok(&guild_id.to_partial_guild(args.cx)?.emojis).cloned(),
+        }
+    } else {
+        None
+    };
+    let reaction = match rust_ok {
+        Some(rust_ok) => ReactionType::Custom {
+            animated: rust_ok.animated,
+            name: Some(rust_ok.name.to_owned()),
+            id: rust_ok.id,
+        },
+        None => ReactionType::Unicode("👌".to_owned()),
+    };
+
+    // React with the emoji we found
+    args.msg.react(args.cx, reaction)?;
 
     Ok(())
 }
