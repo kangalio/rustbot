@@ -8,9 +8,7 @@ mod crates;
 mod godbolt;
 mod playground;
 
-use commands::{Args, Commands, GuardFn};
-use indexmap::IndexMap;
-use serde::Deserialize;
+use commands::{Args, Commands};
 use serenity::{model::prelude::*, prelude::*};
 
 pub enum Error {
@@ -50,7 +48,7 @@ code here
     }
 }
 
-#[derive(Deserialize)]
+#[derive(serde::Deserialize)]
 struct Config {
     discord_token: String,
     mod_role_id: u64,
@@ -66,82 +64,89 @@ fn app() -> Result<(), Error> {
 
     let mut cmds = Commands::new();
 
-    // crates.io
-    cmds.add("crate", crates::search);
-    cmds.help("crate", "Lookup crates on crates.io", crates::help);
+    cmds.add(
+        "crate",
+        crates::search,
+        "Lookup crates on crates.io",
+        crates::help,
+    );
 
-    // docs.rs
-    cmds.add("docs", crates::doc_search);
-    cmds.help("docs", "Lookup documentation", crates::doc_help);
+    cmds.add(
+        "docs",
+        crates::doc_search,
+        "Lookup documentation",
+        crates::doc_help,
+    );
 
-    // rust playground
-    cmds.add("play", playground::play);
-    cmds.help(
+    cmds.add(
         "play",
+        playground::play,
         "Compile and run rust code in a playground",
         |args| playground::play_and_eval_help(args, "play"),
     );
 
-    cmds.add("eval", playground::eval);
-    cmds.help("eval", "Evaluate a single rust expression", |args| {
-        playground::play_and_eval_help(args, "eval")
-    });
+    cmds.add(
+        "eval",
+        playground::eval,
+        "Evaluate a single rust expression",
+        |args| playground::play_and_eval_help(args, "eval"),
+    );
 
-    cmds.add("miri", playground::miri);
-    cmds.help(
+    cmds.add(
         "miri",
+        playground::miri,
         "Run code and detect undefined behavior using Miri",
         playground::miri_help,
     );
 
-    cmds.add("expand", playground::expand_macros);
-    cmds.help(
+    cmds.add(
         "expand",
+        playground::expand_macros,
         "Expand macros to their raw desugared form",
         playground::expand_macros_help,
     );
 
-    cmds.add("clippy", playground::clippy);
-    cmds.help(
+    cmds.add(
         "clippy",
+        playground::clippy,
         "Catch common mistakes using the Clippy linter",
         playground::clippy_help,
     );
 
-    cmds.add("fmt", playground::fmt);
-    cmds.help("fmt", "Format code using rustfmt", playground::fmt_help);
+    cmds.add(
+        "fmt",
+        playground::fmt,
+        "Format code using rustfmt",
+        playground::fmt_help,
+    );
 
-    cmds.add("go", |args| api::send_reply(&args, "No"));
-    cmds.help("go", "Evaluates Go code", |args| {
-        api::send_reply(&args, "Evaluates Go code")
-    });
+    cmds.add(
+        "go",
+        |args| api::send_reply(args, "No"),
+        "Evaluates Go code",
+        |args| api::send_reply(args, "Evaluates Go code"),
+    );
 
-    cmds.add("godbolt", godbolt::godbolt);
-    cmds.help("godbolt", "View assembly using Godbolt", godbolt::help);
+    cmds.add(
+        "godbolt",
+        godbolt::godbolt,
+        "View assembly using Godbolt",
+        godbolt::help,
+    );
 
-    cmds.add("cleanup", move |args| {
-        command_history::cleanup(args, RoleId(mod_role_id))
-    });
-    cmds.help(
+    cmds.add(
         "cleanup",
+        move |args| command_history::cleanup(args, RoleId(mod_role_id)),
         "Deletes the bot's messages for cleanup",
         command_history::cleanup_help,
     );
 
-    cmds.add("source", |args| {
-        api::send_reply(args, "https://github.com/kangalioo/discord-mods-bot")
-    });
-    cmds.help("source", "Links to the bot GitHub repo", |args| {
-        api::send_reply(args, "?source\n\nLinks to the bot GitHub repo")
-    });
-
-    let menu = cmds.take_menu().unwrap();
-    cmds.add("help", move |args| {
-        if args.body.is_empty() {
-            api::send_reply(&args, &format!("```{}```", &main_menu(&args, &menu)))?;
-        }
-        Ok(())
-    });
+    cmds.add(
+        "source",
+        |args| api::send_reply(args, "https://github.com/kangalioo/discord-mods-bot"),
+        "Links to the bot GitHub repo",
+        |args| api::send_reply(args, "?source\n\nLinks to the bot GitHub repo"),
+    );
 
     Client::new_with_extras(&discord_token, |e| e.event_handler(Events { cmds }))?.start()?;
     Ok(())
@@ -239,21 +244,6 @@ pub fn extract_code(input: &str) -> Result<&str, Error> {
     inner(input).ok_or(Error::MissingCodeblock)
 }
 
-fn main_menu(args: &Args, commands: &IndexMap<&str, (&str, GuardFn)>) -> String {
-    let mut menu = "Commands:\n".to_owned();
-    for (base_cmd, (description, guard)) in commands {
-        if let Ok(true) = (guard)(&args) {
-            menu += &format!("\t?{cmd:<12}{desc}\n", cmd = base_cmd, desc = description);
-        }
-    }
-
-    menu += &format!("\t?{cmd:<12}This menu\n", cmd = "help");
-    menu += "\nType ?help command for more info on a command.";
-    menu += "\n\nAdditional Info:\n";
-    menu += "\tYou can edit your message to the bot and the bot will edit its response.";
-    menu
-}
-
 fn main() {
     env_logger::init();
 
@@ -278,7 +268,7 @@ impl EventHandler for Events {
         info!("{} connected to discord", ready.user.name);
         {
             let mut data = cx.data.write();
-            data.insert::<command_history::CommandHistory>(IndexMap::new());
+            data.insert::<command_history::CommandHistory>(indexmap::IndexMap::new());
             data.insert::<BotUserId>(ready.user.id);
         }
 
