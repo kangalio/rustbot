@@ -9,12 +9,11 @@ pub fn send_reply(args: &Args, message: &str) -> Result<(), Error> {
             .channel_id
             .edit_message(&args.cx, response_id, |msg| msg.content(message))?;
     } else {
-        let command_id = args.msg.id;
         let response = args.msg.channel_id.say(&args.cx, message)?;
 
         let mut data = args.cx.data.write();
         let history = data.get_mut::<CommandHistory>().unwrap();
-        history.insert(command_id, response.id);
+        history.insert(args.msg.id, response.id);
     }
 
     Ok(())
@@ -23,5 +22,5 @@ pub fn send_reply(args: &Args, message: &str) -> Result<(), Error> {
 fn response_exists(args: &Args) -> Option<MessageId> {
     let data = args.cx.data.read();
     let history = data.get::<CommandHistory>().unwrap();
-    history.get(&args.msg.id).cloned()
+    history.get(&args.msg.id).copied()
 }

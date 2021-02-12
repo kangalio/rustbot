@@ -355,15 +355,15 @@ fn send_reply(
     };
 
     if result.trim().is_empty() {
-        api::send_reply(&args, &format!("{}``` ```", flag_parse_errors))
+        api::send_reply(args, &format!("{}``` ```", flag_parse_errors))
     } else {
         crate::reply_potentially_long_text(
-            &args,
+            args,
             &format!("{}```rust\n{}", flag_parse_errors, result),
             "```",
             &format!(
                 "Output too large. Playground link: {}",
-                url_from_gist(&flags, &post_gist(&args, code)?),
+                url_from_gist(&flags, &post_gist(args, code)?),
             ),
         )
     }
@@ -469,12 +469,12 @@ pub fn eval(args: &Args) -> Result<(), Error> {
 }
 
 pub fn play_and_eval_help(args: &Args, name: &str) -> Result<(), Error> {
-    generic_help(&args, name, "Compile and run Rust code", true)
+    generic_help(args, name, "Compile and run Rust code", true)
 }
 
 pub fn miri(args: &Args) -> Result<(), Error> {
     let code = &maybe_wrap(crate::extract_code(args.body)?, ResultHandling::Discard);
-    let (flags, flag_parse_errors) = parse_flags(&args);
+    let (flags, flag_parse_errors) = parse_flags(args);
 
     let mut result: PlayResult = args
         .http
@@ -498,13 +498,13 @@ pub fn miri(args: &Args) -> Result<(), Error> {
 
 pub fn miri_help(args: &Args) -> Result<(), Error> {
     let desc = "Execute this program in the Miri interpreter to detect certain cases of undefined behavior (like out-of-bounds memory access)";
-    generic_help(&args, "miri", desc, false)
+    generic_help(args, "miri", desc, false)
 }
 
 pub fn expand_macros(args: &Args) -> Result<(), Error> {
     let code = maybe_wrap(crate::extract_code(args.body)?, ResultHandling::None);
     let was_fn_main_wrapped = matches!(code, Cow::Owned(_));
-    let (flags, flag_parse_errors) = parse_flags(&args);
+    let (flags, flag_parse_errors) = parse_flags(args);
 
     let mut result: PlayResult = args
         .http
@@ -539,12 +539,12 @@ pub fn expand_macros(args: &Args) -> Result<(), Error> {
 
 pub fn expand_macros_help(args: &Args) -> Result<(), Error> {
     let desc = "Expand macros to their raw desugared form";
-    generic_help(&args, "expand", desc, false)
+    generic_help(args, "expand", desc, false)
 }
 
 pub fn clippy(args: &Args) -> Result<(), Error> {
     let code = &maybe_wrap(crate::extract_code(args.body)?, ResultHandling::Discard);
-    let (flags, flag_parse_errors) = parse_flags(&args);
+    let (flags, flag_parse_errors) = parse_flags(args);
 
     let mut result: PlayResult = args
         .http
@@ -578,13 +578,13 @@ pub fn clippy(args: &Args) -> Result<(), Error> {
 
 pub fn clippy_help(args: &Args) -> Result<(), Error> {
     let desc = "Catch common mistakes and improve the code using the Clippy linter";
-    generic_help(&args, "clippy", desc, false)
+    generic_help(args, "clippy", desc, false)
 }
 
 pub fn fmt(args: &Args) -> Result<(), Error> {
     let code = &maybe_wrap(crate::extract_code(args.body)?, ResultHandling::None);
     let was_fn_main_wrapped = matches!(code, Cow::Owned(_));
-    let (flags, flag_parse_errors) = parse_flags(&args);
+    let (flags, flag_parse_errors) = parse_flags(args);
 
     let mut result = apply_rustfmt(&code, flags.edition)?;
     if was_fn_main_wrapped {
@@ -596,5 +596,5 @@ pub fn fmt(args: &Args) -> Result<(), Error> {
 
 pub fn fmt_help(args: &Args) -> Result<(), Error> {
     let desc = "Format code using rustfmt";
-    generic_help(&args, "fmt", desc, false)
+    generic_help(args, "fmt", desc, false)
 }

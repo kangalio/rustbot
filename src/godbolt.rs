@@ -69,7 +69,7 @@ pub fn godbolt(args: &crate::Args) -> Result<(), crate::Error> {
     };
 
     crate::reply_potentially_long_text(
-        &args,
+        args,
         &format!("```{}\n{}", lang, text),
         "\n```",
         "Note: the output was truncated",
@@ -80,7 +80,7 @@ pub fn godbolt(args: &crate::Args) -> Result<(), crate::Error> {
 
 pub fn help(args: &crate::Args) -> Result<(), crate::Error> {
     crate::api::send_reply(
-        &args,
+        args,
         "Compile Rust code using https://rust.godbolt.org. Full optimizations are applied.
 ```?godbolt ``\u{200B}`
 pub fn your_function() {

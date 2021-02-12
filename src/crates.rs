@@ -92,7 +92,7 @@ pub fn doc_search(args: &Args) -> Result<(), Error> {
         doc_url += item_path;
     }
 
-    api::send_reply(&args, &doc_url)?;
+    api::send_reply(args, &doc_url)?;
 
     Ok(())
 }
@@ -103,7 +103,7 @@ pub fn help(args: &Args) -> Result<(), Error> {
 ```
 ?crate query...
 ```";
-    api::send_reply(&args, &help_string)?;
+    api::send_reply(args, &help_string)?;
     Ok(())
 }
 
@@ -113,6 +113,6 @@ pub fn doc_help(args: &Args) -> Result<(), Error> {
 ```
 ?docs crate_name...
 ```";
-    api::send_reply(&args, &help_string)?;
+    api::send_reply(args, &help_string)?;
     Ok(())
 }

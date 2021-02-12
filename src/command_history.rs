@@ -1,12 +1,6 @@
-use crate::{
-    commands::{Commands, PREFIXES},
-    Error,
-};
+use crate::{commands::Commands, Error};
 use indexmap::IndexMap;
 use serenity::{model::prelude::*, prelude::*, utils::CustomMessage};
-use std::{collections::HashMap, time::Duration};
-
-const MAX_EDIT_TRACKING_MESSAGE_AGE: Duration = Duration::from_secs(3600);
 
 pub struct CommandHistory;
 
@@ -15,25 +9,14 @@ impl TypeMapKey for CommandHistory {
 }
 
 pub fn replay_message(cx: Context, ev: MessageUpdateEvent, cmds: &Commands) -> Result<(), Error> {
-    let age = ev.timestamp.and_then(|create| {
-        ev.edited_timestamp
-            .and_then(|edit| edit.signed_duration_since(create).to_std().ok())
-    });
-
-    if age.is_some() && age.unwrap() < MAX_EDIT_TRACKING_MESSAGE_AGE {
-        let mut msg = CustomMessage::new();
-        msg.id(ev.id)
-            .channel_id(ev.channel_id)
-            .content(ev.content.unwrap_or_else(String::new));
-
-        let msg = msg.build();
-
-        if PREFIXES.iter().any(|p| msg.content.starts_with(p)) {
-            info!(
-                "sending edited message - {:?} {:?}",
-                msg.content, msg.author
-            );
-            cmds.execute(&cx, &msg);
+    if let (Some(created), Some(edited)) = (ev.timestamp, ev.edited_timestamp) {
+        // Only track edits for recent messages
+        if (edited - created).num_minutes() < 60 {
+            let mut msg = CustomMessage::new();
+            msg.id(ev.id)
+                .channel_id(ev.channel_id)
+                .content(ev.content.unwrap_or_else(String::new));
+            cmds.execute(&cx, &msg.build());
         }
     }
 
@@ -90,7 +73,7 @@ pub fn cleanup(args: &crate::Args, mod_role_id: RoleId) -> Result<(), crate::Err
 
     // Find the :rustOk: emoji on this server, or fallback to the normal Ok emoji
     let rust_ok = if let Some(guild_id) = args.msg.guild_id {
-        fn find_rust_ok(emojis: &HashMap<EmojiId, Emoji>) -> Option<&Emoji> {
+        fn find_rust_ok(emojis: &std::collections::HashMap<EmojiId, Emoji>) -> Option<&Emoji> {
             emojis
                 .values()
                 .find(|emoji| emoji.name.eq_ignore_ascii_case("rustOk"))
