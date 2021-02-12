@@ -1,62 +1,9 @@
 # Discord Mods Bot
-A discord bot written in rust.  
 
-# [Getting Started](GETTING_STARTED.md)
-# [Commands](COMMANDS.md)
+## Getting started
 
-# Features
-The following commands are currently supported by the bot
+Run the bot using `cargo run --release`. You will need to provide several environment variables:
+- DISCORD_TOKEN: the Discord bot token acquired via the Discord Developer Portal
+- MOD_ROLE_ID: the ID of the Moderator role on your Discord server
 
-## Tags
-Tags are a simple key value store.  
-
-Lookup a tag
-```
-?tag {key}
-```
-Create a tag
-```
-?tags create {key} value...
-```
-Delete a tag
-```
-?tags delete {key}
-```
-Get all tags
-```
-?tags
-```
-
-### Crates
-Search for a crate on crates.io
-```
-?crate query...
-```
-Retreive documentation for a crate
-```
-?docs query...
-```
-
-### Ban
-Ban a user
-```
-?ban {user}
-
-```
-### Kick
-Kick a user
-```
-?kick {user}
-```
-### Slowmode
-Set slowmode for a channel.  0 seconds disables slowmode.  
-```
-?slowmode {channel} {seconds}
-```
-
-### Code of conduct welcome message
-Sets up the code of conduct message with reaction in the specified channel.
-Used for assigning talk roles.  
-```
-?CoC {channel}
-```
+An example command-line for Linux would be: `MOD_ROLE_ID=788427199761481799 DISCORD_TOKEN=REDACTED cargo run --release`

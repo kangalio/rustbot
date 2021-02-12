@@ -1,6 +1,0 @@
--- Your SQL goes here
-CREATE TABLE IF NOT EXISTS roles (
-  id SERIAL PRIMARY KEY,
-  role TEXT NOT NULL,
-  name TEXT NOT NULL UNIQUE
-);

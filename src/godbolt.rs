@@ -49,8 +49,6 @@ fn compile_rust_source(
         )?
         .json()?;
 
-    dbg!(&response);
-
     // TODO: use the extract_relevant_lines utility to strip stderr nicely
     Ok(if response.code == 0 {
         Compilation::Success {

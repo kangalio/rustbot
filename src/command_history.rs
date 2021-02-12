@@ -52,7 +52,7 @@ pub fn clear_command_history(cx: &Context) -> Result<(), Error> {
     Ok(())
 }
 
-pub fn cleanup(args: &crate::Args) -> Result<(), crate::Error> {
+pub fn cleanup(args: &crate::Args, mod_role_id: RoleId) -> Result<(), crate::Error> {
     let num_messages = if args.body.is_empty() {
         5
     } else {
@@ -61,7 +61,10 @@ pub fn cleanup(args: &crate::Args) -> Result<(), crate::Error> {
 
     info!("Cleaning up {} messages", num_messages);
 
-    let is_mod = crate::api::is_mod(args)?;
+    let is_mod = match &args.msg.member {
+        Some(member) => member.roles.contains(&mod_role_id),
+        None => true, // in DMs, the user is "effectively" a mod
+    };
     let data = args.cx.data.read();
     let bot_id = *data.get::<crate::BotUserId>().unwrap();
 
@@ -82,9 +85,8 @@ pub fn cleanup(args: &crate::Args) -> Result<(), crate::Error> {
             true
         })
         .take(num_messages)
-        // .map(|msg| msg.delete(&args.cx.http))
-        // .collect::<Result<(), _>>()?;
-        .for_each(|_| ());
+        .map(|msg| msg.delete(&args.cx.http))
+        .collect::<Result<(), _>>()?;
 
     // Find the :rustOk: emoji on this server, or fallback to the normal Ok emoji
     let rust_ok = if let Some(guild_id) = args.msg.guild_id {

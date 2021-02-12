@@ -1,28 +1,14 @@
 #[macro_use]
-extern crate diesel;
-
-#[macro_use]
-extern crate diesel_migrations;
-
-#[macro_use]
 extern crate log;
 
 mod api;
-mod ban;
 mod command_history;
 mod commands;
 mod crates;
-mod db;
 mod godbolt;
-mod jobs;
 mod playground;
-mod schema;
-mod text;
-mod welcome;
 
-use crate::db::DB;
 use commands::{Args, Commands, GuardFn};
-use diesel::prelude::*;
 use indexmap::IndexMap;
 use serde::Deserialize;
 use serenity::{model::prelude::*, prelude::*};
@@ -66,102 +52,64 @@ code here
 
 #[derive(Deserialize)]
 struct Config {
-    crates: bool,
-    eval: bool,
     discord_token: String,
-    mod_id: String,
-    talk_id: String,
-}
-
-fn init_data(config: &Config) -> Result<(), Error> {
-    use crate::schema::roles;
-    info!("Loading data into database");
-
-    let conn = DB.get()?;
-
-    let upsert_role = |name: &str, role_id: &str| -> Result<(), Error> {
-        diesel::insert_into(roles::table)
-            .values((roles::role.eq(role_id), roles::name.eq(name)))
-            .on_conflict(roles::name)
-            .do_update()
-            .set(roles::role.eq(role_id))
-            .execute(&conn)?;
-
-        Ok(())
-    };
-
-    let _ = conn
-        .build_transaction()
-        .read_write()
-        .run::<_, Error, _>(|| {
-            upsert_role("mod", &config.mod_id)?;
-            upsert_role("talk", &config.talk_id)?;
-
-            Ok(())
-        })?;
-
-    Ok(())
+    mod_role_id: u64,
 }
 
 fn app() -> Result<(), Error> {
-    let config = envy::from_env::<Config>()?;
+    let Config {
+        discord_token,
+        mod_role_id,
+    } = envy::from_env::<Config>()?;
 
     info!("starting...");
 
-    let _ = db::run_migrations()?;
-
-    let _ = init_data(&config)?;
-
     let mut cmds = Commands::new();
 
-    if config.crates {
-        // crates.io
-        cmds.add("crate", crates::search);
-        cmds.help("crate", "Lookup crates on crates.io", crates::help);
+    // crates.io
+    cmds.add("crate", crates::search);
+    cmds.help("crate", "Lookup crates on crates.io", crates::help);
 
-        // docs.rs
-        cmds.add("docs", crates::doc_search);
-        cmds.help("docs", "Lookup documentation", crates::doc_help);
-    }
+    // docs.rs
+    cmds.add("docs", crates::doc_search);
+    cmds.help("docs", "Lookup documentation", crates::doc_help);
 
-    if config.eval {
-        // rust playground
-        cmds.add("play", playground::play);
-        cmds.help(
-            "play",
-            "Compile and run rust code in a playground",
-            |args| playground::play_and_eval_help(args, "play"),
-        );
+    // rust playground
+    cmds.add("play", playground::play);
+    cmds.help(
+        "play",
+        "Compile and run rust code in a playground",
+        |args| playground::play_and_eval_help(args, "play"),
+    );
 
-        cmds.add("eval", playground::eval);
-        cmds.help("eval", "Evaluate a single rust expression", |args| {
-            playground::play_and_eval_help(args, "eval")
-        });
+    cmds.add("eval", playground::eval);
+    cmds.help("eval", "Evaluate a single rust expression", |args| {
+        playground::play_and_eval_help(args, "eval")
+    });
 
-        cmds.add("miri", playground::miri);
-        cmds.help(
-            "miri",
-            "Run code and detect undefined behavior using Miri",
-            playground::miri_help,
-        );
+    cmds.add("miri", playground::miri);
+    cmds.help(
+        "miri",
+        "Run code and detect undefined behavior using Miri",
+        playground::miri_help,
+    );
 
-        cmds.add("expand", playground::expand_macros);
-        cmds.help(
-            "expand",
-            "Expand macros to their raw desugared form",
-            playground::expand_macros_help,
-        );
+    cmds.add("expand", playground::expand_macros);
+    cmds.help(
+        "expand",
+        "Expand macros to their raw desugared form",
+        playground::expand_macros_help,
+    );
 
-        cmds.add("clippy", playground::clippy);
-        cmds.help(
-            "clippy",
-            "Catch common mistakes using the Clippy linter",
-            playground::clippy_help,
-        );
+    cmds.add("clippy", playground::clippy);
+    cmds.help(
+        "clippy",
+        "Catch common mistakes using the Clippy linter",
+        playground::clippy_help,
+    );
 
-        cmds.add("fmt", playground::fmt);
-        cmds.help("fmt", "Format code using rustfmt", playground::fmt_help);
-    }
+    cmds.add("fmt", playground::fmt);
+    cmds.help("fmt", "Format code using rustfmt", playground::fmt_help);
 
     cmds.add("go", |args| api::send_reply(&args, "No"));
     cmds.help("go", "Evaluates Go code", |args| {
@@ -171,7 +119,9 @@ fn app() -> Result<(), Error> {
     cmds.add("godbolt", godbolt::godbolt);
     cmds.help("godbolt", "View assembly using Godbolt", godbolt::help);
 
-    cmds.add("cleanup", command_history::cleanup);
+    cmds.add("cleanup", move |args| {
+        command_history::cleanup(args, RoleId(mod_role_id))
+    });
     cmds.help(
         "cleanup",
         "Deletes the bot's messages for cleanup",
@@ -185,43 +135,6 @@ fn app() -> Result<(), Error> {
         api::send_reply(args, "?source\n\nLinks to the bot GitHub repo")
     });
 
-    // Slow mode.
-    // 0 seconds disables slowmode
-    cmds.add_protected("slowmode", api::slow_mode, api::is_mod);
-    cmds.help_protected(
-        "slowmode",
-        "Set slowmode on a channel",
-        api::slow_mode_help,
-        api::is_mod,
-    );
-
-    // Kick
-    cmds.add_protected("kick", api::kick, api::is_mod);
-    cmds.help_protected(
-        "kick",
-        "Kick a user from the guild",
-        api::kick_help,
-        api::is_mod,
-    );
-
-    // Ban
-    cmds.add_protected("ban", ban::temp_ban, api::is_mod);
-    cmds.help_protected(
-        "ban",
-        "Temporarily ban a user from the guild",
-        ban::help,
-        api::is_mod,
-    );
-
-    // Post the welcome message to the welcome channel.
-    cmds.add_protected("CoC", welcome::post_message, api::is_mod);
-    cmds.help_protected(
-        "CoC",
-        "Post the code of conduct message to a channel",
-        welcome::help,
-        api::is_mod,
-    );
-
     let menu = cmds.take_menu().unwrap();
     cmds.add("help", move |args| {
         if args.body.is_empty() {
@@ -230,13 +143,7 @@ fn app() -> Result<(), Error> {
         Ok(())
     });
 
-    let mut client = Client::new_with_extras(&config.discord_token, |e| {
-        e.event_handler(Events { cmds });
-        e
-    })?;
-
-    client.start()?;
-
+    Client::new_with_extras(&discord_token, |e| e.event_handler(Events { cmds }))?.start()?;
     Ok(())
 }
 
@@ -314,7 +221,6 @@ pub fn extract_code(input: &str) -> Result<&str, Error> {
     fn inner(input: &str) -> Option<&str> {
         let input = input.trim();
 
-        println!("{:?}", input);
         let extracted_code = if input.starts_with("```") && input.ends_with("```") {
             let code_starting_point = input.find(char::is_whitespace)?; // skip over lang specifier
             let code_end_point = input.len() - 3;
@@ -376,7 +282,12 @@ impl EventHandler for Events {
             data.insert::<BotUserId>(ready.user.id);
         }
 
-        jobs::start_jobs(cx);
+        std::thread::spawn(move || -> Result<(), Error> {
+            loop {
+                command_history::clear_command_history(&cx)?;
+                std::thread::sleep(std::time::Duration::from_secs(3600));
+            }
+        });
     }
 
     fn message(&self, cx: Context, message: Message) {
@@ -401,18 +312,6 @@ impl EventHandler for Events {
         if let Some(response_id) = history.remove(&message_id) {
             info!("deleting message: {:?}", response_id);
             let _ = channel_id.delete_message(&cx, response_id);
-        }
-    }
-
-    fn reaction_add(&self, cx: Context, reaction: Reaction) {
-        if let Err(e) = welcome::assign_talk_role(&cx, &reaction) {
-            error!("{}", e);
-        }
-    }
-
-    fn guild_ban_removal(&self, _cx: Context, guild_id: GuildId, user: User) {
-        if let Err(e) = ban::save_unban(format!("{}", user.id), format!("{}", guild_id)) {
-            error!("{}", e);
         }
     }
 }

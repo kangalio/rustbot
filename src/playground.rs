@@ -335,8 +335,6 @@ fn maybe_wrap(code: &str, result_handling: ResultHandling) -> Cow<'_, str> {
         ResultHandling::Print => "}); }",
     });
 
-    dbg!(&output);
-
     Cow::Owned(output)
 }
 
@@ -348,7 +346,6 @@ fn send_reply(
     flags: &CommandFlags,
     flag_parse_errors: &str,
 ) -> Result<(), Error> {
-    dbg!(&result);
     let result = if !result.success {
         result.stderr
     } else if result.stderr.is_empty() {
