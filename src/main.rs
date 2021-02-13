@@ -12,39 +12,7 @@ mod playground;
 use commands::{Args, Commands};
 use serenity::{model::prelude::*, prelude::*};
 
-pub enum Error {
-    MissingCodeblock,
-    NoCratesFound,
-    MissingPermissions,
-    EvalWithFnMain,
-    Unknown(Box<dyn std::error::Error + Send + Sync>),
-}
-
-impl<T: Into<Box<dyn std::error::Error + Send + Sync>>> From<T> for Error {
-    fn from(error: T) -> Self {
-        Self::Unknown(error.into())
-    }
-}
-
-impl std::fmt::Display for Error {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            Self::MissingCodeblock => write!(
-                f,
-                "Missing code block. Please use the following markdown:
-\\`code here\\`
-or
-\\`\\`\\`rust
-code here
-\\`\\`\\`",
-            ),
-            Self::NoCratesFound => write!(f, "No crates found"),
-            Self::MissingPermissions => write!(f, "You are not allowed to use this command"),
-            Self::EvalWithFnMain => write!(f, "Code passed to ?eval should not contain `fn main`"),
-            Self::Unknown(error) => write!(f, "Unexpected error ({})", error),
-        }
-    }
-}
+pub type Error = Box<dyn std::error::Error + Send + Sync>;
 
 #[derive(serde::Deserialize)]
 struct Config {
@@ -256,7 +224,15 @@ pub fn extract_code(input: &str) -> Result<&str, Error> {
 
         Some(extracted_code.trim())
     }
-    inner(input).ok_or(Error::MissingCodeblock)
+
+    Ok(inner(input).ok_or(
+        "Missing code block. Please use the following markdown:
+\\`code here\\`
+or
+\\`\\`\\`rust
+code here
+\\`\\`\\`",
+    )?)
 }
 
 pub fn find_custom_emoji(args: &Args, emoji_name: &str) -> Option<Emoji> {
