@@ -306,7 +306,7 @@ fn maybe_wrap(code: &str, result_handling: ResultHandling) -> Cow<'_, str> {
         let line = line.trim();
         if line.starts_with("#![") {
             output.push_str(line);
-            output.push_str("\n");
+            output.push('\n');
         } else if line.is_empty() {
             // do nothing, maybe more crate attributes are coming
         } else {
@@ -325,7 +325,7 @@ fn maybe_wrap(code: &str, result_handling: ResultHandling) -> Cow<'_, str> {
     // Write the rest of the lines that don't contain crate attributes
     for line in lines {
         output.push_str(line);
-        output.push_str("\n");
+        output.push('\n');
     }
 
     // fn main boilerplate counterpart
@@ -406,7 +406,7 @@ fn strip_fn_main_boilerplate_from_formatted(text: &str) -> String {
     let mut output = String::new();
     for line in extract_relevant_lines(text, &["fn main() {"], &["}"]).lines() {
         output.push_str(line.strip_prefix("    ").unwrap_or(line));
-        output.push_str("\n");
+        output.push('\n');
     }
     output
 }

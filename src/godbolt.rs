@@ -16,7 +16,7 @@ impl GodboltOutput {
         let mut complete_text = String::new();
         for segment in self.0.iter() {
             complete_text.push_str(&segment.text);
-            complete_text.push_str("\n");
+            complete_text.push('\n');
         }
         Ok(String::from_utf8(strip_ansi_escapes::strip(
             complete_text.trim(),
