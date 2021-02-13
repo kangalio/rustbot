@@ -70,7 +70,7 @@ pub fn search(args: &Args) -> Result<(), Error> {
 }
 
 /// Provide the documentation link to an official Rust crate (e.g. std, alloc, nightly)
-fn rustc_crate_link(crate_name: &str) -> Option<&str> {
+fn rustc_crate_link(crate_name: &str) -> Option<&'static str> {
     match crate_name.to_ascii_lowercase().as_str() {
         "std" => Some("https://doc.rust-lang.org/stable/std/"),
         "core" => Some("https://doc.rust-lang.org/stable/core/"),
@@ -79,6 +79,7 @@ fn rustc_crate_link(crate_name: &str) -> Option<&str> {
         "beta" => Some("https://doc.rust-lang.org/beta/std/"),
         "nightly" => Some("https://doc.rust-lang.org/nightly/std/"),
         "rustc" => Some("https://doc.rust-lang.org/nightly/nightly-rustc/"),
+        "test" => Some("https://doc.rust-lang.org/stable/test"),
         _ => None,
     }
 }
