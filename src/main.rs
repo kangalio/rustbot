@@ -6,6 +6,7 @@ mod command_history;
 mod commands;
 mod crates;
 mod godbolt;
+mod moderation;
 mod playground;
 
 use commands::{Args, Commands};
@@ -19,10 +20,7 @@ pub enum Error {
     Unknown(Box<dyn std::error::Error + Send + Sync>),
 }
 
-impl<T> From<T> for Error
-where
-    Box<dyn std::error::Error + Send + Sync>: From<T>,
-{
+impl<T: Into<Box<dyn std::error::Error + Send + Sync>>> From<T> for Error {
     fn from(error: T) -> Self {
         Self::Unknown(error.into())
     }
@@ -136,10 +134,18 @@ fn app() -> Result<(), Error> {
 
     cmds.add(
         "cleanup",
-        move |args| command_history::cleanup(args, RoleId(mod_role_id)),
+        move |args| moderation::cleanup(args, RoleId(mod_role_id)),
         "Deletes the bot's messages for cleanup",
-        command_history::cleanup_help,
+        moderation::cleanup_help,
     );
+
+    cmds.add(
+        "ban",
+        moderation::joke_ban,
+        "Bans another person",
+        moderation::joke_ban_help,
+    )
+    .aliases = &["banne"];
 
     cmds.add(
         "source",
@@ -242,6 +248,34 @@ pub fn extract_code(input: &str) -> Result<&str, Error> {
         Some(extracted_code.trim())
     }
     inner(input).ok_or(Error::MissingCodeblock)
+}
+
+pub fn find_custom_emoji(args: &Args, emoji_name: &str) -> Option<Emoji> {
+    args.msg.guild(&args.cx.cache).and_then(|guild| {
+        guild
+            .read()
+            .emojis
+            .values()
+            .find(|emoji| emoji.name.eq_ignore_ascii_case(emoji_name))
+            .cloned()
+    })
+}
+
+pub fn custom_emoji_code(args: &Args, emoji_name: &str, fallback: char) -> String {
+    match find_custom_emoji(args, emoji_name) {
+        Some(emoji) => emoji.to_string(),
+        None => fallback.to_string(),
+    }
+}
+
+// React with a custom emoji from the guild, or fallback to a default Unicode emoji
+pub fn react_custom_emoji(args: &Args, emoji_name: &str, fallback: char) -> Result<(), Error> {
+    let reaction = find_custom_emoji(args, emoji_name)
+        .map(ReactionType::from)
+        .unwrap_or_else(|| ReactionType::from(fallback));
+
+    args.msg.react(&args.cx.http, reaction)?;
+    Ok(())
 }
 
 fn main() {

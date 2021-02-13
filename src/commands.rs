@@ -19,7 +19,7 @@ pub const PREFIXES: &[&str] = &[
     "hey fewwis, can you ",
 ];
 
-enum CommandHandler {
+pub enum CommandHandler {
     Help,
     Custom {
         action: Box<dyn Fn(&Args<'_>) -> Result<(), Error> + Send + Sync>,
@@ -28,11 +28,12 @@ enum CommandHandler {
     },
 }
 
-struct Command {
-    name: &'static str,
+pub struct Command {
+    pub name: &'static str,
+    pub aliases: &'static [&'static str],
     /// Should be a short sentence to display inline in the help menu
-    inline_help: &'static str,
-    handler: CommandHandler,
+    pub inline_help: &'static str,
+    pub handler: CommandHandler,
 }
 
 pub struct Args<'a> {
@@ -54,6 +55,7 @@ impl Commands {
             client: HttpClient::new(),
             commands: vec![Command {
                 name: "help",
+                aliases: &[],
                 inline_help: "Show this menu",
                 handler: CommandHandler::Help,
             }],
@@ -66,15 +68,17 @@ impl Commands {
         handler: impl Fn(&Args) -> Result<(), Error> + Send + Sync + 'static,
         inline_help: &'static str,
         long_help: impl Fn(&Args) -> Result<(), Error> + Send + Sync + 'static,
-    ) {
+    ) -> &mut Command {
         self.commands.push(Command {
             name: command,
+            aliases: &[],
             inline_help,
             handler: CommandHandler::Custom {
                 action: Box::new(handler),
                 help: Box::new(long_help),
             },
         });
+        self.commands.last_mut().unwrap()
     }
 
     pub fn help_menu(&self, args: &Args) -> Result<(), Error> {
@@ -100,9 +104,14 @@ impl Commands {
     }
 
     fn find_command<'a>(&'a self, command_name: &str) -> Option<&'a Command> {
-        self.commands
-            .iter()
-            .find(|cmd| cmd.name.eq_ignore_ascii_case(command_name))
+        self.commands.iter().find(|cmd| {
+            let command_matches = cmd.name.eq_ignore_ascii_case(command_name);
+            let alias_matches = cmd
+                .aliases
+                .iter()
+                .any(|alias| alias.eq_ignore_ascii_case(command_name));
+            command_matches || alias_matches
+        })
     }
 
     pub fn execute(&self, cx: &Context, serenity_msg: &Message) {
