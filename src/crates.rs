@@ -37,6 +37,10 @@ fn get_crate(http: &reqwest::blocking::Client, query: &str) -> Result<Option<Cra
 }
 
 pub fn search(args: &Args) -> Result<(), Error> {
+    if let Some(url) = rustc_crate_link(args.body) {
+        return api::send_reply(args, url);
+    }
+
     match get_crate(&args.http, args.body)? {
         Some(crate_) => {
             if crate_.exact_match {
