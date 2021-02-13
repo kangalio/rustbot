@@ -31,6 +31,7 @@ pub enum CommandHandler {
 pub struct Command {
     pub name: &'static str,
     pub aliases: &'static [&'static str],
+    pub broadcast_typing: bool,
     /// Should be a short sentence to display inline in the help menu
     pub inline_help: &'static str,
     pub handler: CommandHandler,
@@ -56,6 +57,7 @@ impl Commands {
             commands: vec![Command {
                 name: "help",
                 aliases: &[],
+                broadcast_typing: false,
                 inline_help: "Show this menu",
                 handler: CommandHandler::Help,
             }],
@@ -72,6 +74,7 @@ impl Commands {
         self.commands.push(Command {
             name: command,
             aliases: &[],
+            broadcast_typing: false,
             inline_help,
             handler: CommandHandler::Custom {
                 action: Box::new(handler),
@@ -161,8 +164,10 @@ impl Commands {
             http: &self.client,
         };
 
-        if let Err(e) = serenity_msg.channel_id.broadcast_typing(&cx.http) {
-            warn!("Can't broadcast typing: {}", e);
+        if command.broadcast_typing {
+            if let Err(e) = serenity_msg.channel_id.broadcast_typing(&cx.http) {
+                warn!("Can't broadcast typing: {}", e);
+            }
         }
 
         let command_execution_result = match &command.handler {

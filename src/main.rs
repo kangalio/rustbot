@@ -67,56 +67,64 @@ fn app() -> Result<(), Error> {
         crates::search,
         "Lookup crates on crates.io",
         crates::help,
-    );
+    )
+    .broadcast_typing = true;
 
     cmds.add(
         "docs",
         crates::doc_search,
         "Lookup documentation",
         crates::doc_help,
-    );
+    )
+    .broadcast_typing = true;
 
     cmds.add(
         "play",
         playground::play,
         "Compile and run rust code in a playground",
         |args| playground::play_and_eval_help(args, "play"),
-    );
+    )
+    .broadcast_typing = true;
 
     cmds.add(
         "eval",
         playground::eval,
         "Evaluate a single rust expression",
         |args| playground::play_and_eval_help(args, "eval"),
-    );
+    )
+    .broadcast_typing = true;
 
     cmds.add(
         "miri",
         playground::miri,
         "Run code and detect undefined behavior using Miri",
         playground::miri_help,
-    );
+    )
+    .broadcast_typing = true;
 
     cmds.add(
         "expand",
         playground::expand_macros,
         "Expand macros to their raw desugared form",
         playground::expand_macros_help,
-    );
+    )
+    .broadcast_typing = true;
 
     cmds.add(
         "clippy",
         playground::clippy,
         "Catch common mistakes using the Clippy linter",
         playground::clippy_help,
-    );
+    )
+    .broadcast_typing = true;
 
     cmds.add(
         "fmt",
         playground::fmt,
         "Format code using rustfmt",
         playground::fmt_help,
-    );
+    )
+    .broadcast_typing = true;
 
     cmds.add(
         "go",
@@ -130,7 +138,8 @@ fn app() -> Result<(), Error> {
         godbolt::godbolt,
         "View assembly using Godbolt",
         godbolt::help,
-    );
+    )
+    .broadcast_typing = true;
 
     cmds.add(
         "cleanup",
