@@ -13,18 +13,17 @@ struct Crates {
 struct Crate {
     id: String,
     name: String,
-    #[serde(rename = "newest_version")]
-    version: String,
-    #[serde(rename = "updated_at")]
-    updated: String,
+    newest_version: String,
+    updated_at: String,
     downloads: u64,
     #[serde(default)]
     description: String,
     documentation: Option<String>,
+    exact_match: bool,
 }
 
 /// Queries the crates.io crates list and yields the first result, if any
-fn get_crate(http: &reqwest::blocking::Client, query: &str) -> Result<Crate, Error> {
+fn get_crate(http: &reqwest::blocking::Client, query: &str) -> Result<Option<Crate>, Error> {
     info!("searching for crate `{}`", query);
 
     let crate_list = http
@@ -34,27 +33,35 @@ fn get_crate(http: &reqwest::blocking::Client, query: &str) -> Result<Crate, Err
         .send()?
         .json::<Crates>()?;
 
-    crate_list
-        .crates
-        .into_iter()
-        .next()
-        .ok_or(Error::NoCratesFound)
+    Ok(crate_list.crates.into_iter().next())
 }
 
 pub fn search(args: &Args) -> Result<(), Error> {
-    let krate = get_crate(&args.http, args.body)?;
-    args.msg.channel_id.send_message(&args.cx, |m| {
-        m.embed(|e| {
-            e.title(&krate.name)
-                .url(format!("https://crates.io/crates/{}", krate.id))
-                .description(&krate.description)
-                .field("Version", &krate.version, true)
-                .field("Downloads", &krate.downloads, true)
-                .timestamp(krate.updated.as_str())
-        });
-
-        m
-    })?;
+    match get_crate(&args.http, args.body)? {
+        Some(crate_) => {
+            if crate_.exact_match {
+                args.msg.channel_id.send_message(&args.cx, |m| {
+                    m.embed(|e| {
+                        e.title(&crate_.name)
+                            .url(format!("https://crates.io/crates/{}", crate_.id))
+                            .description(&crate_.description)
+                            .field("Version", &crate_.newest_version, true)
+                            .field("Downloads", &crate_.downloads, true)
+                            .timestamp(crate_.updated_at.as_str())
+                    })
+                })?;
+            } else {
+                api::send_reply(
+                    args,
+                    &format!(
+                        "Crate `{}` not found. Did you mean `{}`?",
+                        args.body, crate_.name
+                    ),
+                )?;
+            }
+        }
+        None => api::send_reply(args, &format!("Crate `{}` not found", args.body))?,
+    };
     Ok(())
 }
 
@@ -80,9 +87,13 @@ pub fn doc_search(args: &Args) -> Result<(), Error> {
     let mut doc_url = if let Some(rustc_crate) = rustc_crate_link(crate_name) {
         rustc_crate.to_string()
     } else {
-        let krate = get_crate(&args.http, crate_name)?;
-        let crate_name = krate.name;
-        krate
+        let crate_ = match get_crate(&args.http, crate_name)? {
+            Some(x) => x,
+            None => return api::send_reply(args, &format!("Crate `{}` not found", crate_name)),
+        };
+
+        let crate_name = crate_.name;
+        crate_
             .documentation
             .unwrap_or_else(|| format!("https://docs.rs/{}", crate_name))
     };
