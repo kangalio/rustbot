@@ -236,9 +236,6 @@ fn generic_help(args: &Args, cmd: &str, desc: &str, full: bool) -> Result<(), Er
 ///
 /// If multiple potential tokens could be used as a stripping point, this function will make the
 /// stripped output as compact as possible and choose from the matching tokens accordingly.
-///
-/// If none of the start tokens or none of the end tokens matches, this function returns None
-/// to stay correct
 fn extract_relevant_lines<'a>(
     mut stderr: &'a str,
     strip_start_tokens: &[&str],
@@ -280,7 +277,7 @@ fn extract_relevant_lines<'a>(
 }
 
 enum ResultHandling {
-    // /// Don't consume results at all, which makes rustc throw an error when the result isn't ()
+    /// Don't consume results at all, making rustc throw an error when the result isn't ()
     None,
     /// Consume using `let _ = { ... };`
     Discard,
@@ -448,7 +445,10 @@ fn play_or_eval(args: &Args, result_handling: ResultHandling) -> Result<(), Erro
             "Finished dev",
         ],
     );
-    let program_stderr = extract_relevant_lines(&result.stderr, &["Running `target"], &[]);
+    let program_stderr = match result.stderr.contains("Running `target") {
+        true => extract_relevant_lines(&result.stderr, &["Running `target"], &[]),
+        false => "",
+    };
 
     result.stderr = match (compiler_warnings, program_stderr) {
         ("", "") => String::new(),
