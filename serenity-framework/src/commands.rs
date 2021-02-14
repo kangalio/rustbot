@@ -39,10 +39,16 @@ pub struct Command {
 
 pub struct Args<'a> {
     pub http: &'a HttpClient,
-    pub cx: &'a Context,
+    pub ctx: &'a Context,
     pub msg: &'a Message,
     pub params: HashMap<&'a str, &'a str>,
     pub body: &'a str,
+}
+
+impl Args<'_> {
+    pub fn bot_user_id(&self) -> UserId {
+        *self.ctx.data.read().get::<crate::BotUserIdKey>().unwrap()
+    }
 }
 
 pub struct Commands {
@@ -159,14 +165,14 @@ impl Commands {
         let args = Args {
             body,
             params,
-            cx: &cx,
+            ctx: &cx,
             msg: &serenity_msg,
             http: &self.client,
         };
 
         if command.broadcast_typing {
             if let Err(e) = serenity_msg.channel_id.broadcast_typing(&cx.http) {
-                warn!("Can't broadcast typing: {}", e);
+                log::warn!("Can't broadcast typing: {}", e);
             }
         }
 
@@ -175,9 +181,9 @@ impl Commands {
             CommandHandler::Custom { action, .. } => (action)(&args),
         };
         if let Err(e) = command_execution_result {
-            error!("Error when executing command {}: {}", command.name, e);
+            log::error!("Error when executing command {}: {}", command.name, e);
             if let Err(e) = crate::api::send_reply(&args, &e.to_string()) {
-                error!("{}", e)
+                log::error!("{}", e)
             }
         }
     }

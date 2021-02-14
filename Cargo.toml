@@ -17,4 +17,5 @@ log = "0.4.0"
 env_logger = "0.7.1"
 envy = "0.4"
 indexmap = "1.6"
+serenity_framework = { path = "serenity-framework" }
 strip-ansi-escapes = "0.1.0" # For normalizing godbolt responses

@@ -1,7 +1,7 @@
-use crate::{api, commands::Args, Error};
-
+use crate::Error;
 use reqwest::header;
 use serde::Deserialize;
+use serenity_framework::Args;
 
 const USER_AGENT: &str = "rust-lang/discord-mods-bot";
 
@@ -38,13 +38,13 @@ fn get_crate(http: &reqwest::blocking::Client, query: &str) -> Result<Option<Cra
 
 pub fn search(args: &Args) -> Result<(), Error> {
     if let Some(url) = rustc_crate_link(args.body) {
-        return api::send_reply(args, url);
+        return serenity_framework::send_reply(args, url);
     }
 
     match get_crate(&args.http, args.body)? {
         Some(crate_) => {
             if crate_.exact_match {
-                args.msg.channel_id.send_message(&args.cx, |m| {
+                args.msg.channel_id.send_message(&args.ctx, |m| {
                     m.embed(|e| {
                         e.title(&crate_.name)
                             .url(format!("https://crates.io/crates/{}", crate_.id))
@@ -55,7 +55,7 @@ pub fn search(args: &Args) -> Result<(), Error> {
                     })
                 })?;
             } else {
-                api::send_reply(
+                serenity_framework::send_reply(
                     args,
                     &format!(
                         "Crate `{}` not found. Did you mean `{}`?",
@@ -64,7 +64,7 @@ pub fn search(args: &Args) -> Result<(), Error> {
                 )?;
             }
         }
-        None => api::send_reply(args, &format!("Crate `{}` not found", args.body))?,
+        None => serenity_framework::send_reply(args, &format!("Crate `{}` not found", args.body))?,
     };
     Ok(())
 }
@@ -94,7 +94,12 @@ pub fn doc_search(args: &Args) -> Result<(), Error> {
     } else {
         let crate_ = match get_crate(&args.http, crate_name)? {
             Some(x) => x,
-            None => return api::send_reply(args, &format!("Crate `{}` not found", crate_name)),
+            None => {
+                return serenity_framework::send_reply(
+                    args,
+                    &format!("Crate `{}` not found", crate_name),
+                )
+            }
         };
 
         let crate_name = crate_.name;
@@ -108,7 +113,7 @@ pub fn doc_search(args: &Args) -> Result<(), Error> {
         doc_url += item_path;
     }
 
-    api::send_reply(args, &doc_url)?;
+    serenity_framework::send_reply(args, &doc_url)?;
 
     Ok(())
 }
@@ -119,7 +124,7 @@ pub fn help(args: &Args) -> Result<(), Error> {
 ```
 ?crate query...
 ```";
-    api::send_reply(args, &help_string)?;
+    serenity_framework::send_reply(args, &help_string)?;
     Ok(())
 }
 
@@ -129,6 +134,6 @@ pub fn doc_help(args: &Args) -> Result<(), Error> {
 ```
 ?docs crate_name...
 ```";
-    api::send_reply(args, &help_string)?;
+    serenity_framework::send_reply(args, &help_string)?;
     Ok(())
 }

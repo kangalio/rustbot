@@ -1,0 +1,12 @@
+[package]
+name = "serenity_framework"
+version = "0.1.0"
+authors = ["kangalioo <jannik.a.schaper@web.de>"]
+edition = "2018"
+
+[dependencies]
+serenity = "0.8.9"
+# serenity_framework_impl = {path = "serenity-framework-impl"}
+log = "0.4.14"
+reqwest = { version = "0.10", features = ["blocking", "json"] }
+indexmap = "1.6"

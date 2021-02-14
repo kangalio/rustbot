@@ -1,16 +1,16 @@
 #[macro_use]
 extern crate log;
 
-mod api;
-mod command_history;
-mod commands;
+// mod api;
+// mod command_history;
+// mod commands;
 mod crates;
 mod godbolt;
 mod moderation;
 mod playground;
 
-use commands::{Args, Commands};
 use serenity::{model::prelude::*, prelude::*};
+use serenity_framework::{Args, Commands};
 
 pub type Error = Box<dyn std::error::Error + Send + Sync>;
 
@@ -96,9 +96,9 @@ fn app() -> Result<(), Error> {
 
     cmds.add(
         "go",
-        |args| api::send_reply(args, "No"),
+        |args| serenity_framework::send_reply(args, "No"),
         "Evaluates Go code",
-        |args| api::send_reply(args, "Evaluates Go code"),
+        |args| serenity_framework::send_reply(args, "Evaluates Go code"),
     );
 
     cmds.add(
@@ -126,12 +126,17 @@ fn app() -> Result<(), Error> {
 
     cmds.add(
         "source",
-        |args| api::send_reply(args, "https://github.com/kangalioo/discord-mods-bot"),
+        |args| {
+            serenity_framework::send_reply(args, "https://github.com/kangalioo/discord-mods-bot")
+        },
         "Links to the bot GitHub repo",
-        |args| api::send_reply(args, "?source\n\nLinks to the bot GitHub repo"),
+        |args| serenity_framework::send_reply(args, "?source\n\nLinks to the bot GitHub repo"),
     );
 
-    Client::new_with_extras(&discord_token, |e| e.event_handler(Events { cmds }))?.start()?;
+    Client::new_with_extras(&discord_token, |e| {
+        e.event_handler(serenity_framework::Events { cmds })
+    })?
+    .start()?;
     Ok(())
 }
 
@@ -192,7 +197,7 @@ fn reply_potentially_long_text(
         format!("{}{}", text_body, text_end)
     };
 
-    api::send_reply(args, &msg)
+    serenity_framework::send_reply(args, &msg)
 }
 
 /// Extract code from a Discord code block on a best-effort basis
@@ -236,7 +241,7 @@ code here
 }
 
 pub fn find_custom_emoji(args: &Args, emoji_name: &str) -> Option<Emoji> {
-    args.msg.guild(&args.cx.cache).and_then(|guild| {
+    args.msg.guild(&args.ctx.cache).and_then(|guild| {
         guild
             .read()
             .emojis
@@ -259,7 +264,7 @@ pub fn react_custom_emoji(args: &Args, emoji_name: &str, fallback: char) -> Resu
         .map(ReactionType::from)
         .unwrap_or_else(|| ReactionType::from(fallback));
 
-    args.msg.react(&args.cx.http, reaction)?;
+    args.msg.react(&args.ctx.http, reaction)?;
     Ok(())
 }
 
@@ -272,7 +277,7 @@ fn main() {
     }
 }
 
-struct BotUserId;
+/*struct BotUserId;
 
 impl TypeMapKey for BotUserId {
     type Value = UserId;
@@ -323,4 +328,4 @@ impl EventHandler for Events {
             let _ = channel_id.delete_message(&cx, response_id);
         }
     }
-}
+}*/

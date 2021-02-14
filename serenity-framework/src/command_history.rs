@@ -23,13 +23,13 @@ pub fn replay_message(cx: Context, ev: MessageUpdateEvent, cmds: &Commands) -> R
     Ok(())
 }
 
-pub fn clear_command_history(cx: &Context) -> Result<(), Error> {
-    let mut data = cx.data.write();
+pub fn clear_command_history(ctx: &Context) -> Result<(), Error> {
+    let mut data = ctx.data.write();
     let history = data.get_mut::<CommandHistory>().unwrap();
 
     // always keep the last command in history
     if !history.is_empty() {
-        info!("Clearing command history");
+        log::info!("Clearing command history");
         history.drain(..history.len() - 1);
     }
     Ok(())

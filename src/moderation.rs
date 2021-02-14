@@ -15,12 +15,11 @@ pub fn cleanup(args: &Args, mod_role_id: RoleId) -> Result<(), Error> {
         Some(member) => member.roles.contains(&mod_role_id),
         None => true, // in DMs, treat the user as an "effective" mod
     };
-    let data = args.cx.data.read();
-    let bot_id = *data.get::<crate::BotUserId>().unwrap();
+    let bot_id = args.bot_user_id();
 
     args.msg
         .channel_id
-        .messages(&args.cx.http, |m| m.limit(100))?
+        .messages(&args.ctx.http, |m| m.limit(100))?
         .iter()
         .filter(|msg| {
             if msg.author.id != bot_id {
@@ -35,13 +34,13 @@ pub fn cleanup(args: &Args, mod_role_id: RoleId) -> Result<(), Error> {
             true
         })
         .take(num_messages)
-        .try_for_each(|msg| msg.delete(&args.cx.http))?;
+        .try_for_each(|msg| msg.delete(&args.ctx.http))?;
 
     crate::react_custom_emoji(args, "rustOk", '👌')
 }
 
 pub fn cleanup_help(args: &Args) -> Result<(), Error> {
-    crate::api::send_reply(
+    serenity_framework::send_reply(
         args,
         "?cleanup [limit]
 
@@ -105,11 +104,11 @@ fn parse_member<'a>(members: &'a HashMap<UserId, Member>, string: &str) -> Optio
 pub fn joke_ban(args: &Args) -> Result<(), Error> {
     let guild_id = match args.msg.guild_id {
         Some(x) => x,
-        None => return crate::api::send_reply(args, "🤨"),
+        None => return serenity_framework::send_reply(args, "🤨"),
     };
 
     let bannee = args.body.split_whitespace().next().and_then(|arg| {
-        match guild_id.to_guild_cached(&args.cx.cache) {
+        match guild_id.to_guild_cached(&args.ctx.cache) {
             Some(guild) => {
                 parse_member(&guild.read().members, arg).map(|m| m.user.read().name.clone())
             }
@@ -118,7 +117,7 @@ pub fn joke_ban(args: &Args) -> Result<(), Error> {
     });
 
     match bannee {
-        Some(bannee) => crate::api::send_reply(
+        Some(bannee) => serenity_framework::send_reply(
             args,
             &format!(
                 "{} banned user {} {}",
@@ -127,12 +126,12 @@ pub fn joke_ban(args: &Args) -> Result<(), Error> {
                 crate::custom_emoji_code(args, "ferrisBanne", '🔨')
             ),
         ),
-        None => Ok(args.msg.react(&args.cx.http, ReactionType::from('❌'))?),
+        None => Ok(args.msg.react(&args.ctx.http, ReactionType::from('❌'))?),
     }
 }
 
 pub fn joke_ban_help(args: &Args) -> Result<(), Error> {
-    crate::api::send_reply(
+    serenity_framework::send_reply(
         args,
         "?ban <member>
 

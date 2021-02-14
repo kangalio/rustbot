@@ -570,11 +570,11 @@ dependencies = [
 
 [[package]]
 name = "log"
-version = "0.4.8"
+version = "0.4.14"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "14b6052be84e6b71ab17edffc2eeabf5c2c3ae1fdb464aae35ac50c67a44e1f7"
+checksum = "51b9bbe6c47d51fc3e1a9b945965946b4c44142ab8792c50835a980d362c2710"
 dependencies = [
- "cfg-if 0.1.10",
+ "cfg-if 1.0.0",
 ]
 
 [[package]]
@@ -1002,6 +1002,7 @@ dependencies = [
  "serde",
  "serde_json",
  "serenity",
+ "serenity_framework",
  "strip-ansi-escapes",
 ]
 
@@ -1130,9 +1131,9 @@ dependencies = [
 
 [[package]]
 name = "serenity"
-version = "0.8.7"
+version = "0.8.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e304a606c9601e538849c67b19af64e114e14ac633093e5e05188a9274f507c2"
+checksum = "e25ca90a57c2183579d2e7d680df2cb0363b599fc275d2cc3e78e30e9c873dc2"
 dependencies = [
  "base64 0.12.3",
  "bitflags",
@@ -1153,6 +1154,16 @@ dependencies = [
  "uwl",
  "webpki",
  "webpki-roots 0.19.0",
+]
+
+[[package]]
+name = "serenity_framework"
+version = "0.1.0"
+dependencies = [
+ "indexmap",
+ "log",
+ "reqwest",
+ "serenity",
 ]
 
 [[package]]

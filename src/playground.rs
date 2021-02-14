@@ -1,6 +1,7 @@
 //! run rust code on the rust-lang playground
 
-use crate::{api, commands::Args, Error};
+use crate::Error;
+use serenity_framework::Args;
 
 use reqwest::header;
 use serde::{Deserialize, Serialize};
@@ -227,7 +228,7 @@ fn generic_help(args: &Args, cmd: &str, desc: &str, full: bool) -> Result<(), Er
     }
     reply += "    \tedition: 2015, 2018 (default: 2018)\n";
 
-    api::send_reply(args, &reply)
+    serenity_framework::send_reply(args, &reply)
 }
 
 /// Strip the input according to a list of start tokens and end tokens. Everything after the start
@@ -352,7 +353,7 @@ fn send_reply(
     };
 
     if result.trim().is_empty() {
-        api::send_reply(args, &format!("{}``` ```", flag_parse_errors))
+        serenity_framework::send_reply(args, &format!("{}``` ```", flag_parse_errors))
     } else {
         crate::reply_potentially_long_text(
             args,
