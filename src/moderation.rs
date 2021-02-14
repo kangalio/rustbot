@@ -107,22 +107,23 @@ pub fn joke_ban(args: &Args) -> Result<(), Error> {
         None => return serenity_framework::send_reply(args, "🤨"),
     };
 
-    let bannee = args.body.split_whitespace().next().and_then(|arg| {
-        match guild_id.to_guild_cached(&args.ctx.cache) {
-            Some(guild) => {
-                parse_member(&guild.read().members, arg).map(|m| m.user.read().name.clone())
-            }
-            None => Some(arg.to_owned()),
-        }
+    let bannee = args.body.split_whitespace().next().and_then(|first_arg| {
+        parse_member(
+            &guild_id.to_guild_cached(&args.ctx.cache)?.read().members,
+            first_arg,
+        )
+        .map(|m| m.user.read().clone())
     });
 
     match bannee {
         Some(bannee) => serenity_framework::send_reply(
             args,
             &format!(
-                "{} banned user {} {}",
+                "{}#{} banned user {}#{} {}",
                 args.msg.author.name,
-                bannee,
+                args.msg.author.discriminator,
+                bannee.name,
+                bannee.discriminator,
                 crate::custom_emoji_code(args, "ferrisBanne", '🔨')
             ),
         ),
