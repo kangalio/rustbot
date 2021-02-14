@@ -51,7 +51,7 @@ except for mods",
     )
 }
 
-/// Look up a guild member by a string.
+/// Look up a guild member by a string, case-insensitively.
 ///
 /// The lookup strategy is as follows (in order):
 /// 1. Lookup by ID.
@@ -79,7 +79,7 @@ fn parse_member<'a>(members: &'a HashMap<UserId, Member>, string: &str) -> Optio
         let discrim = string[(pound_sign + 1)..].parse::<u16>().ok()?;
         members.values().find(|member| {
             let member = member.user.read();
-            member.discriminator == discrim && member.name == name
+            member.discriminator == discrim && member.name.eq_ignore_ascii_case(name)
         })
     };
 
@@ -90,9 +90,10 @@ fn parse_member<'a>(members: &'a HashMap<UserId, Member>, string: &str) -> Optio
     };
 
     let lookup_by_nickname = || {
-        members
-            .values()
-            .find(|member| member.nick.as_deref() == Some(string))
+        members.values().find(|member| match &member.nick {
+            Some(nick) => nick.eq_ignore_ascii_case(string),
+            None => false,
+        })
     };
 
     lookup_by_id()
