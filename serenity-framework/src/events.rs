@@ -1,11 +1,11 @@
 use crate::Error;
 use serenity::{model::prelude::*, prelude::*};
 
-pub struct Events {
-    pub cmds: crate::Commands,
+pub struct Events<U> {
+    pub cmds: crate::Commands<U>,
 }
 
-impl EventHandler for Events {
+impl<U: Send + Sync> EventHandler for Events<U> {
     fn ready(&self, ctx: Context, ready: Ready) {
         log::info!("{} connected to discord", ready.user.name);
         {

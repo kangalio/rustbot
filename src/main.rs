@@ -10,14 +10,40 @@ mod moderation;
 mod playground;
 
 use serenity::{model::prelude::*, prelude::*};
-use serenity_framework::{Args, Commands};
+use serenity_framework::Commands;
+pub type Args<'a> = serenity_framework::Args<'a, UserData>;
 
 pub type Error = Box<dyn std::error::Error + Send + Sync>;
+
+const PREFIXES: &[&str] = &[
+    "?",
+    "🦀 ",
+    "🦀",
+    "<:ferris:358652670585733120> ",
+    "<:ferris:358652670585733120>",
+    "hey ferris can you please ",
+    "hey ferris, can you please ",
+    "hey fewwis can you please ",
+    "hey fewwis, can you please ",
+    "hey ferris can you ",
+    "hey ferris, can you ",
+    "hey fewwis can you ",
+    "hey fewwis, can you ",
+];
+
+struct ModRoleId;
+impl TypeMapKey for ModRoleId {
+    type Value = u64;
+}
 
 #[derive(serde::Deserialize)]
 struct Config {
     discord_token: String,
     mod_role_id: u64,
+}
+
+pub struct UserData {
+    mod_role_id: RoleId,
 }
 
 fn app() -> Result<(), Error> {
@@ -28,7 +54,12 @@ fn app() -> Result<(), Error> {
 
     info!("starting...");
 
-    let mut cmds = Commands::new_with_help();
+    let mut cmds = Commands::new_with_help(
+        PREFIXES,
+        UserData {
+            mod_role_id: RoleId(mod_role_id),
+        },
+    );
 
     cmds.add(
         "crate",
@@ -111,7 +142,7 @@ fn app() -> Result<(), Error> {
 
     cmds.add(
         "cleanup",
-        move |args| moderation::cleanup(args, RoleId(mod_role_id)),
+        moderation::cleanup,
         "Deletes the bot's messages for cleanup",
         moderation::cleanup_help,
     );

@@ -2,7 +2,7 @@ use crate::{Args, Error};
 use serenity::model::prelude::*;
 use std::collections::HashMap;
 
-pub fn cleanup(args: &Args, mod_role_id: RoleId) -> Result<(), Error> {
+pub fn cleanup(args: &Args) -> Result<(), Error> {
     let num_messages = if args.body.is_empty() {
         5
     } else {
@@ -12,7 +12,7 @@ pub fn cleanup(args: &Args, mod_role_id: RoleId) -> Result<(), Error> {
     info!("Cleaning up {} messages", num_messages);
 
     let is_mod = match &args.msg.member {
-        Some(member) => member.roles.contains(&mod_role_id),
+        Some(member) => member.roles.contains(&args.user_data.mod_role_id),
         None => true, // in DMs, treat the user as an "effective" mod
     };
     let bot_id = args.bot_user_id();

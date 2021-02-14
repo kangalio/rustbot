@@ -1,7 +1,6 @@
-use crate::Error;
+use crate::{Args, Error};
 use reqwest::header;
 use serde::Deserialize;
-use serenity_framework::Args;
 
 const USER_AGENT: &str = "rust-lang/discord-mods-bot";
 

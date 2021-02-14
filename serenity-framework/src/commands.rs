@@ -3,63 +3,51 @@ use reqwest::blocking::Client as HttpClient;
 use serenity::{model::prelude::*, prelude::*};
 use std::collections::HashMap;
 
-pub const PREFIXES: &[&str] = &[
-    "?",
-    "🦀 ",
-    "🦀",
-    "<:ferris:358652670585733120> ",
-    "<:ferris:358652670585733120>",
-    "hey ferris can you please ",
-    "hey ferris, can you please ",
-    "hey fewwis can you please ",
-    "hey fewwis, can you please ",
-    "hey ferris can you ",
-    "hey ferris, can you ",
-    "hey fewwis can you ",
-    "hey fewwis, can you ",
-];
-
-pub enum CommandHandler {
+pub enum CommandHandler<U> {
     Help,
     Custom {
-        action: Box<dyn Fn(&Args<'_>) -> Result<(), Error> + Send + Sync>,
+        action: fn(&Args<'_, U>) -> Result<(), Error>,
         /// Multiline description of the command to display for the command-specific help command
-        help: Box<dyn Fn(&Args<'_>) -> Result<(), Error> + Send + Sync>,
+        help: fn(&Args<'_, U>) -> Result<(), Error>,
     },
 }
 
-pub struct Command {
+pub struct Command<U> {
     pub name: &'static str,
     pub aliases: &'static [&'static str],
     pub broadcast_typing: bool,
     /// Should be a short sentence to display inline in the help menu
     pub inline_help: &'static str,
-    pub handler: CommandHandler,
+    pub handler: CommandHandler<U>,
 }
 
-pub struct Args<'a> {
+pub struct Args<'a, U> {
     pub http: &'a HttpClient,
     pub ctx: &'a Context,
     pub msg: &'a Message,
     pub params: HashMap<&'a str, &'a str>,
     pub body: &'a str,
+    pub user_data: &'a U,
 }
 
-impl Args<'_> {
+impl<U> Args<'_, U> {
     pub fn bot_user_id(&self) -> UserId {
         *self.ctx.data.read().get::<crate::BotUserIdKey>().unwrap()
     }
 }
 
-pub struct Commands {
+pub struct Commands<U> {
     client: HttpClient,
-    commands: Vec<Command>,
+    prefixes: &'static [&'static str],
+    commands: Vec<Command<U>>,
+    user_data: U,
 }
 
-impl Commands {
-    pub fn new_with_help() -> Self {
+impl<U> Commands<U> {
+    pub fn new_with_help(prefixes: &'static [&'static str], user_data: U) -> Self {
         Self {
             client: HttpClient::new(),
+            prefixes,
             commands: vec![Command {
                 name: "help",
                 aliases: &[],
@@ -67,30 +55,31 @@ impl Commands {
                 inline_help: "Show this menu",
                 handler: CommandHandler::Help,
             }],
+            user_data,
         }
     }
 
     pub fn add(
         &mut self,
         command: &'static str,
-        handler: impl Fn(&Args) -> Result<(), Error> + Send + Sync + 'static,
+        handler: fn(&Args<U>) -> Result<(), Error>,
         inline_help: &'static str,
-        long_help: impl Fn(&Args) -> Result<(), Error> + Send + Sync + 'static,
-    ) -> &mut Command {
+        long_help: fn(&Args<U>) -> Result<(), Error>,
+    ) -> &mut Command<U> {
         self.commands.push(Command {
             name: command,
             aliases: &[],
             broadcast_typing: false,
             inline_help,
             handler: CommandHandler::Custom {
-                action: Box::new(handler),
-                help: Box::new(long_help),
+                action: handler,
+                help: long_help,
             },
         });
         self.commands.last_mut().unwrap()
     }
 
-    pub fn help_menu(&self, args: &Args) -> Result<(), Error> {
+    pub fn help_menu(&self, args: &Args<U>) -> Result<(), Error> {
         if args.body.is_empty() {
             let mut menu = "```\nCommands:\n".to_owned();
             for command in &self.commands {
@@ -112,7 +101,7 @@ impl Commands {
         }
     }
 
-    fn find_command<'a>(&'a self, command_name: &str) -> Option<&'a Command> {
+    fn find_command<'a>(&'a self, command_name: &str) -> Option<&'a Command<U>> {
         self.commands.iter().find(|cmd| {
             let command_matches = cmd.name.eq_ignore_ascii_case(command_name);
             let alias_matches = cmd
@@ -125,7 +114,8 @@ impl Commands {
 
     pub fn execute(&self, ctx: &Context, serenity_msg: &Message) {
         // find the first matching prefix and strip it
-        let msg = match PREFIXES
+        let msg = match self
+            .prefixes
             .iter()
             .find_map(|prefix| serenity_msg.content.strip_prefix(prefix))
         {
@@ -168,6 +158,7 @@ impl Commands {
             ctx: &ctx,
             msg: &serenity_msg,
             http: &self.client,
+            user_data: &self.user_data,
         };
 
         if command.broadcast_typing {

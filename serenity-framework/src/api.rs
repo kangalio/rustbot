@@ -2,7 +2,7 @@ use crate::{Args, CommandHistory, Error};
 use serenity::model::prelude::*;
 
 /// Send a reply to the channel the message was received on.  
-pub fn send_reply(args: &Args, message: &str) -> Result<(), Error> {
+pub fn send_reply<U>(args: &Args<U>, message: &str) -> Result<(), Error> {
     if let Some(response_id) = response_exists(args) {
         log::info!("editing message: {:?}", response_id);
         args.msg
@@ -19,7 +19,7 @@ pub fn send_reply(args: &Args, message: &str) -> Result<(), Error> {
     Ok(())
 }
 
-fn response_exists(args: &Args) -> Option<MessageId> {
+fn response_exists<U>(args: &Args<U>) -> Option<MessageId> {
     let data = args.ctx.data.read();
     let history = data.get::<CommandHistory>().unwrap();
     history.get(&args.msg.id).copied()

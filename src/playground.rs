@@ -1,7 +1,6 @@
 //! run rust code on the rust-lang playground
 
-use crate::Error;
-use serenity_framework::Args;
+use crate::{Args, Error};
 
 use reqwest::header;
 use serde::{Deserialize, Serialize};
