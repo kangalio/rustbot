@@ -57,7 +57,7 @@ pub struct Commands {
 }
 
 impl Commands {
-    pub fn new() -> Self {
+    pub fn new_with_help() -> Self {
         Self {
             client: HttpClient::new(),
             commands: vec![Command {
@@ -123,7 +123,7 @@ impl Commands {
         })
     }
 
-    pub fn execute(&self, cx: &Context, serenity_msg: &Message) {
+    pub fn execute(&self, ctx: &Context, serenity_msg: &Message) {
         // find the first matching prefix and strip it
         let msg = match PREFIXES
             .iter()
@@ -165,13 +165,13 @@ impl Commands {
         let args = Args {
             body,
             params,
-            ctx: &cx,
+            ctx: &ctx,
             msg: &serenity_msg,
             http: &self.client,
         };
 
         if command.broadcast_typing {
-            if let Err(e) = serenity_msg.channel_id.broadcast_typing(&cx.http) {
+            if let Err(e) = serenity_msg.channel_id.broadcast_typing(&ctx.http) {
                 log::warn!("Can't broadcast typing: {}", e);
             }
         }

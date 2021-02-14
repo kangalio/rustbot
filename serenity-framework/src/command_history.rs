@@ -8,7 +8,7 @@ impl TypeMapKey for CommandHistory {
     type Value = IndexMap<MessageId, MessageId>;
 }
 
-pub fn replay_message(cx: Context, ev: MessageUpdateEvent, cmds: &Commands) -> Result<(), Error> {
+pub fn replay_message(ctx: Context, ev: MessageUpdateEvent, cmds: &Commands) -> Result<(), Error> {
     if let (Some(created), Some(edited)) = (ev.timestamp, ev.edited_timestamp) {
         // Only track edits for recent messages
         if (edited - created).num_minutes() < 60 {
@@ -16,7 +16,7 @@ pub fn replay_message(cx: Context, ev: MessageUpdateEvent, cmds: &Commands) -> R
             msg.id(ev.id)
                 .channel_id(ev.channel_id)
                 .content(ev.content.unwrap_or_else(String::new));
-            cmds.execute(&cx, &msg.build());
+            cmds.execute(&ctx, &msg.build());
         }
     }
 

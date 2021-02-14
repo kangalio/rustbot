@@ -28,7 +28,7 @@ fn app() -> Result<(), Error> {
 
     info!("starting...");
 
-    let mut cmds = Commands::new();
+    let mut cmds = Commands::new_with_help();
 
     cmds.add(
         "crate",
@@ -276,56 +276,3 @@ fn main() {
         std::process::exit(1);
     }
 }
-
-/*struct BotUserId;
-
-impl TypeMapKey for BotUserId {
-    type Value = UserId;
-}
-
-struct Events {
-    cmds: Commands,
-}
-
-impl EventHandler for Events {
-    fn ready(&self, cx: Context, ready: Ready) {
-        info!("{} connected to discord", ready.user.name);
-        {
-            let mut data = cx.data.write();
-            data.insert::<command_history::CommandHistory>(indexmap::IndexMap::new());
-            data.insert::<BotUserId>(ready.user.id);
-        }
-
-        std::thread::spawn(move || -> Result<(), Error> {
-            loop {
-                command_history::clear_command_history(&cx)?;
-                std::thread::sleep(std::time::Duration::from_secs(3600));
-            }
-        });
-    }
-
-    fn message(&self, cx: Context, message: Message) {
-        self.cmds.execute(&cx, &message);
-    }
-
-    fn message_update(
-        &self,
-        cx: Context,
-        _: Option<Message>,
-        _: Option<Message>,
-        ev: MessageUpdateEvent,
-    ) {
-        if let Err(e) = command_history::replay_message(cx, ev, &self.cmds) {
-            error!("{}", e);
-        }
-    }
-
-    fn message_delete(&self, cx: Context, channel_id: ChannelId, message_id: MessageId) {
-        let mut data = cx.data.write();
-        let history = data.get_mut::<command_history::CommandHistory>().unwrap();
-        if let Some(response_id) = history.remove(&message_id) {
-            info!("deleting message: {:?}", response_id);
-            let _ = channel_id.delete_message(&cx, response_id);
-        }
-    }
-}*/
