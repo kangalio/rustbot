@@ -39,15 +39,12 @@ pub fn cleanup(args: &Args) -> Result<(), Error> {
     crate::react_custom_emoji(args, "rustOk", '👌')
 }
 
-pub fn cleanup_help(args: &Args) -> Result<(), Error> {
-    serenity_framework::send_reply(
-        args,
-        "?cleanup [limit]
+pub fn cleanup_help() -> &'static str {
+    "?cleanup [limit]
 
 Deletes the bot's messages for cleanup.
 You can specify how many messages to look for. Only messages from the last 24 hours can be deleted,
-except for mods",
-    )
+except for mods"
 }
 
 /// Look up a guild member by a string, case-insensitively.
@@ -132,11 +129,8 @@ pub fn joke_ban(args: &Args) -> Result<(), Error> {
     }
 }
 
-pub fn joke_ban_help(args: &Args) -> Result<(), Error> {
-    serenity_framework::send_reply(
-        args,
-        "?ban <member>
+pub fn joke_ban_help() -> &'static str {
+    "?ban <member>
 
-Bans another person",
-    )
+Bans another person"
 }

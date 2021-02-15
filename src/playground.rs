@@ -208,7 +208,7 @@ fn parse_flags(args: &Args) -> (CommandFlags, String) {
     (flags, errors)
 }
 
-fn generic_help(args: &Args, cmd: &str, desc: &str, full: bool) -> Result<(), Error> {
+fn generic_help(cmd: &str, desc: &str, full: bool) -> String {
     let mut reply = format!(
         "{}. All code is executed on https://play.rust-lang.org.\n",
         desc
@@ -227,7 +227,7 @@ fn generic_help(args: &Args, cmd: &str, desc: &str, full: bool) -> Result<(), Er
     }
     reply += "    \tedition: 2015, 2018 (default: 2018)\n";
 
-    serenity_framework::send_reply(args, &reply)
+    reply
 }
 
 /// Strip the input according to a list of start tokens and end tokens. Everything after the start
@@ -468,8 +468,8 @@ pub fn eval(args: &Args) -> Result<(), Error> {
     play_or_eval(args, ResultHandling::Print)
 }
 
-pub fn play_and_eval_help(args: &Args, name: &str) -> Result<(), Error> {
-    generic_help(args, name, "Compile and run Rust code", true)
+pub fn play_and_eval_help(name: &str) -> String {
+    generic_help(name, "Compile and run Rust code", true)
 }
 
 pub fn miri(args: &Args) -> Result<(), Error> {
@@ -496,9 +496,9 @@ pub fn miri(args: &Args) -> Result<(), Error> {
     send_reply(args, result, code, &flags, &flag_parse_errors)
 }
 
-pub fn miri_help(args: &Args) -> Result<(), Error> {
+pub fn miri_help() -> String {
     let desc = "Execute this program in the Miri interpreter to detect certain cases of undefined behavior (like out-of-bounds memory access)";
-    generic_help(args, "miri", desc, false)
+    generic_help("miri", desc, false)
 }
 
 pub fn expand_macros(args: &Args) -> Result<(), Error> {
@@ -537,9 +537,9 @@ pub fn expand_macros(args: &Args) -> Result<(), Error> {
     send_reply(args, result, &code, &flags, &flag_parse_errors)
 }
 
-pub fn expand_macros_help(args: &Args) -> Result<(), Error> {
+pub fn expand_macros_help() -> String {
     let desc = "Expand macros to their raw desugared form";
-    generic_help(args, "expand", desc, false)
+    generic_help("expand", desc, false)
 }
 
 pub fn clippy(args: &Args) -> Result<(), Error> {
@@ -576,9 +576,9 @@ pub fn clippy(args: &Args) -> Result<(), Error> {
     send_reply(args, result, code, &flags, &flag_parse_errors)
 }
 
-pub fn clippy_help(args: &Args) -> Result<(), Error> {
+pub fn clippy_help() -> String {
     let desc = "Catch common mistakes and improve the code using the Clippy linter";
-    generic_help(args, "clippy", desc, false)
+    generic_help("clippy", desc, false)
 }
 
 pub fn fmt(args: &Args) -> Result<(), Error> {
@@ -594,7 +594,7 @@ pub fn fmt(args: &Args) -> Result<(), Error> {
     send_reply(args, result, code, &flags, &flag_parse_errors)
 }
 
-pub fn fmt_help(args: &Args) -> Result<(), Error> {
+pub fn fmt_help() -> String {
     let desc = "Format code using rustfmt";
-    generic_help(args, "fmt", desc, false)
+    generic_help("fmt", desc, false)
 }

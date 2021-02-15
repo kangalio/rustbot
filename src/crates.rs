@@ -118,21 +118,17 @@ pub fn doc_search(args: &Args) -> Result<(), Error> {
 }
 
 /// Print the help message
-pub fn help(args: &Args) -> Result<(), Error> {
-    let help_string = "search for a crate on crates.io
+pub fn help() -> &'static str {
+    "search for a crate on crates.io
 ```
 ?crate query...
-```";
-    serenity_framework::send_reply(args, &help_string)?;
-    Ok(())
+```"
 }
 
 /// Print the help message
-pub fn doc_help(args: &Args) -> Result<(), Error> {
-    let help_string = "retrieve documentation for a given crate
+pub fn doc_help() -> &'static str {
+    "retrieve documentation for a given crate
 ```
 ?docs crate_name...
-```";
-    serenity_framework::send_reply(args, &help_string)?;
-    Ok(())
+```"
 }

@@ -78,14 +78,11 @@ pub fn godbolt(args: &crate::Args) -> Result<(), crate::Error> {
     Ok(())
 }
 
-pub fn help(args: &crate::Args) -> Result<(), crate::Error> {
-    serenity_framework::send_reply(
-        args,
-        "Compile Rust code using https://rust.godbolt.org. Full optimizations are applied.
+pub fn help() -> &'static str {
+    "Compile Rust code using https://rust.godbolt.org. Full optimizations are applied.
 ```?godbolt ``\u{200B}`
 pub fn your_function() {
     // Code
 }
-``\u{200B}` ```",
-    )
+``\u{200B}` ```"
 }

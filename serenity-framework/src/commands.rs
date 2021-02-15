@@ -7,8 +7,6 @@ pub enum CommandHandler<U> {
     Help,
     Custom {
         action: fn(&Args<'_, U>) -> Result<(), Error>,
-        /// Multiline description of the command to display for the command-specific help command
-        help: fn(&Args<'_, U>) -> Result<(), Error>,
     },
 }
 
@@ -18,6 +16,7 @@ pub struct Command<U> {
     pub broadcast_typing: bool,
     /// Should be a short sentence to display inline in the help menu
     pub inline_help: &'static str,
+    pub multiline_help: String,
     pub handler: CommandHandler<U>,
 }
 
@@ -53,6 +52,8 @@ impl<U> Commands<U> {
                 aliases: &[],
                 broadcast_typing: false,
                 inline_help: "Show this menu",
+                multiline_help: "Show a help menu with descriptions of all available commands"
+                    .to_owned(),
                 handler: CommandHandler::Help,
             }],
             user_data,
@@ -64,17 +65,15 @@ impl<U> Commands<U> {
         command: &'static str,
         handler: fn(&Args<U>) -> Result<(), Error>,
         inline_help: &'static str,
-        long_help: fn(&Args<U>) -> Result<(), Error>,
+        multiline_help: String,
     ) -> &mut Command<U> {
         self.commands.push(Command {
             name: command,
             aliases: &[],
             broadcast_typing: false,
             inline_help,
-            handler: CommandHandler::Custom {
-                action: handler,
-                help: long_help,
-            },
+            multiline_help,
+            handler: CommandHandler::Custom { action: handler },
         });
         self.commands.last_mut().unwrap()
     }
@@ -92,10 +91,7 @@ impl<U> Commands<U> {
             crate::api::send_reply(args, &menu)
         } else {
             match self.find_command(&args.body) {
-                Some(cmd) => match &cmd.handler {
-                    CommandHandler::Help => crate::api::send_reply(args, "Are you beyond help?"),
-                    CommandHandler::Custom { help, .. } => (help)(args),
-                },
+                Some(cmd) => crate::api::send_reply(args, &cmd.multiline_help),
                 None => crate::api::send_reply(args, &format!("No such command `{}`", args.body)),
             }
         }

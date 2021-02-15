@@ -65,7 +65,7 @@ fn app() -> Result<(), Error> {
         "crate",
         crates::search,
         "Lookup crates on crates.io",
-        crates::help,
+        crates::help().to_owned(),
     )
     .broadcast_typing = true;
 
@@ -73,7 +73,7 @@ fn app() -> Result<(), Error> {
         "docs",
         crates::doc_search,
         "Lookup documentation",
-        crates::doc_help,
+        crates::doc_help().to_owned(),
     )
     .broadcast_typing = true;
 
@@ -81,7 +81,7 @@ fn app() -> Result<(), Error> {
         "play",
         playground::play,
         "Compile and run rust code in a playground",
-        |args| playground::play_and_eval_help(args, "play"),
+        playground::play_and_eval_help("play"),
     )
     .broadcast_typing = true;
 
@@ -89,7 +89,7 @@ fn app() -> Result<(), Error> {
         "eval",
         playground::eval,
         "Evaluate a single rust expression",
-        |args| playground::play_and_eval_help(args, "eval"),
+        playground::play_and_eval_help("eval"),
     )
     .broadcast_typing = true;
 
@@ -97,7 +97,7 @@ fn app() -> Result<(), Error> {
         "miri",
         playground::miri,
         "Run code and detect undefined behavior using Miri",
-        playground::miri_help,
+        playground::miri_help(),
     )
     .broadcast_typing = true;
 
@@ -105,7 +105,7 @@ fn app() -> Result<(), Error> {
         "expand",
         playground::expand_macros,
         "Expand macros to their raw desugared form",
-        playground::expand_macros_help,
+        playground::expand_macros_help(),
     )
     .broadcast_typing = true;
 
@@ -113,7 +113,7 @@ fn app() -> Result<(), Error> {
         "clippy",
         playground::clippy,
         "Catch common mistakes using the Clippy linter",
-        playground::clippy_help,
+        playground::clippy_help(),
     )
     .broadcast_typing = true;
 
@@ -121,7 +121,7 @@ fn app() -> Result<(), Error> {
         "fmt",
         playground::fmt,
         "Format code using rustfmt",
-        playground::fmt_help,
+        playground::fmt_help(),
     )
     .broadcast_typing = true;
 
@@ -129,14 +129,14 @@ fn app() -> Result<(), Error> {
         "go",
         |args| serenity_framework::send_reply(args, "No"),
         "Evaluates Go code",
-        |args| serenity_framework::send_reply(args, "Evaluates Go code"),
+        "Evaluates Go code".to_owned(),
     );
 
     cmds.add(
         "godbolt",
         godbolt::godbolt,
         "View assembly using Godbolt",
-        godbolt::help,
+        godbolt::help().to_owned(),
     )
     .broadcast_typing = true;
 
@@ -144,14 +144,14 @@ fn app() -> Result<(), Error> {
         "cleanup",
         moderation::cleanup,
         "Deletes the bot's messages for cleanup",
-        moderation::cleanup_help,
+        moderation::cleanup_help().to_owned(),
     );
 
     cmds.add(
         "ban",
         moderation::joke_ban,
         "Bans another person",
-        moderation::joke_ban_help,
+        moderation::joke_ban_help().to_owned(),
     )
     .aliases = &["banne"];
 
@@ -161,7 +161,7 @@ fn app() -> Result<(), Error> {
             serenity_framework::send_reply(args, "https://github.com/kangalioo/discord-mods-bot")
         },
         "Links to the bot GitHub repo",
-        |args| serenity_framework::send_reply(args, "?source\n\nLinks to the bot GitHub repo"),
+        "?source\n\nLinks to the bot GitHub repo".to_owned(),
     );
 
     Client::new_with_extras(&discord_token, |e| {
