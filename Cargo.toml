@@ -8,13 +8,16 @@ license = "MIT"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-serenity = { version = "0.8.7", features = ["model"] }
-reqwest = { version = "0.10", features = ["blocking", "json"] }
+serenity = { version = "0.10.2", default_features = false, features = ["rustls_backend", "builder", "cache", "client", "gateway", "model", "http"] }
+reqwest = { version = "0.11", features = ["json"] }
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 lazy_static = "1.4.0"
 log = "0.4.0"
-env_logger = "0.7.1"
+env_logger = "0.8.0"
 envy = "0.4"
 indexmap = "1.6"
 strip-ansi-escapes = "0.1.0" # For normalizing godbolt responses
+tokio = { version = "1.0", features = ["rt-multi-thread"] }
+# tokio = { version = "0.2", features = ["full"] }
+async-trait = "0.1.42"

@@ -20,7 +20,8 @@ struct Config {
     mod_role_id: u64,
 }
 
-fn app() -> Result<(), Error> {
+#[tokio::main]
+async fn app() -> Result<(), Error> {
     let Config {
         discord_token,
         mod_role_id,
@@ -32,106 +33,120 @@ fn app() -> Result<(), Error> {
 
     cmds.add(
         "crate",
-        crates::search,
+        |args| Box::pin(crates::search(args)),
         "Lookup crates on crates.io",
-        crates::help,
+        |args| Box::pin(crates::help(args)),
     )
     .broadcast_typing = true;
 
     cmds.add(
         "docs",
-        crates::doc_search,
+        |args| Box::pin(crates::doc_search(args)),
         "Lookup documentation",
-        crates::doc_help,
+        |args| Box::pin(crates::doc_help(args)),
     )
     .broadcast_typing = true;
 
     cmds.add(
         "play",
-        playground::play,
+        |args| Box::pin(playground::play(args)),
         "Compile and run rust code in a playground",
-        |args| playground::play_and_eval_help(args, "play"),
+        |args| Box::pin(playground::play_and_eval_help(args, "play")),
     )
     .broadcast_typing = true;
 
     cmds.add(
         "eval",
-        playground::eval,
+        |args| Box::pin(playground::eval(args)),
         "Evaluate a single rust expression",
-        |args| playground::play_and_eval_help(args, "eval"),
+        |args| Box::pin(playground::play_and_eval_help(args, "eval")),
     )
     .broadcast_typing = true;
 
     cmds.add(
         "miri",
-        playground::miri,
+        |args| Box::pin(playground::miri(args)),
         "Run code and detect undefined behavior using Miri",
-        playground::miri_help,
+        |args| Box::pin(playground::miri_help(args)),
     )
     .broadcast_typing = true;
 
     cmds.add(
         "expand",
-        playground::expand_macros,
+        |args| Box::pin(playground::expand_macros(args)),
         "Expand macros to their raw desugared form",
-        playground::expand_macros_help,
+        |args| Box::pin(playground::expand_macros_help(args)),
     )
     .broadcast_typing = true;
 
     cmds.add(
         "clippy",
-        playground::clippy,
+        |args| Box::pin(playground::clippy(args)),
         "Catch common mistakes using the Clippy linter",
-        playground::clippy_help,
+        |args| Box::pin(playground::clippy_help(args)),
     )
     .broadcast_typing = true;
 
     cmds.add(
         "fmt",
-        playground::fmt,
+        |args| Box::pin(playground::fmt(args)),
         "Format code using rustfmt",
-        playground::fmt_help,
+        |args| Box::pin(playground::fmt_help(args)),
     )
     .broadcast_typing = true;
 
     cmds.add(
         "go",
-        |args| api::send_reply(args, "No"),
+        |args| Box::pin(api::send_reply(args, "No")),
         "Evaluates Go code",
-        |args| api::send_reply(args, "Evaluates Go code"),
+        |args| Box::pin(api::send_reply(args, "Evaluates Go code")),
     );
 
     cmds.add(
         "godbolt",
-        godbolt::godbolt,
+        |args| Box::pin(godbolt::godbolt(args)),
         "View assembly using Godbolt",
-        godbolt::help,
+        |args| Box::pin(godbolt::help(args)),
     )
     .broadcast_typing = true;
 
     cmds.add(
         "cleanup",
-        move |args| moderation::cleanup(args, RoleId(mod_role_id)),
+        move |args| Box::pin(moderation::cleanup(args, RoleId(mod_role_id))),
         "Deletes the bot's messages for cleanup",
-        moderation::cleanup_help,
+        |args| Box::pin(moderation::cleanup_help(args)),
     );
 
     cmds.add(
         "ban",
-        moderation::joke_ban,
+        |args| Box::pin(moderation::joke_ban(args)),
         "Bans another person",
-        moderation::joke_ban_help,
+        |args| Box::pin(moderation::joke_ban_help(args)),
     )
     .aliases = &["banne"];
 
     cmds.add(
         "source",
-        |args| api::send_reply(args, "https://github.com/kangalioo/discord-mods-bot"),
+        |args| {
+            Box::pin(api::send_reply(
+                args,
+                "https://github.com/kangalioo/discord-mods-bot",
+            ))
+        },
         "Links to the bot GitHub repo",
-        |args| api::send_reply(args, "?source\n\nLinks to the bot GitHub repo"),
+        |args| {
+            Box::pin(api::send_reply(
+                args,
+                "?source\n\nLinks to the bot GitHub repo",
+            ))
+        },
     );
 
-    Client::new_with_extras(&discord_token, |e| e.event_handler(Events { cmds }))?.start()?;
+    Client::builder(&discord_token)
+        .event_handler(Events { cmds })
+        .await?
+        .start()
+        .await?;
     Ok(())
 }
 
@@ -153,8 +168,8 @@ fn app() -> Result<(), Error> {
 ///     "\n```"
 /// )
 /// ```
-fn reply_potentially_long_text(
-    args: &Args,
+async fn reply_potentially_long_text(
+    args: &Args<'_>,
     text_body: &str,
     text_end: &str,
     truncation_msg: &str,
@@ -192,7 +207,7 @@ fn reply_potentially_long_text(
         format!("{}{}", text_body, text_end)
     };
 
-    api::send_reply(args, &msg)
+    api::send_reply(args, &msg).await
 }
 
 /// Extract code from a Discord code block on a best-effort basis
@@ -235,10 +250,9 @@ code here
     )?)
 }
 
-pub fn find_custom_emoji(args: &Args, emoji_name: &str) -> Option<Emoji> {
-    args.msg.guild(&args.cx.cache).and_then(|guild| {
+pub async fn find_custom_emoji(args: &Args<'_>, emoji_name: &str) -> Option<Emoji> {
+    args.msg.guild(&args.cx.cache).await.and_then(|guild| {
         guild
-            .read()
             .emojis
             .values()
             .find(|emoji| emoji.name.eq_ignore_ascii_case(emoji_name))
@@ -246,20 +260,25 @@ pub fn find_custom_emoji(args: &Args, emoji_name: &str) -> Option<Emoji> {
     })
 }
 
-pub fn custom_emoji_code(args: &Args, emoji_name: &str, fallback: char) -> String {
-    match find_custom_emoji(args, emoji_name) {
+pub async fn custom_emoji_code(args: &Args<'_>, emoji_name: &str, fallback: char) -> String {
+    match find_custom_emoji(args, emoji_name).await {
         Some(emoji) => emoji.to_string(),
         None => fallback.to_string(),
     }
 }
 
 // React with a custom emoji from the guild, or fallback to a default Unicode emoji
-pub fn react_custom_emoji(args: &Args, emoji_name: &str, fallback: char) -> Result<(), Error> {
+pub async fn react_custom_emoji(
+    args: &Args<'_>,
+    emoji_name: &str,
+    fallback: char,
+) -> Result<(), Error> {
     let reaction = find_custom_emoji(args, emoji_name)
+        .await
         .map(ReactionType::from)
         .unwrap_or_else(|| ReactionType::from(fallback));
 
-    args.msg.react(&args.cx.http, reaction)?;
+    args.msg.react(&args.cx.http, reaction).await?;
     Ok(())
 }
 
@@ -282,41 +301,48 @@ struct Events {
     cmds: Commands,
 }
 
+#[async_trait::async_trait]
 impl EventHandler for Events {
-    fn ready(&self, cx: Context, ready: Ready) {
+    async fn ready(&self, cx: Context, ready: Ready) {
         info!("{} connected to discord", ready.user.name);
         {
-            let mut data = cx.data.write();
+            let mut data = cx.data.write().await;
             data.insert::<command_history::CommandHistory>(indexmap::IndexMap::new());
             data.insert::<BotUserId>(ready.user.id);
         }
 
-        std::thread::spawn(move || -> Result<(), Error> {
+        tokio::spawn(async move {
             loop {
-                command_history::clear_command_history(&cx)?;
-                std::thread::sleep(std::time::Duration::from_secs(3600));
+                command_history::clear_command_history(&cx).await;
+                tokio::time::sleep(std::time::Duration::from_secs(3600)).await;
             }
         });
     }
 
-    fn message(&self, cx: Context, message: Message) {
-        self.cmds.execute(&cx, &message);
+    async fn message(&self, cx: Context, message: Message) {
+        self.cmds.execute(&cx, &message).await;
     }
 
-    fn message_update(
+    async fn message_update(
         &self,
         cx: Context,
         _: Option<Message>,
         _: Option<Message>,
         ev: MessageUpdateEvent,
     ) {
-        if let Err(e) = command_history::replay_message(cx, ev, &self.cmds) {
+        if let Err(e) = command_history::replay_message(cx, ev, &self.cmds).await {
             error!("{}", e);
         }
     }
 
-    fn message_delete(&self, cx: Context, channel_id: ChannelId, message_id: MessageId) {
-        let mut data = cx.data.write();
+    async fn message_delete(
+        &self,
+        cx: Context,
+        channel_id: ChannelId,
+        message_id: MessageId,
+        _guild_id: Option<GuildId>,
+    ) {
+        let mut data = cx.data.write().await;
         let history = data.get_mut::<command_history::CommandHistory>().unwrap();
         if let Some(response_id) = history.remove(&message_id) {
             info!("deleting message: {:?}", response_id);

@@ -115,7 +115,7 @@ struct PlayResult {
 }
 
 /// Returns a gist ID
-fn post_gist(args: &Args, code: &str) -> Result<String, Error> {
+async fn post_gist(args: &Args<'_>, code: &str) -> Result<String, Error> {
     let mut payload = HashMap::new();
     payload.insert("code", code);
 
@@ -124,9 +124,10 @@ fn post_gist(args: &Args, code: &str) -> Result<String, Error> {
         .post("https://play.rust-lang.org/meta/gist/")
         .header(header::REFERER, "https://discord.gg/rust-lang")
         .json(&payload)
-        .send()?;
+        .send()
+        .await?;
 
-    let mut resp: HashMap<String, String> = resp.json()?;
+    let mut resp: HashMap<String, String> = resp.json().await?;
     info!("gist response: {:?}", resp);
 
     let gist_id = resp.remove("id").ok_or("no gist found")?;
@@ -208,7 +209,7 @@ fn parse_flags(args: &Args) -> (CommandFlags, String) {
     (flags, errors)
 }
 
-fn generic_help(args: &Args, cmd: &str, desc: &str, full: bool) -> Result<(), Error> {
+async fn generic_help(args: &Args<'_>, cmd: &str, desc: &str, full: bool) -> Result<(), Error> {
     let mut reply = format!(
         "{}. All code is executed on https://play.rust-lang.org.\n",
         desc
@@ -227,7 +228,7 @@ fn generic_help(args: &Args, cmd: &str, desc: &str, full: bool) -> Result<(), Er
     }
     reply += "    \tedition: 2015, 2018 (default: 2018)\n";
 
-    api::send_reply(args, &reply)
+    api::send_reply(args, &reply).await
 }
 
 /// Strip the input according to a list of start tokens and end tokens. Everything after the start
@@ -336,7 +337,7 @@ fn maybe_wrap(code: &str, result_handling: ResultHandling) -> Cow<'_, str> {
 }
 
 /// Send a Discord reply with the formatted contents of a Playground result
-fn send_reply(
+async fn send_reply(
     args: &Args<'_>,
     result: PlayResult,
     code: &str,
@@ -352,7 +353,7 @@ fn send_reply(
     };
 
     if result.trim().is_empty() {
-        api::send_reply(args, &format!("{}``` ```", flag_parse_errors))
+        api::send_reply(args, &format!("{}``` ```", flag_parse_errors)).await
     } else {
         crate::reply_potentially_long_text(
             args,
@@ -360,9 +361,10 @@ fn send_reply(
             "```",
             &format!(
                 "Output too large. Playground link: {}",
-                url_from_gist(&flags, &post_gist(args, code)?),
+                url_from_gist(&flags, &post_gist(args, code).await?),
             ),
         )
+        .await
     }
 }
 
@@ -413,7 +415,7 @@ fn strip_fn_main_boilerplate_from_formatted(text: &str) -> String {
 // ================================
 
 // play and eval work similarly, so this function abstracts over the two
-fn play_or_eval(args: &Args, result_handling: ResultHandling) -> Result<(), Error> {
+async fn play_or_eval(args: &Args<'_>, result_handling: ResultHandling) -> Result<(), Error> {
     let code = maybe_wrap(crate::extract_code(args.body)?, result_handling);
     let (flags, flag_parse_errors) = parse_flags(args);
 
@@ -432,8 +434,10 @@ fn play_or_eval(args: &Args, result_handling: ResultHandling) -> Result<(), Erro
             mode: flags.mode,
             tests: false,
         })
-        .send()?
-        .json()?;
+        .send()
+        .await?
+        .json()
+        .await?;
 
     let compiler_warnings = extract_relevant_lines(
         &result.stderr,
@@ -457,22 +461,22 @@ fn play_or_eval(args: &Args, result_handling: ResultHandling) -> Result<(), Erro
         (warnings, stderr) => format!("{}\n{}", warnings, stderr),
     };
 
-    send_reply(args, result, &code, &flags, &flag_parse_errors)
+    send_reply(args, result, &code, &flags, &flag_parse_errors).await
 }
 
-pub fn play(args: &Args) -> Result<(), Error> {
-    play_or_eval(args, ResultHandling::None)
+pub async fn play(args: &Args<'_>) -> Result<(), Error> {
+    play_or_eval(args, ResultHandling::None).await
 }
 
-pub fn eval(args: &Args) -> Result<(), Error> {
-    play_or_eval(args, ResultHandling::Print)
+pub async fn eval(args: &Args<'_>) -> Result<(), Error> {
+    play_or_eval(args, ResultHandling::Print).await
 }
 
-pub fn play_and_eval_help(args: &Args, name: &str) -> Result<(), Error> {
-    generic_help(args, name, "Compile and run Rust code", true)
+pub async fn play_and_eval_help(args: &Args<'_>, name: &str) -> Result<(), Error> {
+    generic_help(args, name, "Compile and run Rust code", true).await
 }
 
-pub fn miri(args: &Args) -> Result<(), Error> {
+pub async fn miri(args: &Args<'_>) -> Result<(), Error> {
     let code = &maybe_wrap(crate::extract_code(args.body)?, ResultHandling::Discard);
     let (flags, flag_parse_errors) = parse_flags(args);
 
@@ -483,8 +487,10 @@ pub fn miri(args: &Args) -> Result<(), Error> {
             code,
             edition: flags.edition,
         })
-        .send()?
-        .json()?;
+        .send()
+        .await?
+        .json()
+        .await?;
 
     result.stderr = extract_relevant_lines(
         &result.stderr,
@@ -493,15 +499,15 @@ pub fn miri(args: &Args) -> Result<(), Error> {
     )
     .to_owned();
 
-    send_reply(args, result, code, &flags, &flag_parse_errors)
+    send_reply(args, result, code, &flags, &flag_parse_errors).await
 }
 
-pub fn miri_help(args: &Args) -> Result<(), Error> {
+pub async fn miri_help(args: &Args<'_>) -> Result<(), Error> {
     let desc = "Execute this program in the Miri interpreter to detect certain cases of undefined behavior (like out-of-bounds memory access)";
-    generic_help(args, "miri", desc, false)
+    generic_help(args, "miri", desc, false).await
 }
 
-pub fn expand_macros(args: &Args) -> Result<(), Error> {
+pub async fn expand_macros(args: &Args<'_>) -> Result<(), Error> {
     let code = maybe_wrap(crate::extract_code(args.body)?, ResultHandling::None);
     let was_fn_main_wrapped = matches!(code, Cow::Owned(_));
     let (flags, flag_parse_errors) = parse_flags(args);
@@ -513,8 +519,10 @@ pub fn expand_macros(args: &Args) -> Result<(), Error> {
             code: &code,
             edition: flags.edition,
         })
-        .send()?
-        .json()?;
+        .send()
+        .await?
+        .json()
+        .await?;
 
     result.stderr = extract_relevant_lines(
         &result.stderr,
@@ -534,15 +542,15 @@ pub fn expand_macros(args: &Args) -> Result<(), Error> {
         result.stdout = strip_fn_main_boilerplate_from_formatted(&result.stdout);
     }
 
-    send_reply(args, result, &code, &flags, &flag_parse_errors)
+    send_reply(args, result, &code, &flags, &flag_parse_errors).await
 }
 
-pub fn expand_macros_help(args: &Args) -> Result<(), Error> {
+pub async fn expand_macros_help(args: &Args<'_>) -> Result<(), Error> {
     let desc = "Expand macros to their raw desugared form";
-    generic_help(args, "expand", desc, false)
+    generic_help(args, "expand", desc, false).await
 }
 
-pub fn clippy(args: &Args) -> Result<(), Error> {
+pub async fn clippy(args: &Args<'_>) -> Result<(), Error> {
     let code = &maybe_wrap(crate::extract_code(args.body)?, ResultHandling::Discard);
     let (flags, flag_parse_errors) = parse_flags(args);
 
@@ -558,8 +566,10 @@ pub fn clippy(args: &Args) -> Result<(), Error> {
                 CrateType::Library
             },
         })
-        .send()?
-        .json()?;
+        .send()
+        .await?
+        .json()
+        .await?;
 
     result.stderr = extract_relevant_lines(
         &result.stderr,
@@ -573,15 +583,15 @@ pub fn clippy(args: &Args) -> Result<(), Error> {
     )
     .to_owned();
 
-    send_reply(args, result, code, &flags, &flag_parse_errors)
+    send_reply(args, result, code, &flags, &flag_parse_errors).await
 }
 
-pub fn clippy_help(args: &Args) -> Result<(), Error> {
+pub async fn clippy_help(args: &Args<'_>) -> Result<(), Error> {
     let desc = "Catch common mistakes and improve the code using the Clippy linter";
-    generic_help(args, "clippy", desc, false)
+    generic_help(args, "clippy", desc, false).await
 }
 
-pub fn fmt(args: &Args) -> Result<(), Error> {
+pub async fn fmt(args: &Args<'_>) -> Result<(), Error> {
     let code = &maybe_wrap(crate::extract_code(args.body)?, ResultHandling::None);
     let was_fn_main_wrapped = matches!(code, Cow::Owned(_));
     let (flags, flag_parse_errors) = parse_flags(args);
@@ -591,10 +601,10 @@ pub fn fmt(args: &Args) -> Result<(), Error> {
         result.stdout = strip_fn_main_boilerplate_from_formatted(&result.stdout);
     }
 
-    send_reply(args, result, code, &flags, &flag_parse_errors)
+    send_reply(args, result, code, &flags, &flag_parse_errors).await
 }
 
-pub fn fmt_help(args: &Args) -> Result<(), Error> {
+pub async fn fmt_help(args: &Args<'_>) -> Result<(), Error> {
     let desc = "Format code using rustfmt";
-    generic_help(args, "fmt", desc, false)
+    generic_help(args, "fmt", desc, false).await
 }

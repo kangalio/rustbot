@@ -35,8 +35,8 @@ struct GodboltResponse {
 /// Compile a given Rust source code file on Godbolt using the latest nightly compiler with
 /// full optimizations (-O3)
 /// Returns a multiline string with the pretty printed assembly
-fn compile_rust_source(
-    http: &reqwest::blocking::Client,
+async fn compile_rust_source(
+    http: &reqwest::Client,
     source_code: &str,
 ) -> Result<Compilation, crate::Error> {
     let response: GodboltResponse = http
@@ -46,8 +46,10 @@ fn compile_rust_source(
                 .header(reqwest::header::ACCEPT, "application/json")
                 .body(source_code.to_owned())
                 .build()?,
-        )?
-        .json()?;
+        )
+        .await?
+        .json()
+        .await?;
 
     // TODO: use the extract_relevant_lines utility to strip stderr nicely
     Ok(if response.code == 0 {
@@ -62,23 +64,25 @@ fn compile_rust_source(
     })
 }
 
-pub fn godbolt(args: &crate::Args) -> Result<(), crate::Error> {
-    let (lang, text) = match compile_rust_source(args.http, crate::extract_code(&args.body)?)? {
-        Compilation::Success { asm, stderr } => ("x86asm", format!("{}\n{}", stderr, asm)),
-        Compilation::Error { stderr } => ("rust", stderr),
-    };
+pub async fn godbolt(args: &crate::Args<'_>) -> Result<(), crate::Error> {
+    let (lang, text) =
+        match compile_rust_source(args.http, crate::extract_code(&args.body)?).await? {
+            Compilation::Success { asm, stderr } => ("x86asm", format!("{}\n{}", stderr, asm)),
+            Compilation::Error { stderr } => ("rust", stderr),
+        };
 
     crate::reply_potentially_long_text(
         args,
         &format!("```{}\n{}", lang, text),
         "\n```",
         "Note: the output was truncated",
-    )?;
+    )
+    .await?;
 
     Ok(())
 }
 
-pub fn help(args: &crate::Args) -> Result<(), crate::Error> {
+pub async fn help(args: &crate::Args<'_>) -> Result<(), crate::Error> {
     crate::api::send_reply(
         args,
         "Compile Rust code using https://rust.godbolt.org. Full optimizations are applied.
@@ -88,4 +92,5 @@ pub fn your_function() {
 }
 ``\u{200B}` ```",
     )
+    .await
 }

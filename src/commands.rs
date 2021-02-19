@@ -1,7 +1,8 @@
 use crate::Error;
-use reqwest::blocking::Client as HttpClient;
+use reqwest::Client as HttpClient;
 use serenity::{model::prelude::*, prelude::*};
 use std::collections::HashMap;
+use std::{future::Future, pin::Pin};
 
 pub const PREFIXES: &[&str] = &[
     "?",
@@ -21,10 +22,28 @@ pub const PREFIXES: &[&str] = &[
 
 pub enum CommandHandler {
     Help,
+    #[allow(clippy::type_complexity)] // Thank async for that. Before async this type was beaufiul
     Custom {
-        action: Box<dyn Fn(&Args<'_>) -> Result<(), Error> + Send + Sync>,
+        // Just look at these god ugly types. Thanks async
+        action: Box<
+            dyn for<'a> Fn(
+                    &'a Args<'a>,
+                )
+                    -> Pin<Box<dyn Future<Output = Result<(), Error>> + Send + 'a>>
+                + Send
+                + Sync
+                + 'static,
+        >,
         /// Multiline description of the command to display for the command-specific help command
-        help: Box<dyn Fn(&Args<'_>) -> Result<(), Error> + Send + Sync>,
+        help: Box<
+            dyn for<'a> Fn(
+                    &'a Args<'a>,
+                )
+                    -> Pin<Box<dyn Future<Output = Result<(), Error>> + Send + 'a>>
+                + Send
+                + Sync
+                + 'static,
+        >,
     },
 }
 
@@ -64,12 +83,21 @@ impl Commands {
         }
     }
 
+    // God damn this shit why is the ecosystem forcing everyone to switch to async when you have
+    // have to jump through stupid hoops like this when using async for literally no benefit in
+    // Discord bots
     pub fn add(
         &mut self,
         command: &'static str,
-        handler: impl Fn(&Args) -> Result<(), Error> + Send + Sync + 'static,
+        handler: impl for<'a> Fn(&'a Args<'a>) -> Pin<Box<dyn Future<Output = Result<(), Error>> + Send + 'a>>
+            + Send
+            + Sync
+            + 'static,
         inline_help: &'static str,
-        long_help: impl Fn(&Args) -> Result<(), Error> + Send + Sync + 'static,
+        long_help: impl for<'a> Fn(&'a Args<'a>) -> Pin<Box<dyn Future<Output = Result<(), Error>> + Send + 'a>>
+            + Send
+            + Sync
+            + 'static,
     ) -> &mut Command {
         self.commands.push(Command {
             name: command,
@@ -84,7 +112,7 @@ impl Commands {
         self.commands.last_mut().unwrap()
     }
 
-    pub fn help_menu(&self, args: &Args) -> Result<(), Error> {
+    pub async fn help_menu(&self, args: &Args<'_>) -> Result<(), Error> {
         if args.body.is_empty() {
             let mut menu = "```\nCommands:\n".to_owned();
             for command in &self.commands {
@@ -94,14 +122,18 @@ impl Commands {
             menu += "\nYou can edit your message to the bot and the bot will edit its response.";
             menu += "\n```";
 
-            crate::api::send_reply(args, &menu)
+            crate::api::send_reply(args, &menu).await
         } else {
             match self.find_command(&args.body) {
                 Some(cmd) => match &cmd.handler {
-                    CommandHandler::Help => crate::api::send_reply(args, "Are you beyond help?"),
-                    CommandHandler::Custom { help, .. } => (help)(args),
+                    CommandHandler::Help => {
+                        crate::api::send_reply(args, "Are you beyond help?").await
+                    }
+                    CommandHandler::Custom { help, .. } => (help)(args).await,
                 },
-                None => crate::api::send_reply(args, &format!("No such command `{}`", args.body)),
+                None => {
+                    crate::api::send_reply(args, &format!("No such command `{}`", args.body)).await
+                }
             }
         }
     }
@@ -117,7 +149,7 @@ impl Commands {
         })
     }
 
-    pub fn execute(&self, cx: &Context, serenity_msg: &Message) {
+    pub async fn execute(&self, cx: &Context, serenity_msg: &Message) {
         // find the first matching prefix and strip it
         let msg = match PREFIXES
             .iter()
@@ -165,18 +197,18 @@ impl Commands {
         };
 
         if command.broadcast_typing {
-            if let Err(e) = serenity_msg.channel_id.broadcast_typing(&cx.http) {
+            if let Err(e) = serenity_msg.channel_id.broadcast_typing(&cx.http).await {
                 warn!("Can't broadcast typing: {}", e);
             }
         }
 
         let command_execution_result = match &command.handler {
-            CommandHandler::Help => self.help_menu(&args),
-            CommandHandler::Custom { action, .. } => (action)(&args),
+            CommandHandler::Help => self.help_menu(&args).await,
+            CommandHandler::Custom { action, .. } => (action)(&args).await,
         };
         if let Err(e) = command_execution_result {
             error!("Error when executing command {}: {}", command.name, e);
-            if let Err(e) = crate::api::send_reply(&args, &e.to_string()) {
+            if let Err(e) = crate::api::send_reply(&args, &e.to_string()).await {
                 error!("{}", e)
             }
         }

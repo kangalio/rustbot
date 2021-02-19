@@ -8,7 +8,11 @@ impl TypeMapKey for CommandHistory {
     type Value = IndexMap<MessageId, MessageId>;
 }
 
-pub fn replay_message(cx: Context, ev: MessageUpdateEvent, cmds: &Commands) -> Result<(), Error> {
+pub async fn replay_message(
+    cx: Context,
+    ev: MessageUpdateEvent,
+    cmds: &Commands,
+) -> Result<(), Error> {
     if let (Some(created), Some(edited)) = (ev.timestamp, ev.edited_timestamp) {
         // Only track edits for recent messages
         if (edited - created).num_minutes() < 60 {
@@ -16,15 +20,15 @@ pub fn replay_message(cx: Context, ev: MessageUpdateEvent, cmds: &Commands) -> R
             msg.id(ev.id)
                 .channel_id(ev.channel_id)
                 .content(ev.content.unwrap_or_else(String::new));
-            cmds.execute(&cx, &msg.build());
+            cmds.execute(&cx, &msg.build()).await;
         }
     }
 
     Ok(())
 }
 
-pub fn clear_command_history(cx: &Context) -> Result<(), Error> {
-    let mut data = cx.data.write();
+pub async fn clear_command_history(cx: &Context) {
+    let mut data = cx.data.write().await;
     let history = data.get_mut::<CommandHistory>().unwrap();
 
     // always keep the last command in history
@@ -32,5 +36,4 @@ pub fn clear_command_history(cx: &Context) -> Result<(), Error> {
         info!("Clearing command history");
         history.drain(..history.len() - 1);
     }
-    Ok(())
 }
