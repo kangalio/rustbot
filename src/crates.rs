@@ -16,8 +16,7 @@ struct Crate {
     newest_version: String,
     updated_at: String,
     downloads: u64,
-    #[serde(default)]
-    description: String,
+    description: Option<String>,
     documentation: Option<String>,
     exact_match: bool,
 }
@@ -48,7 +47,12 @@ pub fn search(args: &Args) -> Result<(), Error> {
                     m.embed(|e| {
                         e.title(&crate_.name)
                             .url(format!("https://crates.io/crates/{}", crate_.id))
-                            .description(&crate_.description)
+                            .description(
+                                &crate_
+                                    .description
+                                    .as_deref()
+                                    .unwrap_or("_<no description available>_"),
+                            )
                             .field("Version", &crate_.newest_version, true)
                             .field("Downloads", &crate_.downloads, true)
                             .timestamp(crate_.updated_at.as_str())
