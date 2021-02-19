@@ -10,7 +10,7 @@ mod moderation;
 mod playground;
 
 use commands::{Args, Commands};
-use serenity::{model::prelude::*, prelude::*};
+use serenity::{client::bridge::gateway::GatewayIntents, model::prelude::*, prelude::*};
 
 pub type Error = Box<dyn std::error::Error + Send + Sync>;
 
@@ -143,6 +143,7 @@ async fn app() -> Result<(), Error> {
     );
 
     Client::builder(&discord_token)
+        .intents(GatewayIntents::all()) // Quick and easy solution. It won't hurt, right..?
         .event_handler(Events { cmds })
         .await?
         .start()
