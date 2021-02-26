@@ -126,7 +126,7 @@ fn app() -> Result<(), Error> {
 
     cmds.add(
         "source",
-        |args| api::send_reply(args, "https://github.com/kangalioo/discord-mods-bot"),
+        |args| api::send_reply(args, "https://github.com/kangalioo/rustbot"),
         "Links to the bot GitHub repo",
         |args| api::send_reply(args, "?source\n\nLinks to the bot GitHub repo"),
     );
