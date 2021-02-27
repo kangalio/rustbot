@@ -38,13 +38,14 @@ fn app() -> Result<(), Error> {
     )
     .broadcast_typing = true;
 
-    cmds.add(
+    let mut docs_cmd = cmds.add(
         "docs",
         crates::doc_search,
         "Lookup documentation",
         crates::doc_help,
-    )
-    .broadcast_typing = true;
+    );
+    docs_cmd.broadcast_typing = true;
+    docs_cmd.aliases = &["doc"];
 
     cmds.add(
         "play",
