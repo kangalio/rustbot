@@ -174,7 +174,8 @@ struct CommandFlags {
     edition: Edition,
 }
 
-/// Returns the parsed flags and a String of parse errors
+/// Returns the parsed flags and a String of parse errors. The parse error string will have a
+/// trailing newline (except if empty)
 fn parse_flags(args: &Args) -> (CommandFlags, String) {
     let mut errors = String::new();
 
@@ -208,16 +209,23 @@ fn parse_flags(args: &Args) -> (CommandFlags, String) {
     (flags, errors)
 }
 
-fn generic_help(args: &Args, cmd: &str, desc: &str, full: bool) -> Result<(), Error> {
+fn generic_help(
+    args: &Args,
+    cmd: &str,
+    desc: &str,
+    full: bool,
+    example_code: &str,
+) -> Result<(), Error> {
     let mut reply = format!(
         "{}. All code is executed on https://play.rust-lang.org.\n",
         desc
     );
 
     reply += &format!(
-        "```?{} {}edition={{}} ``\u{200B}`code``\u{200B}` ```\n",
+        "```?{} {}edition={{}} ``\u{200B}`{}``\u{200B}` ```\n",
         cmd,
         if full { "mode={} channel={} " } else { "" },
+        example_code,
     );
 
     reply += "Optional arguments:\n";
@@ -236,6 +244,8 @@ fn generic_help(args: &Args, cmd: &str, desc: &str, full: bool) -> Result<(), Er
 ///
 /// If multiple potential tokens could be used as a stripping point, this function will make the
 /// stripped output as compact as possible and choose from the matching tokens accordingly.
+// Note to self: don't use "Finished dev" as a parameter to this, because that will break in release
+// compilation mode
 fn extract_relevant_lines<'a>(
     mut stderr: &'a str,
     strip_start_tokens: &[&str],
@@ -442,7 +452,7 @@ fn play_or_eval(args: &Args, result_handling: ResultHandling) -> Result<(), Erro
             "warning emitted",
             "warnings emitted",
             "error: aborting",
-            "Finished dev",
+            "Finished ",
         ],
     );
     let program_stderr = match result.stderr.contains("Running `target") {
@@ -469,7 +479,7 @@ pub fn eval(args: &Args) -> Result<(), Error> {
 }
 
 pub fn play_and_eval_help(args: &Args, name: &str) -> Result<(), Error> {
-    generic_help(args, name, "Compile and run Rust code", true)
+    generic_help(args, name, "Compile and run Rust code", true, "code")
 }
 
 pub fn miri(args: &Args) -> Result<(), Error> {
@@ -498,7 +508,7 @@ pub fn miri(args: &Args) -> Result<(), Error> {
 
 pub fn miri_help(args: &Args) -> Result<(), Error> {
     let desc = "Execute this program in the Miri interpreter to detect certain cases of undefined behavior (like out-of-bounds memory access)";
-    generic_help(args, "miri", desc, false)
+    generic_help(args, "miri", desc, false, "code")
 }
 
 pub fn expand_macros(args: &Args) -> Result<(), Error> {
@@ -518,7 +528,7 @@ pub fn expand_macros(args: &Args) -> Result<(), Error> {
 
     result.stderr = extract_relevant_lines(
         &result.stderr,
-        &["Finished dev", "Compiling playground"],
+        &["Finished ", "Compiling playground"],
         &["error: aborting"],
     )
     .to_owned();
@@ -539,7 +549,7 @@ pub fn expand_macros(args: &Args) -> Result<(), Error> {
 
 pub fn expand_macros_help(args: &Args) -> Result<(), Error> {
     let desc = "Expand macros to their raw desugared form";
-    generic_help(args, "expand", desc, false)
+    generic_help(args, "expand", desc, false, "code")
 }
 
 pub fn clippy(args: &Args) -> Result<(), Error> {
@@ -568,7 +578,7 @@ pub fn clippy(args: &Args) -> Result<(), Error> {
             "error: aborting",
             "1 warning emitted",
             "warnings emitted",
-            "Finished dev",
+            "Finished ",
         ],
     )
     .to_owned();
@@ -578,7 +588,7 @@ pub fn clippy(args: &Args) -> Result<(), Error> {
 
 pub fn clippy_help(args: &Args) -> Result<(), Error> {
     let desc = "Catch common mistakes and improve the code using the Clippy linter";
-    generic_help(args, "clippy", desc, false)
+    generic_help(args, "clippy", desc, false, "code")
 }
 
 pub fn fmt(args: &Args) -> Result<(), Error> {
@@ -596,5 +606,121 @@ pub fn fmt(args: &Args) -> Result<(), Error> {
 
 pub fn fmt_help(args: &Args) -> Result<(), Error> {
     let desc = "Format code using rustfmt";
-    generic_help(args, "fmt", desc, false)
+    generic_help(args, "fmt", desc, false, "code")
+}
+
+pub fn micro_bench(args: &Args) -> Result<(), Error> {
+    let mut code =
+        // convenience import for users
+        "#![feature(test)] #[allow(unused_imports)] use std::hint::black_box;\n".to_owned();
+
+    let user_input = crate::extract_code(args.body)?;
+    let black_box_hint = !user_input.contains("black_box");
+    code += user_input;
+    code += "\n";
+
+    code += r#"#[inline(always)]
+fn bench(name: &str, f: impl Fn()) {
+    const CHUNK_SIZE: usize = 10000;
+
+    let start = std::time::Instant::now();
+    let mut chunk_times = Vec::new();
+    while (std::time::Instant::now() - start).as_secs() == 0 {
+        let start = std::time::Instant::now();
+        for _ in 0..CHUNK_SIZE {
+            f();
+        }
+        chunk_times.push((std::time::Instant::now() - start).as_secs_f64() / CHUNK_SIZE as f64);
+    }
+
+    let mean_time: f64 = chunk_times.iter().sum::<f64>() / chunk_times.len() as f64;
+    let deviation: f64 = chunk_times
+        .iter()
+        .map(|time| (time - mean_time).abs())
+        .sum::<f64>()
+        / chunk_times.len() as f64;
+
+    println!(
+        "{}: {:.0} iters per second ({:.1}ns±{:.1})",
+        name,
+        1.0 / mean_time,
+        mean_time * 1_000_000_000.0,
+        deviation * 1_000_000_000.0,
+    );
+}
+
+fn main() {
+"#;
+
+    let pub_fn_indices = user_input.match_indices("pub fn ");
+    if pub_fn_indices.clone().count() == 0 {
+        return api::send_reply(
+            args,
+            "No public functions found for benchmarking :thinking:",
+        );
+    }
+
+    for (index, _) in pub_fn_indices {
+        let function_name_start = index + "pub fn ".len();
+        let function_name_end = match user_input[function_name_start..].find('(') {
+            Some(x) => x + function_name_start,
+            None => continue,
+        };
+        let function_name = user_input[function_name_start..function_name_end].trim();
+
+        code += &format!("    bench(\"{0}\", {0});\n", function_name);
+    }
+    code += "}\n";
+
+    let (flags, mut flag_parse_errors) = parse_flags(args);
+    let mut result: PlayResult = args
+        .http
+        .post("https://play.rust-lang.org/execute")
+        .json(&PlaygroundRequest {
+            code: &code,
+            channel: Channel::Nightly, // has to be, for black_box
+            crate_type: if code.contains("fn main") {
+                CrateType::Binary
+            } else {
+                CrateType::Library
+            },
+            edition: flags.edition,
+            mode: Mode::Release, // benchmarks on debug don't make sense
+            tests: false,
+        })
+        .send()?
+        .json()?;
+
+    // This will discard program stderr, which is intended
+    result.stderr = extract_relevant_lines(
+        &result.stderr,
+        &["Compiling playground"],
+        &[
+            "warning emitted",
+            "warnings emitted",
+            "error: aborting",
+            "Finished ",
+        ],
+    )
+    .to_owned();
+
+    if black_box_hint {
+        flag_parse_errors +=
+            "Hint: use the black_box function to prevent computations from being optimized out\n";
+    }
+    send_reply(args, result, &code, &flags, &flag_parse_errors)
+}
+
+pub fn micro_bench_help(args: &Args) -> Result<(), Error> {
+    let desc = "Benchmark small snippets of code by running them repeatedly";
+    generic_help(
+        args,
+        "microbench",
+        desc,
+        false,
+        "
+pub fn snippet_a() { /* code */ }
+pub fn snippet_b() { /* code */ }
+",
+    )
 }

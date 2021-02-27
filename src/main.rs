@@ -96,6 +96,14 @@ fn app() -> Result<(), Error> {
     .broadcast_typing = true;
 
     cmds.add(
+        "microbench",
+        playground::micro_bench,
+        "Benchmark small snippets of code",
+        playground::micro_bench_help,
+    )
+    .broadcast_typing = true;
+
+    cmds.add(
         "go",
         |args| api::send_reply(args, "No"),
         "Evaluates Go code",
