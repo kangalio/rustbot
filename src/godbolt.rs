@@ -42,7 +42,7 @@ fn compile_rust_source(
     let response: GodboltResponse = http
         .execute(
             http.post("https://godbolt.org/api/compiler/nightly/compile")
-                .query(&[("options", "-Copt-level=3")])
+                .query(&[("options", "-Copt-level=3", "--edition=2018")])
                 .header(reqwest::header::ACCEPT, "application/json")
                 .body(source_code.to_owned())
                 .build()?,
