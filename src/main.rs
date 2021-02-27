@@ -1,18 +1,39 @@
+#![allow(unused)] // temporary
+
 #[macro_use]
 extern crate log;
 
 mod api;
 mod command_history;
-mod commands;
 mod crates;
 mod godbolt;
 mod moderation;
 mod playground;
 
-use commands::{Args, Commands};
-use serenity::{client::bridge::gateway::GatewayIntents, model::prelude::*, prelude::*};
+use api::send_reply;
+use serenity::{
+    client::bridge::gateway::GatewayIntents, futures::lock::Mutex, model::prelude::*, prelude::*,
+};
+use serenity_framework::prelude::*;
 
 pub type Error = Box<dyn std::error::Error + Send + Sync>;
+pub type Context = FrameworkContext<Data>;
+
+const PREFIXES: &[&str] = &[
+    "?",
+    "🦀 ",
+    "🦀",
+    "<:ferris:358652670585733120> ",
+    "<:ferris:358652670585733120>",
+    "hey ferris can you please ",
+    "hey ferris, can you please ",
+    "hey fewwis can you please ",
+    "hey fewwis, can you please ",
+    "hey ferris can you ",
+    "hey ferris, can you ",
+    "hey fewwis can you ",
+    "hey fewwis, can you ",
+];
 
 #[derive(serde::Deserialize)]
 struct Config {
@@ -20,20 +41,27 @@ struct Config {
     mod_role_id: u64,
 }
 
+/// Data is accessible to every command function
+pub struct Data {
+    bot_user_id: Mutex<UserId>,
+    mod_role_id: RoleId,
+    reqwest: reqwest::Client,
+    command_history: Mutex<indexmap::IndexMap<MessageId, MessageId>>,
+}
+
 #[tokio::main]
-async fn app() -> Result<(), Error> {
+async fn main() -> Result<(), Error> {
+    env_logger::init();
     let Config {
         discord_token,
         mod_role_id,
     } = envy::from_env::<Config>()?;
 
-    info!("starting...");
-
-    let mut cmds = Commands::new();
+    /*let mut cmds = Commands::new();
 
     cmds.add(
         "crate",
-        |args| Box::pin(crates::search(args)),
+        |args| Box::pin(crates::crate_(args)),
         "Lookup crates on crates.io",
         |args| Box::pin(crates::help(args)),
     )
@@ -140,11 +168,41 @@ async fn app() -> Result<(), Error> {
                 "?source\n\nLinks to the bot GitHub repo",
             ))
         },
-    );
+    );*/
+
+    // can't use struct expression because non_exhaustive
+    let mut framework = Configuration::<Data>::default();
+    framework.prefixes = PREFIXES.iter().map(|&p| p.to_owned()).collect();
+    framework.case_insensitive = true;
+
+    for &cmd in &[
+        moderation::ban,
+        moderation::cleanup,
+        crates::crate_,
+        crates::docs,
+        playground::play,
+        playground::eval,
+        playground::miri,
+        playground::expand_macros,
+        playground::clippy,
+        playground::fmt,
+    ] {
+        framework.command(cmd);
+    }
 
     Client::builder(&discord_token)
         .intents(GatewayIntents::all()) // Quick and easy solution. It won't hurt, right..?
-        .event_handler(Events { cmds })
+        .event_handler(Events {
+            framework: serenity_framework::Framework::with_data(
+                framework,
+                Data {
+                    reqwest: reqwest::Client::new(),
+                    bot_user_id: Mutex::new(UserId(0)),
+                    mod_role_id: RoleId(mod_role_id),
+                    command_history: Default::default(),
+                },
+            ),
+        })
         .await?
         .start()
         .await?;
@@ -170,7 +228,8 @@ async fn app() -> Result<(), Error> {
 /// )
 /// ```
 async fn reply_potentially_long_text(
-    args: &Args<'_>,
+    ctx: &Context,
+    msg: &Message,
     text_body: &str,
     text_end: &str,
     truncation_msg: &str,
@@ -178,7 +237,7 @@ async fn reply_potentially_long_text(
     const MAX_OUTPUT_LINES: usize = 45;
 
     // check the 2000 char limit first, because otherwise we could produce a too large message
-    let msg = if text_body.len() + text_end.len() > 2000 {
+    let response = if text_body.len() + text_end.len() > 2000 {
         // This is how long the text body may be at max to conform to Discord's limit
         let available_space = 2000 - text_end.len() - truncation_msg.len();
 
@@ -208,7 +267,7 @@ async fn reply_potentially_long_text(
         format!("{}{}", text_body, text_end)
     };
 
-    api::send_reply(args, &msg).await
+    api::send_reply(ctx, msg, &response).await
 }
 
 /// Extract code from a Discord code block on a best-effort basis
@@ -251,18 +310,16 @@ code here
     )?)
 }
 
-pub async fn find_custom_emoji(args: &Args<'_>, emoji_name: &str) -> Option<Emoji> {
-    args.msg.guild(&args.cx.cache).await.and_then(|guild| {
-        guild
-            .emojis
-            .values()
-            .find(|emoji| emoji.name.eq_ignore_ascii_case(emoji_name))
-            .cloned()
-    })
+pub fn find_custom_emoji(guild: Option<Guild>, emoji_name: &str) -> Option<Emoji> {
+    guild?
+        .emojis
+        .values()
+        .find(|emoji| emoji.name.eq_ignore_ascii_case(emoji_name))
+        .cloned()
 }
 
-pub async fn custom_emoji_code(args: &Args<'_>, emoji_name: &str, fallback: char) -> String {
-    match find_custom_emoji(args, emoji_name).await {
+pub fn custom_emoji_code(guild: Option<Guild>, emoji_name: &str, fallback: char) -> String {
+    match find_custom_emoji(guild, emoji_name) {
         Some(emoji) => emoji.to_string(),
         None => fallback.to_string(),
     }
@@ -270,26 +327,17 @@ pub async fn custom_emoji_code(args: &Args<'_>, emoji_name: &str, fallback: char
 
 // React with a custom emoji from the guild, or fallback to a default Unicode emoji
 pub async fn react_custom_emoji(
-    args: &Args<'_>,
+    ctx: &Context,
+    msg: &Message,
     emoji_name: &str,
     fallback: char,
 ) -> Result<(), Error> {
-    let reaction = find_custom_emoji(args, emoji_name)
-        .await
+    let reaction = find_custom_emoji(msg.guild(&ctx.serenity_ctx.cache).await, emoji_name)
         .map(ReactionType::from)
         .unwrap_or_else(|| ReactionType::from(fallback));
 
-    args.msg.react(&args.cx.http, reaction).await?;
+    msg.react(&ctx.serenity_ctx.http, reaction).await?;
     Ok(())
-}
-
-fn main() {
-    env_logger::init();
-
-    if let Err(e) = app() {
-        error!("{}", e);
-        std::process::exit(1);
-    }
 }
 
 struct BotUserId;
@@ -298,56 +346,85 @@ impl TypeMapKey for BotUserId {
     type Value = UserId;
 }
 
-struct Events {
-    cmds: Commands,
+pub struct Events {
+    framework: serenity_framework::Framework<Data>,
 }
 
 #[async_trait::async_trait]
 impl EventHandler for Events {
-    async fn ready(&self, cx: Context, ready: Ready) {
+    async fn ready(&self, ctx: serenity::prelude::Context, ready: Ready) {
         info!("{} connected to discord", ready.user.name);
-        {
-            let mut data = cx.data.write().await;
-            data.insert::<command_history::CommandHistory>(indexmap::IndexMap::new());
-            data.insert::<BotUserId>(ready.user.id);
-        }
+        *self.framework.data.bot_user_id.lock().await = ready.user.id;
 
+        let data = std::sync::Arc::clone(&self.framework.data);
         tokio::spawn(async move {
             loop {
-                command_history::clear_command_history(&cx).await;
+                command_history::clear_command_history(&data).await;
                 tokio::time::sleep(std::time::Duration::from_secs(3600)).await;
             }
         });
     }
 
-    async fn message(&self, cx: Context, message: Message) {
-        self.cmds.execute(&cx, &message).await;
+    async fn message(&self, ctx: serenity::prelude::Context, message: Message) {
+        match dbg!(self.framework.dispatch(&ctx, &message).await) {
+            Ok(()) => {}
+            Err(FrameworkError::User(e)) => {
+                if let Err(e) =
+                    api::send_reply((&ctx, &*self.framework.data), &message, &e.to_string()).await
+                {
+                    println!("Couldn't send error message: {}", e);
+                }
+            }
+            Err(FrameworkError::Dispatch(e)) => match e {
+                DispatchError::PrefixOnly(_)
+                | DispatchError::NormalMessage
+                | DispatchError::InvalidCommandName(_) => {}
+                DispatchError::CheckFailed(check_name, reason) => {
+                    if let Err(e) = api::send_reply(
+                        (&ctx, &*self.framework.data),
+                        &message,
+                        &format!(
+                        "Check failed... I don't know what that means? (check = {:?}, reason = {}",
+                        check_name, reason
+                    ),
+                    )
+                    .await
+                    {
+                        println!("Couldn't send check-failed message: {}", e);
+                    }
+                }
+            },
+            Err(FrameworkError::Dispatch(_)) => {
+                if let Err(e) = message.react(ctx, '❌').await {
+                    println!("Couldn't send reaction: {}", e);
+                }
+            }
+        }
     }
 
     async fn message_update(
         &self,
-        cx: Context,
+        ctx: serenity::prelude::Context,
         _: Option<Message>,
         _: Option<Message>,
         ev: MessageUpdateEvent,
     ) {
-        if let Err(e) = command_history::replay_message(cx, ev, &self.cmds).await {
+        if let Err(e) = command_history::replay_message(ctx, ev, &self).await {
             error!("{}", e);
         }
     }
 
     async fn message_delete(
         &self,
-        cx: Context,
+        ctx: serenity::prelude::Context,
         channel_id: ChannelId,
         message_id: MessageId,
         _guild_id: Option<GuildId>,
     ) {
-        let mut data = cx.data.write().await;
-        let history = data.get_mut::<command_history::CommandHistory>().unwrap();
+        let mut history = self.framework.data.command_history.lock().await;
         if let Some(response_id) = history.remove(&message_id) {
             info!("deleting message: {:?}", response_id);
-            let _ = channel_id.delete_message(&cx, response_id);
+            let _ = channel_id.delete_message(&ctx, response_id);
         }
     }
 }

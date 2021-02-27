@@ -1,9 +1,11 @@
-use crate::{api, commands::Args, Error};
+use crate::{api, Context, Error};
 
 use reqwest::header;
 use serde::Deserialize;
+use serenity::model::prelude::*;
+use serenity_framework::prelude::*;
 
-const USER_AGENT: &str = "rust-lang/discord-mods-bot";
+const USER_AGENT: &str = "github.com/kangalioo/rustbot";
 
 #[derive(Debug, Deserialize)]
 struct Crates {
@@ -37,44 +39,47 @@ async fn get_crate(http: &reqwest::Client, query: &str) -> Result<Option<Crate>,
     Ok(crate_list.crates.into_iter().next())
 }
 
-pub async fn search(args: &Args<'_>) -> Result<(), Error> {
-    if let Some(url) = rustc_crate_link(args.body) {
-        return api::send_reply(args, url).await;
+#[command]
+/// Search for a crate on crates.io
+// TODO: somehow figure out how to rename the user-facing command name to "crate" (no underscore)
+pub async fn crate_(ctx: Context, msg: &Message, crate_name: String) -> Result<(), Error> {
+    if let Some(url) = rustc_crate_link(&crate_name) {
+        return api::send_reply(&ctx, msg, url).await;
     }
 
-    match get_crate(&args.http, args.body).await? {
-        Some(crate_) => {
-            if crate_.exact_match {
-                args.msg
-                    .channel_id
-                    .send_message(&args.cx, |m| {
+    match get_crate(&ctx.data.reqwest, &crate_name).await? {
+        Some(crate_result) => {
+            if crate_result.exact_match {
+                msg.channel_id
+                    .send_message(&ctx.serenity_ctx.http, |m| {
                         m.embed(|e| {
-                            e.title(&crate_.name)
-                                .url(format!("https://crates.io/crates/{}", crate_.id))
+                            e.title(&crate_result.name)
+                                .url(format!("https://crates.io/crates/{}", crate_result.id))
                                 .description(
-                                    &crate_
+                                    &crate_result
                                         .description
                                         .as_deref()
                                         .unwrap_or("_<no description available>_"),
                                 )
-                                .field("Version", &crate_.newest_version, true)
-                                .field("Downloads", &crate_.downloads, true)
-                                .timestamp(crate_.updated_at.as_str())
+                                .field("Version", &crate_result.newest_version, true)
+                                .field("Downloads", &crate_result.downloads, true)
+                                .timestamp(crate_result.updated_at.as_str())
                         })
                     })
                     .await?;
             } else {
                 api::send_reply(
-                    args,
+                    &ctx,
+                    msg,
                     &format!(
                         "Crate `{}` not found. Did you mean `{}`?",
-                        args.body, crate_.name
+                        crate_name, crate_result.name
                     ),
                 )
                 .await?;
             }
         }
-        None => api::send_reply(args, &format!("Crate `{}` not found", args.body)).await?,
+        None => api::send_reply(&ctx, msg, &format!("Crate `{}` not found", crate_name)).await?,
     };
     Ok(())
 }
@@ -94,18 +99,21 @@ fn rustc_crate_link(crate_name: &str) -> Option<&'static str> {
     }
 }
 
-pub async fn doc_search(args: &Args<'_>) -> Result<(), Error> {
-    let mut query_iter = args.body.splitn(2, "::");
+#[command]
+/// Retrieve documentation for a given crate
+pub async fn docs(ctx: Context, msg: &Message, query: String) -> Result<(), Error> {
+    let mut query_iter = query.splitn(2, "::");
     let crate_name = query_iter.next().unwrap();
 
     // The base docs url, e.g. `https://docs.rs/syn` or `https://doc.rust-lang.org/stable/std/`
     let mut doc_url = if let Some(rustc_crate) = rustc_crate_link(crate_name) {
         rustc_crate.to_string()
     } else {
-        let crate_ = match get_crate(&args.http, crate_name).await? {
+        let crate_ = match get_crate(&ctx.data.reqwest, crate_name).await? {
             Some(x) => x,
             None => {
-                return api::send_reply(args, &format!("Crate `{}` not found", crate_name)).await
+                return api::send_reply(&ctx, msg, &format!("Crate `{}` not found", crate_name))
+                    .await
             }
         };
 
@@ -120,23 +128,5 @@ pub async fn doc_search(args: &Args<'_>) -> Result<(), Error> {
         doc_url += item_path;
     }
 
-    api::send_reply(args, &doc_url).await
-}
-
-/// Print the help message
-pub async fn help(args: &Args<'_>) -> Result<(), Error> {
-    let help_string = "search for a crate on crates.io
-```
-?crate query...
-```";
-    api::send_reply(args, &help_string).await
-}
-
-/// Print the help message
-pub async fn doc_help(args: &Args<'_>) -> Result<(), Error> {
-    let help_string = "retrieve documentation for a given crate
-```
-?docs crate_name...
-```";
-    api::send_reply(args, &help_string).await
+    api::send_reply(&ctx, msg, &doc_url).await
 }

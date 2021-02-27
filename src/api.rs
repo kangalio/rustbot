@@ -1,27 +1,56 @@
-use crate::{command_history::CommandHistory, commands::Args, Error};
+use crate::{Context, Error};
+
 use serenity::model::prelude::*;
 
 /// Send a reply to the channel the message was received on.  
-pub async fn send_reply(args: &Args<'_>, message: &str) -> Result<(), Error> {
-    if let Some(response_id) = response_exists(args).await {
+pub async fn send_reply(
+    ctx: impl ContextAndData<crate::Data>,
+    trigger: &Message,
+    response: &str,
+) -> Result<(), Error> {
+    if let Some(response_id) = ctx
+        .data()
+        .command_history
+        .lock()
+        .await
+        .get(&trigger.id)
+        .copied()
+    {
         info!("editing message: {:?}", response_id);
-        args.msg
+        trigger
             .channel_id
-            .edit_message(&args.cx, response_id, |msg| msg.content(message))
+            .edit_message(&ctx.ctx(), response_id, |msg| msg.content(response))
             .await?;
     } else {
-        let response = args.msg.channel_id.say(&args.cx, message).await?;
-
-        let mut data = args.cx.data.write().await;
-        let history = data.get_mut::<CommandHistory>().unwrap();
-        history.insert(args.msg.id, response.id);
+        let response = trigger.channel_id.say(&ctx.ctx(), response).await?;
+        let mut history = ctx.data().command_history.lock().await;
+        history.insert(trigger.id, response.id);
     }
 
     Ok(())
 }
 
-async fn response_exists(args: &Args<'_>) -> Option<MessageId> {
-    let data = args.cx.data.read().await;
-    let history = data.get::<CommandHistory>().unwrap();
-    history.get(&args.msg.id).copied()
+pub trait ContextAndData<D> {
+    fn ctx(&self) -> &serenity::prelude::Context;
+    fn data(&self) -> &D;
+}
+
+impl<D> ContextAndData<D> for &serenity_framework::context::Context<D> {
+    fn ctx(&self) -> &serenity::prelude::Context {
+        &self.serenity_ctx
+    }
+
+    fn data(&self) -> &D {
+        &*self.data
+    }
+}
+
+impl<D> ContextAndData<D> for (&serenity::prelude::Context, &D) {
+    fn ctx(&self) -> &serenity::prelude::Context {
+        self.0
+    }
+
+    fn data(&self) -> &D {
+        self.1
+    }
 }

@@ -1,3 +1,6 @@
+use serenity::{model::prelude::*, prelude::*};
+use serenity_framework::prelude::*;
+
 enum Compilation {
     Success { asm: String, stderr: String },
     Error { stderr: String },
@@ -64,15 +67,27 @@ async fn compile_rust_source(
     })
 }
 
-pub async fn godbolt(args: &crate::Args<'_>) -> Result<(), crate::Error> {
+#[command]
+/// Compile Rust code using https://rust.godbolt.org. Full optimizations are applied.
+/// ```?godbolt ``\u{200B}`
+/// pub fn your_function() {
+///     // Code
+/// }
+/// ``\u{200B}` ```
+pub async fn godbolt(
+    ctx: crate::Context,
+    msg: &Message,
+    #[rest] code_block: String,
+) -> Result<(), crate::Error> {
     let (lang, text) =
-        match compile_rust_source(args.http, crate::extract_code(&args.body)?).await? {
+        match compile_rust_source(&ctx.data.reqwest, crate::extract_code(&code_block)?).await? {
             Compilation::Success { asm, stderr } => ("x86asm", format!("{}\n{}", stderr, asm)),
             Compilation::Error { stderr } => ("rust", stderr),
         };
 
     crate::reply_potentially_long_text(
-        args,
+        &ctx,
+        msg,
         &format!("```{}\n{}", lang, text),
         "\n```",
         "Note: the output was truncated",
@@ -80,17 +95,4 @@ pub async fn godbolt(args: &crate::Args<'_>) -> Result<(), crate::Error> {
     .await?;
 
     Ok(())
-}
-
-pub async fn help(args: &crate::Args<'_>) -> Result<(), crate::Error> {
-    crate::api::send_reply(
-        args,
-        "Compile Rust code using https://rust.godbolt.org. Full optimizations are applied.
-```?godbolt ``\u{200B}`
-pub fn your_function() {
-    // Code
-}
-``\u{200B}` ```",
-    )
-    .await
 }

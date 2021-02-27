@@ -141,6 +141,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "command_attr"
+version = "0.1.0"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn",
+]
+
+[[package]]
 name = "core-foundation"
 version = "0.9.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -928,7 +937,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "rustlang_discord_mod_bot"
+name = "rustbot"
 version = "0.1.0"
 dependencies = [
  "async-trait",
@@ -941,6 +950,7 @@ dependencies = [
  "serde",
  "serde_json",
  "serenity",
+ "serenity_framework",
  "strip-ansi-escapes",
  "tokio",
 ]
@@ -1053,8 +1063,7 @@ dependencies = [
 [[package]]
 name = "serenity"
 version = "0.10.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "4dac8367ecfd3380c00dcedf5eb9a47888ae74ae391419b5b1f7735895ed8df4"
+source = "git+https://github.com/kangalioo/serenity?branch=parse#ee90b010c18daf74b76091300ddd0607665bda61"
 dependencies = [
  "async-trait",
  "async-tungstenite",
@@ -1070,9 +1079,16 @@ dependencies = [
  "serde_json",
  "tokio",
  "tracing",
- "tracing-futures",
  "typemap_rev",
  "url",
+]
+
+[[package]]
+name = "serenity_framework"
+version = "0.1.0"
+dependencies = [
+ "command_attr",
+ "serenity",
 ]
 
 [[package]]
@@ -1254,6 +1270,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "f77d3842f76ca899ff2dbcf231c5c65813dea431301d6eb686279c15c4464f12"
 dependencies = [
  "cfg-if 1.0.0",
+ "log",
  "pin-project-lite",
  "tracing-attributes",
  "tracing-core",

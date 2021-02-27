@@ -1,11 +1,14 @@
 //! run rust code on the rust-lang playground
 
-use crate::{api, commands::Args, Error};
+use std::str::FromStr;
+use std::{borrow::Cow, collections::HashMap};
 
 use reqwest::header;
 use serde::{Deserialize, Serialize};
-use std::str::FromStr;
-use std::{borrow::Cow, collections::HashMap};
+use serenity::model::prelude::*;
+use serenity_framework::prelude::*;
+
+use crate::{api, Context, Error};
 
 // ================================
 // PLAYGROUND API WRAPPER BEGINS HERE
@@ -39,6 +42,15 @@ struct ClippyRequest<'a> {
     code: &'a str,
 }
 
+#[derive(Debug)]
+struct SimpleError(String);
+impl std::fmt::Display for SimpleError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(&self.0)
+    }
+}
+impl std::error::Error for SimpleError {}
+
 #[derive(Debug, Clone, Copy, Serialize)]
 #[serde(rename_all = "snake_case")]
 enum Channel {
@@ -48,14 +60,14 @@ enum Channel {
 }
 
 impl FromStr for Channel {
-    type Err = Error;
+    type Err = SimpleError;
 
-    fn from_str(s: &str) -> Result<Self, Error> {
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s {
             "stable" => Ok(Channel::Stable),
             "beta" => Ok(Channel::Beta),
             "nightly" => Ok(Channel::Nightly),
-            _ => Err(format!("invalid release channel `{}`", s).into()),
+            _ => Err(SimpleError(format!("invalid release channel `{}`", s))),
         }
     }
 }
@@ -69,23 +81,22 @@ enum Edition {
 }
 
 impl FromStr for Edition {
-    type Err = Error;
+    type Err = SimpleError;
 
-    fn from_str(s: &str) -> Result<Self, Error> {
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s {
             "2015" => Ok(Edition::E2015),
             "2018" => Ok(Edition::E2018),
-            _ => Err(format!("invalid edition `{}`", s).into()),
+            _ => Err(SimpleError(format!("invalid edition `{}`", s))),
         }
     }
 }
 
 #[derive(Debug, Clone, Copy, Serialize)]
+#[serde(rename_all = "snake_case")]
 enum CrateType {
-    #[serde(rename = "bin")]
-    Binary,
-    #[serde(rename = "lib")]
-    Library,
+    Bin,
+    Lib,
 }
 
 #[derive(Debug, Clone, Copy, Serialize)]
@@ -96,13 +107,13 @@ enum Mode {
 }
 
 impl FromStr for Mode {
-    type Err = Error;
+    type Err = SimpleError;
 
-    fn from_str(s: &str) -> Result<Self, Error> {
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s {
             "debug" => Ok(Mode::Debug),
             "release" => Ok(Mode::Release),
-            _ => Err(format!("invalid compilation mode `{}`", s).into()),
+            _ => Err(SimpleError(format!("invalid compilation mode `{}`", s))),
         }
     }
 }
@@ -115,12 +126,13 @@ struct PlayResult {
 }
 
 /// Returns a gist ID
-async fn post_gist(args: &Args<'_>, code: &str) -> Result<String, Error> {
+async fn post_gist(ctx: &Context, code: &str) -> Result<String, Error> {
     let mut payload = HashMap::new();
     payload.insert("code", code);
 
-    let resp = args
-        .http
+    let resp = ctx
+        .data
+        .reqwest
         .post("https://play.rust-lang.org/meta/gist/")
         .header(header::REFERER, "https://discord.gg/rust-lang")
         .json(&payload)
@@ -176,59 +188,16 @@ struct CommandFlags {
 }
 
 /// Returns the parsed flags and a String of parse errors
-fn parse_flags(args: &Args) -> (CommandFlags, String) {
-    let mut errors = String::new();
-
-    let mut flags = CommandFlags {
-        channel: Channel::Nightly,
-        mode: Mode::Debug,
-        edition: Edition::E2018,
-    };
-
-    if let Some(channel) = args.params.get("channel") {
-        match channel.parse() {
-            Ok(c) => flags.channel = c,
-            Err(e) => errors += &format!("{}\n", e),
-        }
+fn parse_flags(
+    channel: Option<Channel>,
+    mode: Option<Mode>,
+    edition: Option<Edition>,
+) -> CommandFlags {
+    CommandFlags {
+        channel: channel.unwrap_or(Channel::Nightly),
+        mode: mode.unwrap_or(Mode::Debug),
+        edition: edition.unwrap_or(Edition::E2018),
     }
-
-    if let Some(mode) = args.params.get("mode") {
-        match mode.parse() {
-            Ok(m) => flags.mode = m,
-            Err(e) => errors += &format!("{}\n", e),
-        }
-    }
-
-    if let Some(edition) = args.params.get("edition") {
-        match edition.parse() {
-            Ok(e) => flags.edition = e,
-            Err(e) => errors += &format!("{}\n", e),
-        }
-    }
-
-    (flags, errors)
-}
-
-async fn generic_help(args: &Args<'_>, cmd: &str, desc: &str, full: bool) -> Result<(), Error> {
-    let mut reply = format!(
-        "{}. All code is executed on https://play.rust-lang.org.\n",
-        desc
-    );
-
-    reply += &format!(
-        "```?{} {}edition={{}} ``\u{200B}`code``\u{200B}` ```\n",
-        cmd,
-        if full { "mode={} channel={} " } else { "" },
-    );
-
-    reply += "Optional arguments:\n";
-    if full {
-        reply += "    \tmode: debug, release (default: debug)\n";
-        reply += "    \tchannel: stable, beta, nightly (default: nightly)\n";
-    }
-    reply += "    \tedition: 2015, 2018 (default: 2018)\n";
-
-    api::send_reply(args, &reply).await
 }
 
 /// Strip the input according to a list of start tokens and end tokens. Everything after the start
@@ -338,11 +307,11 @@ fn maybe_wrap(code: &str, result_handling: ResultHandling) -> Cow<'_, str> {
 
 /// Send a Discord reply with the formatted contents of a Playground result
 async fn send_reply(
-    args: &Args<'_>,
+    ctx: &Context,
+    msg: &Message,
     result: PlayResult,
     code: &str,
     flags: &CommandFlags,
-    flag_parse_errors: &str,
 ) -> Result<(), Error> {
     let result = if !result.success {
         result.stderr
@@ -353,15 +322,16 @@ async fn send_reply(
     };
 
     if result.trim().is_empty() {
-        api::send_reply(args, &format!("{}``` ```", flag_parse_errors)).await
+        api::send_reply(ctx, msg, "``` ```").await
     } else {
         crate::reply_potentially_long_text(
-            args,
-            &format!("{}```rust\n{}", flag_parse_errors, result),
+            &ctx,
+            msg,
+            &format!("```rust\n{}", result),
             "```",
             &format!(
                 "Output too large. Playground link: {}",
-                url_from_gist(&flags, &post_gist(args, code).await?),
+                url_from_gist(&flags, &post_gist(&ctx, code).await?),
             ),
         )
         .await
@@ -415,20 +385,26 @@ fn strip_fn_main_boilerplate_from_formatted(text: &str) -> String {
 // ================================
 
 // play and eval work similarly, so this function abstracts over the two
-async fn play_or_eval(args: &Args<'_>, result_handling: ResultHandling) -> Result<(), Error> {
-    let code = maybe_wrap(crate::extract_code(args.body)?, result_handling);
-    let (flags, flag_parse_errors) = parse_flags(args);
+async fn play_or_eval(
+    ctx: &Context,
+    msg: &Message,
+    result_handling: ResultHandling,
+    flags: CommandFlags,
+    code_block: &str,
+) -> Result<(), Error> {
+    let code = maybe_wrap(crate::extract_code(code_block)?, result_handling);
 
-    let mut result: PlayResult = args
-        .http
+    let mut result: PlayResult = ctx
+        .data
+        .reqwest
         .post("https://play.rust-lang.org/execute")
         .json(&PlaygroundRequest {
             code: &code,
             channel: flags.channel,
             crate_type: if code.contains("fn main") {
-                CrateType::Binary
+                CrateType::Bin
             } else {
-                CrateType::Library
+                CrateType::Lib
             },
             edition: flags.edition,
             mode: flags.mode,
@@ -461,27 +437,65 @@ async fn play_or_eval(args: &Args<'_>, result_handling: ResultHandling) -> Resul
         (warnings, stderr) => format!("{}\n{}", warnings, stderr),
     };
 
-    send_reply(args, result, &code, &flags, &flag_parse_errors).await
+    send_reply(&ctx, msg, result, &code, &flags).await
 }
 
-pub async fn play(args: &Args<'_>) -> Result<(), Error> {
-    play_or_eval(args, ResultHandling::None).await
+#[command]
+/// Compile and run Rust code
+pub async fn play(
+    ctx: Context,
+    msg: &Message,
+    channel: Option<Channel>,
+    mode: Option<Mode>,
+    edition: Option<Edition>,
+    #[rest] code_block: String,
+) -> Result<(), Error> {
+    play_or_eval(
+        &ctx,
+        msg,
+        ResultHandling::None,
+        parse_flags(channel, mode, edition),
+        &code_block,
+    )
+    .await
 }
 
-pub async fn eval(args: &Args<'_>) -> Result<(), Error> {
-    play_or_eval(args, ResultHandling::Print).await
+#[command]
+/// Compile and run Rust code and print the result
+pub async fn eval(
+    ctx: Context,
+    msg: &Message,
+    channel: Option<Channel>,
+    mode: Option<Mode>,
+    edition: Option<Edition>,
+    #[rest] code_block: String,
+) -> Result<(), Error> {
+    play_or_eval(
+        &ctx,
+        msg,
+        ResultHandling::Print,
+        parse_flags(channel, mode, edition),
+        &code_block,
+    )
+    .await
 }
 
-pub async fn play_and_eval_help(args: &Args<'_>, name: &str) -> Result<(), Error> {
-    generic_help(args, name, "Compile and run Rust code", true).await
-}
+#[command]
+/// Run code and detect undefined behavior using Miri
+/// Miri can detect certain cases of undefined behavior like out-of-bounds memory access. It can be
+/// quite helpful to verify the correctness of unsafe code.
+pub async fn miri(
+    ctx: Context,
+    msg: &Message,
+    edition: Option<Edition>,
+    #[rest] code_block: String,
+) -> Result<(), Error> {
+    let code = &maybe_wrap(crate::extract_code(&code_block)?, ResultHandling::Discard);
+    let flags = parse_flags(None, None, edition);
 
-pub async fn miri(args: &Args<'_>) -> Result<(), Error> {
-    let code = &maybe_wrap(crate::extract_code(args.body)?, ResultHandling::Discard);
-    let (flags, flag_parse_errors) = parse_flags(args);
-
-    let mut result: PlayResult = args
-        .http
+    let mut result: PlayResult = ctx
+        .data
+        .reqwest
         .post("https://play.rust-lang.org/miri")
         .json(&MiriRequest {
             code,
@@ -499,21 +513,24 @@ pub async fn miri(args: &Args<'_>) -> Result<(), Error> {
     )
     .to_owned();
 
-    send_reply(args, result, code, &flags, &flag_parse_errors).await
+    send_reply(&ctx, msg, result, code, &flags).await
 }
 
-pub async fn miri_help(args: &Args<'_>) -> Result<(), Error> {
-    let desc = "Execute this program in the Miri interpreter to detect certain cases of undefined behavior (like out-of-bounds memory access)";
-    generic_help(args, "miri", desc, false).await
-}
-
-pub async fn expand_macros(args: &Args<'_>) -> Result<(), Error> {
-    let code = maybe_wrap(crate::extract_code(args.body)?, ResultHandling::None);
+#[command]
+/// Expand macros to their raw desugared form
+pub async fn expand_macros(
+    ctx: Context,
+    msg: &Message,
+    edition: Option<Edition>,
+    #[rest] code_block: String,
+) -> Result<(), Error> {
+    let code = maybe_wrap(crate::extract_code(&code_block)?, ResultHandling::None);
     let was_fn_main_wrapped = matches!(code, Cow::Owned(_));
-    let (flags, flag_parse_errors) = parse_flags(args);
+    let flags = parse_flags(None, None, edition);
 
-    let mut result: PlayResult = args
-        .http
+    let mut result: PlayResult = ctx
+        .data
+        .reqwest
         .post("https://play.rust-lang.org/macro-expansion")
         .json(&MacroExpansionRequest {
             code: &code,
@@ -542,28 +559,31 @@ pub async fn expand_macros(args: &Args<'_>) -> Result<(), Error> {
         result.stdout = strip_fn_main_boilerplate_from_formatted(&result.stdout);
     }
 
-    send_reply(args, result, &code, &flags, &flag_parse_errors).await
+    send_reply(&ctx, msg, result, &code, &flags).await
 }
 
-pub async fn expand_macros_help(args: &Args<'_>) -> Result<(), Error> {
-    let desc = "Expand macros to their raw desugared form";
-    generic_help(args, "expand", desc, false).await
-}
+#[command]
+/// Catch common mistakes using the Clippy linter
+pub async fn clippy(
+    ctx: Context,
+    msg: &Message,
+    edition: Option<Edition>,
+    #[rest] code_block: String,
+) -> Result<(), Error> {
+    let code = &maybe_wrap(crate::extract_code(&code_block)?, ResultHandling::Discard);
+    let flags = parse_flags(None, None, edition);
 
-pub async fn clippy(args: &Args<'_>) -> Result<(), Error> {
-    let code = &maybe_wrap(crate::extract_code(args.body)?, ResultHandling::Discard);
-    let (flags, flag_parse_errors) = parse_flags(args);
-
-    let mut result: PlayResult = args
-        .http
+    let mut result: PlayResult = ctx
+        .data
+        .reqwest
         .post("https://play.rust-lang.org/clippy")
         .json(&ClippyRequest {
             code,
             edition: flags.edition,
             crate_type: if code.contains("fn main") {
-                CrateType::Binary
+                CrateType::Bin
             } else {
-                CrateType::Library
+                CrateType::Lib
             },
         })
         .send()
@@ -583,28 +603,25 @@ pub async fn clippy(args: &Args<'_>) -> Result<(), Error> {
     )
     .to_owned();
 
-    send_reply(args, result, code, &flags, &flag_parse_errors).await
+    send_reply(&ctx, msg, result, code, &flags).await
 }
 
-pub async fn clippy_help(args: &Args<'_>) -> Result<(), Error> {
-    let desc = "Catch common mistakes and improve the code using the Clippy linter";
-    generic_help(args, "clippy", desc, false).await
-}
-
-pub async fn fmt(args: &Args<'_>) -> Result<(), Error> {
-    let code = &maybe_wrap(crate::extract_code(args.body)?, ResultHandling::None);
+#[command]
+/// Format code using rustfmt
+pub async fn fmt(
+    ctx: Context,
+    msg: &Message,
+    edition: Option<Edition>,
+    #[rest] code_block: String,
+) -> Result<(), Error> {
+    let code = &maybe_wrap(crate::extract_code(&code_block)?, ResultHandling::None);
     let was_fn_main_wrapped = matches!(code, Cow::Owned(_));
-    let (flags, flag_parse_errors) = parse_flags(args);
+    let flags = parse_flags(None, None, edition);
 
     let mut result = apply_rustfmt(&code, flags.edition)?;
     if was_fn_main_wrapped {
         result.stdout = strip_fn_main_boilerplate_from_formatted(&result.stdout);
     }
 
-    send_reply(args, result, code, &flags, &flag_parse_errors).await
-}
-
-pub async fn fmt_help(args: &Args<'_>) -> Result<(), Error> {
-    let desc = "Format code using rustfmt";
-    generic_help(args, "fmt", desc, false).await
+    send_reply(&ctx, msg, result, code, &flags).await
 }
