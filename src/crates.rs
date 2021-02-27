@@ -90,7 +90,9 @@ pub fn doc_search(args: &Args) -> Result<(), Error> {
 
     // The base docs url, e.g. `https://docs.rs/syn` or `https://doc.rust-lang.org/stable/std/`
     let mut doc_url = if let Some(rustc_crate) = rustc_crate_link(crate_name) {
-        rustc_crate.to_string()
+        rustc_crate.to_owned()
+    } else if crate_name.is_empty() {
+        "https://doc.rust-lang.org/stable/std/".to_owned()
     } else {
         let crate_ = match get_crate(&args.http, crate_name)? {
             Some(x) => x,
