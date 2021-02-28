@@ -109,28 +109,28 @@ pub fn joke_ban(args: &Args) -> Result<(), Error> {
         None => return crate::api::send_reply(args, "🤨"),
     };
 
-    let arguments: Vec<&str> = args.body.split(' ').collect();
+    let mut parts = args.body.splitn(2, ' ');
+    let banned_person = parts.next().unwrap();
+    let reason = parts.next();
 
-    let bannee = arguments.get(0).and_then(|first_arg| {
-        parse_member(
-            &guild_id.to_guild_cached(&args.cx.cache)?.read().members,
-            first_arg,
-        )
-        .map(|m| m.user.read().clone())
+    // Convert banned_person string to serenity Member
+    let banned_person = guild_id.to_guild_cached(&args.cx.cache).and_then(|guild| {
+        parse_member(&guild.read().members, banned_person).map(|m| m.user.read().clone())
     });
 
-    let reason = arguments.get(1..).map(|r| r.join(" "));
-
-    match bannee {
-        Some(bannee) => crate::api::send_reply(
+    match banned_person {
+        Some(banned_person) => crate::api::send_reply(
             args,
             &format!(
                 "{}#{} banned user {}#{}{}  {}",
                 args.msg.author.name,
                 args.msg.author.discriminator,
-                bannee.name,
-                bannee.discriminator,
-                reason.unwrap_or("".to_string()),
+                banned_person.name,
+                banned_person.discriminator,
+                match reason {
+                    Some(reason) => format!(" {}", reason.trim()),
+                    None => String::new(),
+                },
                 crate::custom_emoji_code(args, "ferrisBanne", '🔨')
             ),
         ),
