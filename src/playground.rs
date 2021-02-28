@@ -620,33 +620,38 @@ pub fn micro_bench(args: &Args) -> Result<(), Error> {
     code += "\n";
 
     code += r#"#[inline(always)]
-fn bench(name: &str, f: impl Fn()) {
+fn bench(functions: &[(&str, fn())]) {
     const CHUNK_SIZE: usize = 10000;
 
+    let mut functions_chunk_times = functions.iter().map(|_| Vec::new()).collect::<Vec<_>>();
+
     let start = std::time::Instant::now();
-    let mut chunk_times = Vec::new();
-    while (std::time::Instant::now() - start).as_secs() == 0 {
-        let start = std::time::Instant::now();
-        for _ in 0..CHUNK_SIZE {
-            f();
+    while (std::time::Instant::now() - start).as_secs() < 5 {
+        for (chunk_times, (_, function)) in functions_chunk_times.iter_mut().zip(functions) {
+            let start = std::time::Instant::now();
+            for _ in 0..CHUNK_SIZE {
+                (function)();
+            }
+            chunk_times.push((std::time::Instant::now() - start).as_secs_f64() / CHUNK_SIZE as f64);
         }
-        chunk_times.push((std::time::Instant::now() - start).as_secs_f64() / CHUNK_SIZE as f64);
     }
 
-    let mean_time: f64 = chunk_times.iter().sum::<f64>() / chunk_times.len() as f64;
-    let deviation: f64 = chunk_times
-        .iter()
-        .map(|time| (time - mean_time).abs())
-        .sum::<f64>()
-        / chunk_times.len() as f64;
+    for (chunk_times, (function_name, _)) in functions_chunk_times.iter().zip(functions) {
+        let mean_time: f64 = chunk_times.iter().sum::<f64>() / chunk_times.len() as f64;
+        let deviation: f64 = chunk_times
+            .iter()
+            .map(|time| (time - mean_time).abs())
+            .sum::<f64>()
+            / chunk_times.len() as f64;
 
-    println!(
-        "{}: {:.0} iters per second ({:.1}ns±{:.1})",
-        name,
-        1.0 / mean_time,
-        mean_time * 1_000_000_000.0,
-        deviation * 1_000_000_000.0,
-    );
+        println!(
+            "{}: {:.0} iters per second ({:.1}ns±{:.1})",
+            function_name,
+            1.0 / mean_time,
+            mean_time * 1_000_000_000.0,
+            deviation * 1_000_000_000.0,
+        );
+    }
 }
 
 fn main() {
@@ -660,6 +665,7 @@ fn main() {
         );
     }
 
+    code += "bench(&[";
     for (index, _) in pub_fn_indices {
         let function_name_start = index + "pub fn ".len();
         let function_name_end = match user_input[function_name_start..].find('(') {
@@ -668,9 +674,9 @@ fn main() {
         };
         let function_name = user_input[function_name_start..function_name_end].trim();
 
-        code += &format!("    bench(\"{0}\", {0});\n", function_name);
+        code += &format!("(\"{0}\", {0}), ", function_name);
     }
-    code += "}\n";
+    code += "]);\n}\n";
 
     let (flags, mut flag_parse_errors) = parse_flags(args);
     let mut result: PlayResult = args
@@ -712,7 +718,11 @@ fn main() {
 }
 
 pub fn micro_bench_help(args: &Args) -> Result<(), Error> {
-    let desc = "Benchmark small snippets of code by running them repeatedly";
+    let desc =
+        "Benchmark small snippets of code by running them repeatedly. The functions are run \
+        in chunks, interleaved: Snippet A is ran 10000 times, then snippet B is ran 10000 times, \
+        then snippet A again, and so on until a certain time has passed. After that, the \
+        measuremants are averaged and the mean deviation is calculated for each";
     generic_help(
         args,
         "microbench",
