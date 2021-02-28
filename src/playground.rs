@@ -627,6 +627,13 @@ pub fn micro_bench(args: &Args) -> Result<(), Error> {
 fn bench(functions: &[(&str, fn())]) {
     const CHUNK_SIZE: usize = 10000;
 
+    // Warm up
+    for (_, function) in functions.iter() {
+        for _ in 0..CHUNK_SIZE {
+            (function)();
+        }
+    }
+
     let mut functions_chunk_times = functions.iter().map(|_| Vec::new()).collect::<Vec<_>>();
 
     let start = std::time::Instant::now();
