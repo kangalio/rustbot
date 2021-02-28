@@ -109,7 +109,9 @@ pub fn joke_ban(args: &Args) -> Result<(), Error> {
         None => return crate::api::send_reply(args, "🤨"),
     };
 
-    let bannee = args.body.split_whitespace().next().and_then(|first_arg| {
+    let arguments: Vec<&str> = args.body.split(' ').collect();
+
+    let bannee = arguments.get(0).and_then(|first_arg| {
         parse_member(
             &guild_id.to_guild_cached(&args.cx.cache)?.read().members,
             first_arg,
@@ -117,15 +119,18 @@ pub fn joke_ban(args: &Args) -> Result<(), Error> {
         .map(|m| m.user.read().clone())
     });
 
+    let reason = arguments.get(1..).map(|r| r.join(" "));
+
     match bannee {
         Some(bannee) => crate::api::send_reply(
             args,
             &format!(
-                "{}#{} banned user {}#{} {}",
+                "{}#{} banned user {}#{}{}  {}",
                 args.msg.author.name,
                 args.msg.author.discriminator,
                 bannee.name,
                 bannee.discriminator,
+                reason.unwrap_or("".to_string()),
                 crate::custom_emoji_code(args, "ferrisBanne", '🔨')
             ),
         ),
@@ -136,7 +141,7 @@ pub fn joke_ban(args: &Args) -> Result<(), Error> {
 pub fn joke_ban_help(args: &Args) -> Result<(), Error> {
     crate::api::send_reply(
         args,
-        "?ban <member>
+        "?ban <member> [reason]
 
 Bans another person",
     )
