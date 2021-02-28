@@ -611,15 +611,14 @@ pub fn fmt_help(args: &Args) -> Result<(), Error> {
 
 pub fn micro_bench(args: &Args) -> Result<(), Error> {
     let mut code =
-        // convenience import for users
+        // include convenience import for users
         "#![feature(test)] #[allow(unused_imports)] use std::hint::black_box;\n".to_owned();
 
     let user_input = crate::extract_code(args.body)?;
     let black_box_hint = !user_input.contains("black_box");
     code += user_input;
-    code += "\n";
 
-    code += r#"#[inline(always)]
+    code += r#"
 fn bench(functions: &[(&str, fn())]) {
     const CHUNK_SIZE: usize = 10000;
 
@@ -638,18 +637,20 @@ fn bench(functions: &[(&str, fn())]) {
 
     for (chunk_times, (function_name, _)) in functions_chunk_times.iter().zip(functions) {
         let mean_time: f64 = chunk_times.iter().sum::<f64>() / chunk_times.len() as f64;
-        let deviation: f64 = chunk_times
-            .iter()
-            .map(|time| (time - mean_time).abs())
-            .sum::<f64>()
-            / chunk_times.len() as f64;
+        let standard_deviation: f64 = f64::sqrt(
+            chunk_times
+                .iter()
+                .map(|time| (time - mean_time).powi(2))
+                .sum::<f64>()
+                / chunk_times.len() as f64,
+        );
 
         println!(
             "{}: {:.0} iters per second ({:.1}ns±{:.1})",
             function_name,
             1.0 / mean_time,
             mean_time * 1_000_000_000.0,
-            deviation * 1_000_000_000.0,
+            standard_deviation * 1_000_000_000.0,
         );
     }
 }
@@ -719,10 +720,10 @@ fn main() {
 
 pub fn micro_bench_help(args: &Args) -> Result<(), Error> {
     let desc =
-        "Benchmark small snippets of code by running them repeatedly. The functions are run \
+        "Benchmark small snippets of code by running them repeatedly. The public function snippets are run \
         in chunks, interleaved: Snippet A is ran 10000 times, then snippet B is ran 10000 times, \
         then snippet A again, and so on until a certain time has passed. After that, the \
-        measuremants are averaged and the mean deviation is calculated for each";
+        measuremants are averaged and the standard deviation is calculated for each";
     generic_help(
         args,
         "microbench",
