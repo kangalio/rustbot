@@ -418,6 +418,31 @@ fn strip_fn_main_boilerplate_from_formatted(text: &str) -> String {
     output
 }
 
+/// Extract compiler output and program stderr output and format the two nicely
+fn format_play_eval_stderr(result: &mut PlayResult) {
+    let compiler_warnings = extract_relevant_lines(
+        &result.stderr,
+        &["Compiling playground"],
+        &[
+            "warning emitted",
+            "warnings emitted",
+            "error: aborting",
+            "Finished ",
+        ],
+    );
+    let program_stderr = match result.stderr.contains("Running `target") {
+        true => extract_relevant_lines(&result.stderr, &["Running `target"], &[]),
+        false => "",
+    };
+
+    result.stderr = match (compiler_warnings, program_stderr) {
+        ("", "") => String::new(),
+        (warnings, "") => warnings.to_owned(),
+        ("", stderr) => stderr.to_owned(),
+        (warnings, stderr) => format!("{}\n{}", warnings, stderr),
+    };
+}
+
 // ================================
 // ACTUAL BOT COMMANDS BEGIN HERE
 // ================================
@@ -445,27 +470,7 @@ fn play_or_eval(args: &Args, result_handling: ResultHandling) -> Result<(), Erro
         .send()?
         .json()?;
 
-    let compiler_warnings = extract_relevant_lines(
-        &result.stderr,
-        &["Compiling playground"],
-        &[
-            "warning emitted",
-            "warnings emitted",
-            "error: aborting",
-            "Finished ",
-        ],
-    );
-    let program_stderr = match result.stderr.contains("Running `target") {
-        true => extract_relevant_lines(&result.stderr, &["Running `target"], &[]),
-        false => "",
-    };
-
-    result.stderr = match (compiler_warnings, program_stderr) {
-        ("", "") => String::new(),
-        (warnings, "") => warnings.to_owned(),
-        ("", stderr) => stderr.to_owned(),
-        (warnings, stderr) => format!("{}\n{}", warnings, stderr),
-    };
+    format_play_eval_stderr(&mut result);
 
     send_reply(args, result, &code, &flags, &flag_parse_errors)
 }
@@ -698,18 +703,7 @@ fn main() {
         .send()?
         .json()?;
 
-    // This will discard program stderr, which is intended
-    result.stderr = extract_relevant_lines(
-        &result.stderr,
-        &["Compiling playground"],
-        &[
-            "warning emitted",
-            "warnings emitted",
-            "error: aborting",
-            "Finished ",
-        ],
-    )
-    .to_owned();
+    format_play_eval_stderr(&mut result);
 
     if black_box_hint {
         flag_parse_errors +=
