@@ -117,6 +117,57 @@ impl Commands {
         })
     }
 
+    // Takes the (optional) param list (optionally) followed by a body, and parses it.
+    // Returns the key=value HashMap, and the body, in a tuple.
+    fn parse_argument_list<'a>(msg: &'a str) -> (HashMap<&'a str, &'a str>, &'a str) {
+        // Some commands like to pre-declare possible params (or "flags" if you wish)
+        // Specifying arguments comes in two flavours:
+        // 1) ?command param1=value-without-spaces param2=other-value body goes here
+        // 2) ?command
+        //      param1= put whatever space separated thing you want here
+        //      param2= here too
+        //      actual body follows on a new line
+        // We should handle both cases.
+
+        let mut params = HashMap::new();
+
+        // `parsing_stopped` is the last index into `msg` that we've successfully parsed before encountering an error
+        let mut parsing_stopped: Option<usize> = None;
+        'args_loop: for (block_no, block) in msg.splitn(2, '\n').enumerate() {
+            let block = block.trim();
+            let token_iter: Box<dyn Iterator<Item = &str>> = if block_no == 0 {
+                Box::new(block.split_whitespace())
+            } else {
+                Box::new(block.lines())
+            };
+            for token in token_iter {
+                let mut splitn_2 = token.splitn(2, '=');
+                match (splitn_2.next(), splitn_2.next()) {
+                    (Some(param_name), Some(param_val)) => {
+                        // Check that the param key is sensible, otherwise any equal sign in arg body
+                        // (think ?eval) will be parsed as a parameter
+                        if !param_name.chars().all(|c| c.is_alphanumeric()) {
+                            parsing_stopped = Some(token.as_ptr() as usize - msg.as_ptr() as usize);
+                            break 'args_loop;
+                        }
+                        params.insert(param_name, param_val);
+                    }
+                    _ => {
+                        parsing_stopped = Some(token.as_ptr() as usize - msg.as_ptr() as usize);
+                        break 'args_loop;
+                    }
+                };
+            }
+        }
+        // When the key=value list stops - the body starts
+        let body = match parsing_stopped {
+            None => "",
+            Some(index) => &msg[index..],
+        };
+
+        return (params, body);
+    }
+
     pub fn execute(&self, cx: &Context, serenity_msg: &Message) {
         // find the first matching prefix and strip it
         let msg = match PREFIXES
@@ -136,26 +187,7 @@ impl Commands {
             None => return,
         };
 
-        let mut params = HashMap::new();
-        let mut body = "";
-        for token in msg.split_whitespace() {
-            let mut splitn_2 = token.splitn(2, '=');
-            if let (Some(param_name), Some(param_val)) = (splitn_2.next(), splitn_2.next()) {
-                // Check that the param key is sensible, otherwise any equal sign in arg body
-                // (think ?eval) will be parsed as a parameter
-                if param_name.chars().all(|c| c.is_alphanumeric()) {
-                    params.insert(param_name, param_val);
-                    continue;
-                }
-            }
-            // If this whitespace-separated token is not a "key=value" pair, this must
-            // be the beginning of the command body. So, let's find out where we are within
-            // the msg string and set the body accordingly
-            let body_start = token.as_ptr() as usize - msg.as_ptr() as usize;
-            body = &msg[body_start..];
-            break;
-        }
-
+        let (params, body) = Self::parse_argument_list(msg);
         let args = Args {
             body,
             params,
@@ -181,6 +213,49 @@ impl Commands {
             {
                 error!("{}", e)
             }
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::Commands;
+    #[test]
+    fn check_arg_parsing() {
+        struct TestCase {
+            input: &'static str,
+            expected: (&'static [(&'static str, &'static str)], &'static str),
+        }
+        let test_cases = vec![
+            TestCase {
+                input: "",
+                expected: (&[], ""),
+            },
+            TestCase {
+                input: "hello",
+                expected: (&[], "hello"),
+            },
+            TestCase {
+                input: "hello=world",
+                expected: (&[("hello", "world")], ""),
+            },
+            TestCase {
+                input: "hello=world it's me",
+                expected: (&[("hello", "world")], "it's me"),
+            },
+            TestCase {
+                input: "it's=me",
+                expected: (&[], "it's=me"),
+            },
+            TestCase{
+                input: "\nflags=-C opt-level=3\nrustc=1.3.0\n```code```",
+                expected: (&[("flags", "-C opt-level=3"), ("rustc", "1.3.0")], "```code```"),
+            }
+        ];
+        for (i, tc) in test_cases.into_iter().enumerate() {
+            let got = Commands::parse_argument_list(tc.input);
+            let expected = (tc.expected.0.iter().cloned().collect(), tc.expected.1);
+            assert_eq!(got, expected, "test case #{}", i);
         }
     }
 }
