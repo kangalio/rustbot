@@ -208,9 +208,7 @@ impl Commands {
         };
         if let Err(e) = command_execution_result {
             error!("Error when executing command {}: {}", command.name, e);
-            if let Err(e) =
-                crate::api::send_reply(&args, &format!("Something went wrong :( — `{}`", e))
-            {
+            if let Err(e) = crate::api::send_reply(&args, &e.to_string()) {
                 error!("{}", e)
             }
         }
