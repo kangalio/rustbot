@@ -143,6 +143,7 @@ dependencies = [
 [[package]]
 name = "command_attr"
 version = "0.1.0"
+source = "git+https://github.com/kangalioo/framework?branch=data_error_hack#724b7c102978096b40fcb8c837626767997f22cb"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -1086,6 +1087,7 @@ dependencies = [
 [[package]]
 name = "serenity_framework"
 version = "0.1.0"
+source = "git+https://github.com/kangalioo/framework?branch=data_error_hack#724b7c102978096b40fcb8c837626767997f22cb"
 dependencies = [
  "command_attr",
  "serenity",

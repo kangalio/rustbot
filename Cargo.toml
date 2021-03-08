@@ -9,7 +9,8 @@ license = "MIT"
 
 [dependencies]
 serenity = { git = "https://github.com/kangalioo/serenity", branch = "parse", default_features = false, features = ["rustls_backend", "builder", "cache", "client", "gateway", "model", "http"] }
-serenity_framework = { path = "/home/kangalioo/dev/rust/_downloaded/serenity-framework/framework" }
+# serenity_framework = { path = "/home/kangalioo/dev/rust/_downloaded/serenity-framework/framework" }
+serenity_framework = { git = "https://github.com/kangalioo/framework", branch = "data_error_hack" }
 reqwest = { version = "0.11", features = ["json"] }
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
