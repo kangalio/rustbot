@@ -47,7 +47,13 @@ pub async fn cleanup(
 
 #[command]
 /// Bans another person
-pub async fn ban(ctx: Context, msg: &Message, bannee: Member) -> Result<(), Error> {
+pub async fn ban(
+    ctx: Context,
+    msg: &Message,
+    #[parse]
+    #[rest]
+    bannee: Member,
+) -> Result<(), Error> {
     msg.channel_id
         .say(
             &ctx.serenity_ctx.http,
