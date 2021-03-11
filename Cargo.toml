@@ -12,9 +12,7 @@ serenity = { version = "0.8.7", features = ["model"] }
 reqwest = { version = "0.10", features = ["blocking", "json"] }
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
-lazy_static = "1.4.0"
 log = "0.4.0"
 env_logger = "0.7.1"
-envy = "0.4"
-indexmap = "1.6"
-strip-ansi-escapes = "0.1.0" # For normalizing godbolt responses
+strip-ansi-escapes = "0.1.0" # To remove colors from rustc output from godbolt
+chrono = "0.4.0" # To interact with serenity

@@ -1,9 +1,13 @@
-use crate::{command_history::CommandHistory, commands::Args, Error};
+use crate::{
+    command_history::{CommandHistory, CommandHistoryEntry},
+    commands::Args,
+    Error,
+};
 use serenity::model::prelude::*;
 
 /// Send a reply to the channel the message was received on.  
 pub fn send_reply(args: &Args, message: &str) -> Result<(), Error> {
-    if let Some(response_id) = response_exists(args) {
+    if let Some(response_id) = find_response(args) {
         info!("editing message: {:?}", response_id);
         args.msg
             .channel_id
@@ -13,14 +17,20 @@ pub fn send_reply(args: &Args, message: &str) -> Result<(), Error> {
 
         let mut data = args.cx.data.write();
         let history = data.get_mut::<CommandHistory>().unwrap();
-        history.insert(args.msg.id, response.id);
+        history.push(CommandHistoryEntry {
+            user_message: args.msg.clone(),
+            response,
+        });
     }
 
     Ok(())
 }
 
-fn response_exists(args: &Args) -> Option<MessageId> {
+fn find_response(args: &Args) -> Option<MessageId> {
     let data = args.cx.data.read();
     let history = data.get::<CommandHistory>().unwrap();
-    history.get(&args.msg.id).copied()
+    history
+        .iter()
+        .find(|entry| entry.user_message.id == args.msg.id)
+        .map(|entry| entry.response.id)
 }

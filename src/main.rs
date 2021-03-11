@@ -14,19 +14,12 @@ use serenity::{model::prelude::*, prelude::*};
 
 pub type Error = Box<dyn std::error::Error + Send + Sync>;
 
-#[derive(serde::Deserialize)]
-struct Config {
-    discord_token: String,
-    mod_role_id: u64,
-}
-
 fn app() -> Result<(), Error> {
-    let Config {
-        discord_token,
-        mod_role_id,
-    } = envy::from_env::<Config>()?;
-
-    info!("starting...");
+    let discord_token = std::env::var("DISCORD_TOKEN").map_err(|_| "Missing DISCORD_TOKEN")?;
+    let mod_role_id = std::env::var("MOD_ROLE_ID")
+        .ok()
+        .and_then(|s| s.parse().ok())
+        .ok_or("Missing MOD_ROLE_ID")?;
 
     let mut cmds = Commands::new();
 
@@ -50,7 +43,7 @@ fn app() -> Result<(), Error> {
     cmds.add(
         "play",
         playground::play,
-        "Compile and run rust code in a playground",
+        "Compile and run Rust code in a playground",
         |args| playground::play_and_eval_help(args, "play"),
     )
     .broadcast_typing = true;
@@ -58,7 +51,7 @@ fn app() -> Result<(), Error> {
     cmds.add(
         "eval",
         playground::eval,
-        "Evaluate a single rust expression",
+        "Evaluate a single Rust expression",
         |args| playground::play_and_eval_help(args, "eval"),
     )
     .broadcast_typing = true;
@@ -296,7 +289,7 @@ impl EventHandler for Events {
         info!("{} connected to discord", ready.user.name);
         {
             let mut data = cx.data.write();
-            data.insert::<command_history::CommandHistory>(indexmap::IndexMap::new());
+            data.insert::<command_history::CommandHistory>(Vec::new());
             data.insert::<BotUserId>(ready.user.id);
         }
 
@@ -319,17 +312,18 @@ impl EventHandler for Events {
         _: Option<Message>,
         ev: MessageUpdateEvent,
     ) {
-        if let Err(e) = command_history::replay_message(cx, ev, &self.cmds) {
-            error!("{}", e);
-        }
+        command_history::apply_message_update(cx, ev, &self.cmds);
     }
 
     fn message_delete(&self, cx: Context, channel_id: ChannelId, message_id: MessageId) {
         let mut data = cx.data.write();
         let history = data.get_mut::<command_history::CommandHistory>().unwrap();
-        if let Some(response_id) = history.remove(&message_id) {
-            info!("deleting message: {:?}", response_id);
-            let _ = channel_id.delete_message(&cx, response_id);
+        if let Some(history_entry_index) = history
+            .iter()
+            .position(|entry| entry.user_message.id == message_id)
+        {
+            history.remove(history_entry_index);
+            let _ = channel_id.delete_message(&cx, history[history_entry_index].response.id);
         }
     }
 }
