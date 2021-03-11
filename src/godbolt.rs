@@ -35,9 +35,7 @@ struct GodboltResponse {
 // Transforms human readable rustc version (e.g. "1.34.1") into compiler id on godbolt (e.g. "r1341")
 // Full list of version<->id can be obtained at https://godbolt.org/api/compilers/rust
 // Ideally we'd also check that the version exists, and give a nice error message if not, but eh.
-fn translate_rustc_version<'a>(
-    version: &'a str,
-) -> Result<std::borrow::Cow<'a, str>, crate::Error> {
+fn translate_rustc_version(version: &str) -> Result<std::borrow::Cow<'_, str>, crate::Error> {
     if ["nightly", "beta"].contains(&version) {
         return Ok(version.into());
     }
@@ -48,7 +46,7 @@ fn translate_rustc_version<'a>(
                 .into(),
         );
     }
-    return Ok(format!("r{}", version.replace(".", "")).into());
+    Ok(format!("r{}", version.replace(".", "")).into())
 }
 
 /// Compile a given Rust source code file on Godbolt using the latest nightly compiler with

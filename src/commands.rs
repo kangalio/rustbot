@@ -119,7 +119,7 @@ impl Commands {
 
     // Takes the (optional) param list (optionally) followed by a body, and parses it.
     // Returns the key=value HashMap, and the body, in a tuple.
-    fn parse_argument_list<'a>(msg: &'a str) -> (HashMap<&'a str, &'a str>, &'a str) {
+    fn parse_argument_list(msg: &str) -> (HashMap<&str, &str>, &str) {
         // Some commands like to pre-declare possible params (or "flags" if you wish)
         // Specifying arguments comes in two flavours:
         // 1) ?command param1=value-without-spaces param2=other-value body goes here
@@ -165,7 +165,7 @@ impl Commands {
             Some(index) => &msg[index..],
         };
 
-        return (params, body);
+        (params, body)
     }
 
     pub fn execute(&self, cx: &Context, serenity_msg: &Message) {
@@ -245,10 +245,13 @@ mod tests {
                 input: "it's=me",
                 expected: (&[], "it's=me"),
             },
-            TestCase{
+            TestCase {
                 input: "\nflags=-C opt-level=3\nrustc=1.3.0\n```code```",
-                expected: (&[("flags", "-C opt-level=3"), ("rustc", "1.3.0")], "```code```"),
-            }
+                expected: (
+                    &[("flags", "-C opt-level=3"), ("rustc", "1.3.0")],
+                    "```code```",
+                ),
+            },
         ];
         for (i, tc) in test_cases.into_iter().enumerate() {
             let got = Commands::parse_argument_list(tc.input);
