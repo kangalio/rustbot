@@ -367,9 +367,8 @@ fn send_reply(
         crate::reply_potentially_long_text(
             args,
             &format!("{}```rust\n{}", flag_parse_errors, result),
-            "```",
             &format!(
-                "Output too large. Playground link: {}",
+                "```Output too large. Playground link: {}",
                 url_from_gist(&flags, &post_gist(args, code)?),
             ),
         )

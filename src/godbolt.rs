@@ -105,8 +105,7 @@ pub fn godbolt(args: &crate::Args) -> Result<(), crate::Error> {
     crate::reply_potentially_long_text(
         args,
         &format!("```{}\n{}", lang, text),
-        &format!("\n```{}", note.unwrap_or("")),
-        "Note: the output was truncated",
+        &format!("\n```{}Note: the output was truncated", note.unwrap_or("")),
     )?;
 
     Ok(())
