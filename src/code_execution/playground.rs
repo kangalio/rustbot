@@ -122,7 +122,7 @@ fn post_gist(args: &Args, code: &str) -> Result<String, Error> {
     let resp = args
         .http
         .post("https://play.rust-lang.org/meta/gist/")
-        .header(header::REFERER, "https://discord.gg/rust-lang")
+        .header(header::REFERER, "https://discord.gg/rust-lang-community")
         .json(&payload)
         .send()?;
 
@@ -172,6 +172,7 @@ struct CommandFlags {
     channel: Channel,
     mode: Mode,
     edition: Edition,
+    warn: bool,
 }
 
 /// Returns the parsed flags and a String of parse errors. The parse error string will have a
@@ -183,25 +184,33 @@ fn parse_flags(args: &Args) -> (CommandFlags, String) {
         channel: Channel::Nightly,
         mode: Mode::Debug,
         edition: Edition::E2018,
+        warn: false,
     };
 
     if let Some(channel) = args.params.get("channel") {
         match channel.parse() {
-            Ok(c) => flags.channel = c,
+            Ok(x) => flags.channel = x,
             Err(e) => errors += &format!("{}\n", e),
         }
     }
 
     if let Some(mode) = args.params.get("mode") {
         match mode.parse() {
-            Ok(m) => flags.mode = m,
+            Ok(x) => flags.mode = x,
             Err(e) => errors += &format!("{}\n", e),
         }
     }
 
     if let Some(edition) = args.params.get("edition") {
         match edition.parse() {
-            Ok(e) => flags.edition = e,
+            Ok(x) => flags.edition = x,
+            Err(e) => errors += &format!("{}\n", e),
+        }
+    }
+
+    if let Some(warn) = args.params.get("warn") {
+        match warn.parse() {
+            Ok(x) => flags.warn = x,
             Err(e) => errors += &format!("{}\n", e),
         }
     }
@@ -419,9 +428,9 @@ fn strip_fn_main_boilerplate_from_formatted(text: &str) -> String {
 }
 
 /// Extract compiler output and program stderr output and format the two nicely
-fn format_play_eval_stderr(result: &mut PlayResult) {
-    let compiler_warnings = extract_relevant_lines(
-        &result.stderr,
+fn format_play_eval_stderr(stderr: &str, warn: bool) -> String {
+    let compiler_output = extract_relevant_lines(
+        &stderr,
         &["Compiling playground"],
         &[
             "warning emitted",
@@ -430,17 +439,27 @@ fn format_play_eval_stderr(result: &mut PlayResult) {
             "Finished ",
         ],
     );
-    let program_stderr = match result.stderr.contains("Running `target") {
-        true => extract_relevant_lines(&result.stderr, &["Running `target"], &[]),
-        false => "",
-    };
 
-    result.stderr = match (compiler_warnings, program_stderr) {
-        ("", "") => String::new(),
-        (warnings, "") => warnings.to_owned(),
-        ("", stderr) => stderr.to_owned(),
-        (warnings, stderr) => format!("{}\n{}", warnings, stderr),
-    };
+    if stderr.contains("Running `target") {
+        // Program successfully compiled, so compiler output will be just warnings
+        let program_stderr = extract_relevant_lines(&stderr, &["Running `target"], &[]);
+
+        if warn {
+            // Concatenate compiler output and program stderr with a newline
+            match (compiler_output, program_stderr) {
+                ("", "") => String::new(),
+                (warnings, "") => warnings.to_owned(),
+                ("", stderr) => stderr.to_owned(),
+                (warnings, stderr) => format!("{}\n{}", warnings, stderr),
+            }
+        } else {
+            program_stderr.to_owned()
+        }
+    } else {
+        // Program didn't get to run, so there must be an error, so we yield the compiler output
+        // regardless of whether warn is enabled or not
+        compiler_output.to_owned()
+    }
 }
 
 // ================================
@@ -470,7 +489,7 @@ fn play_or_eval(args: &Args, result_handling: ResultHandling) -> Result<(), Erro
         .send()?
         .json()?;
 
-    format_play_eval_stderr(&mut result);
+    result.stderr = format_play_eval_stderr(&result.stderr, flags.warn);
 
     send_reply(args, result, &code, &flags, &flag_parse_errors)
 }
@@ -710,7 +729,7 @@ fn main() {
         .send()?
         .json()?;
 
-    format_play_eval_stderr(&mut result);
+    result.stderr = format_play_eval_stderr(&result.stderr, flags.warn);
 
     if black_box_hint {
         flag_parse_errors +=
