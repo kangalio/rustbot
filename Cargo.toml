@@ -1,5 +1,5 @@
 [package]
-name = "rustlang_discord_mod_bot"
+name = "rustbot"
 version = "0.1.0"
 authors = ["kangalioo", "technetos <mrgould93@gmail.com>"]
 edition = "2018"
