@@ -26,33 +26,40 @@ use crate::{Args, Error};
 ///     "\n```"
 /// );
 /// ```
-pub fn reply_potentially_long_text(
+fn reply_potentially_long_text(
     args: &Args,
     text_body: &str,
     text_end: &str,
+    truncation_msg: &str,
 ) -> Result<(), Error> {
     const MAX_OUTPUT_LINES: usize = 45;
 
     // check the 2000 char limit first, because otherwise we could produce a too large message
     let msg = if text_body.len() + text_end.len() > 2000 {
         // This is how long the text body may be at max to conform to Discord's limit
-        let available_space = 2000 - text_end.len();
+        let available_space = 2000 - text_end.len() - truncation_msg.len();
 
         let mut cut_off_point = available_space;
         while !text_body.is_char_boundary(cut_off_point) {
             cut_off_point -= 1;
         }
 
-        format!("{}{}", &text_body[..cut_off_point], text_end,)
+        format!(
+            "{}{}{}",
+            &text_body[..cut_off_point],
+            text_end,
+            truncation_msg
+        )
     } else if text_body.lines().count() > MAX_OUTPUT_LINES {
         format!(
-            "{}{}",
+            "{}{}{}",
             text_body
                 .lines()
                 .take(MAX_OUTPUT_LINES)
                 .collect::<Vec<_>>()
                 .join("\n"),
             text_end,
+            truncation_msg,
         )
     } else {
         format!("{}{}", text_body, text_end)
@@ -72,7 +79,7 @@ pub fn reply_potentially_long_text(
 /// assert_eq!(extract_code("```rust\nhello\n```").unwrap(), "hello");
 /// assert_eq!(extract_code("``` rust\nhello\n```").unwrap(), "rust\nhello");
 /// ```
-pub fn extract_code(input: &str) -> Result<&str, Error> {
+fn extract_code(input: &str) -> Result<&str, Error> {
     fn inner(input: &str) -> Option<&str> {
         let input = input.trim();
 

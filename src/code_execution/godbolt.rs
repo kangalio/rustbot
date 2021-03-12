@@ -107,7 +107,8 @@ pub fn godbolt(args: &Args) -> Result<(), Error> {
     super::reply_potentially_long_text(
         args,
         &format!("```{}\n{}", lang, text),
-        &format!("\n```{}Note: the output was truncated", note.unwrap_or("")),
+        &format!("\n```{}", note.unwrap_or("")),
+        "Note: the output was truncated",
     )?;
 
     Ok(())
