@@ -1,3 +1,5 @@
+use crate::{Args, Error};
+
 enum Compilation {
     Success { asm: String, stderr: String },
     Error { stderr: String },
@@ -12,7 +14,7 @@ struct GodboltOutputSegment {
 struct GodboltOutput(Vec<GodboltOutputSegment>);
 
 impl GodboltOutput {
-    pub fn full_with_ansi_codes_stripped(&self) -> Result<String, crate::Error> {
+    pub fn full_with_ansi_codes_stripped(&self) -> Result<String, Error> {
         let mut complete_text = String::new();
         for segment in self.0.iter() {
             complete_text.push_str(&segment.text);
@@ -35,7 +37,7 @@ struct GodboltResponse {
 // Transforms human readable rustc version (e.g. "1.34.1") into compiler id on godbolt (e.g. "r1341")
 // Full list of version<->id can be obtained at https://godbolt.org/api/compilers/rust
 // Ideally we'd also check that the version exists, and give a nice error message if not, but eh.
-fn translate_rustc_version(version: &str) -> Result<std::borrow::Cow<'_, str>, crate::Error> {
+fn translate_rustc_version(version: &str) -> Result<std::borrow::Cow<'_, str>, Error> {
     if ["nightly", "beta"].contains(&version) {
         return Ok(version.into());
     }
@@ -57,7 +59,7 @@ fn compile_rust_source(
     source_code: &str,
     rustc: &str,
     flags: &str,
-) -> Result<Compilation, crate::Error> {
+) -> Result<Compilation, Error> {
     let rustc = translate_rustc_version(rustc)?;
     let response: GodboltResponse = http
         .execute(
@@ -85,7 +87,7 @@ fn compile_rust_source(
     })
 }
 
-pub fn godbolt(args: &crate::Args) -> Result<(), crate::Error> {
+pub fn godbolt(args: &Args) -> Result<(), Error> {
     let rustc = args.params.get("rustc").unwrap_or(&"nightly");
     let flags = args
         .params
@@ -93,7 +95,7 @@ pub fn godbolt(args: &crate::Args) -> Result<(), crate::Error> {
         .unwrap_or(&"-Copt-level=3 --edition=2018");
     println!("r f = {:?} {:?}", rustc, flags);
     let (lang, text, note) =
-        match compile_rust_source(args.http, crate::extract_code(&args.body)?, rustc, flags)? {
+        match compile_rust_source(args.http, super::extract_code(&args.body)?, rustc, flags)? {
             Compilation::Success { asm, stderr } => (
                 "x86asm",
                 asm,
@@ -102,7 +104,7 @@ pub fn godbolt(args: &crate::Args) -> Result<(), crate::Error> {
             Compilation::Error { stderr } => ("rust", stderr, None),
         };
 
-    crate::reply_potentially_long_text(
+    super::reply_potentially_long_text(
         args,
         &format!("```{}\n{}", lang, text),
         &format!("\n```{}Note: the output was truncated", note.unwrap_or("")),
@@ -111,8 +113,8 @@ pub fn godbolt(args: &crate::Args) -> Result<(), crate::Error> {
     Ok(())
 }
 
-pub fn help(args: &crate::Args) -> Result<(), crate::Error> {
-    crate::api::send_reply(
+pub fn godbolt_help(args: &Args) -> Result<(), Error> {
+    crate::send_reply(
         args,
         "Compile Rust code using https://rust.godbolt.org. Full optimizations are applied unless overriden.
 ```?godbolt

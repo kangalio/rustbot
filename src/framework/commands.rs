@@ -94,14 +94,14 @@ impl Commands {
             menu += "\nYou can edit your message to the bot and the bot will edit its response.";
             menu += "\n```";
 
-            crate::api::send_reply(args, &menu)
+            crate::send_reply(args, &menu)
         } else {
             match self.find_command(&args.body) {
                 Some(cmd) => match &cmd.handler {
-                    CommandHandler::Help => crate::api::send_reply(args, "Are you beyond help?"),
+                    CommandHandler::Help => crate::send_reply(args, "Are you beyond help?"),
                     CommandHandler::Custom { help, .. } => (help)(args),
                 },
-                None => crate::api::send_reply(args, &format!("No such command `{}`", args.body)),
+                None => crate::send_reply(args, &format!("No such command `{}`", args.body)),
             }
         }
     }
@@ -208,7 +208,7 @@ impl Commands {
         };
         if let Err(e) = command_execution_result {
             error!("Error when executing command {}: {}", command.name, e);
-            if let Err(e) = crate::api::send_reply(&args, &e.to_string()) {
+            if let Err(e) = crate::send_reply(&args, &e.to_string()) {
                 error!("{}", e)
             }
         }

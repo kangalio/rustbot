@@ -16,7 +16,7 @@ pub fn cleanup(args: &Args, mod_role_id: RoleId) -> Result<(), Error> {
         None => true, // in DMs, treat the user as an "effective" mod
     };
     let data = args.cx.data.read();
-    let bot_id = *data.get::<crate::BotUserId>().unwrap();
+    let bot_id = *data.get::<crate::framework::BotUserId>().unwrap();
 
     args.msg
         .channel_id
@@ -41,7 +41,7 @@ pub fn cleanup(args: &Args, mod_role_id: RoleId) -> Result<(), Error> {
 }
 
 pub fn cleanup_help(args: &Args) -> Result<(), Error> {
-    crate::api::send_reply(
+    crate::send_reply(
         args,
         "?cleanup [limit]
 
@@ -106,7 +106,7 @@ fn parse_member<'a>(members: &'a HashMap<UserId, Member>, string: &str) -> Optio
 pub fn joke_ban(args: &Args) -> Result<(), Error> {
     let guild_id = match args.msg.guild_id {
         Some(x) => x,
-        None => return crate::api::send_reply(args, "🤨"),
+        None => return crate::send_reply(args, "🤨"),
     };
 
     let mut parts = args.body.splitn(2, ' ');
@@ -119,7 +119,7 @@ pub fn joke_ban(args: &Args) -> Result<(), Error> {
     });
 
     match banned_person {
-        Some(banned_person) => crate::api::send_reply(
+        Some(banned_person) => crate::send_reply(
             args,
             &format!(
                 "{}#{} banned user {}#{}{}  {}",
@@ -139,7 +139,7 @@ pub fn joke_ban(args: &Args) -> Result<(), Error> {
 }
 
 pub fn joke_ban_help(args: &Args) -> Result<(), Error> {
-    crate::api::send_reply(
+    crate::send_reply(
         args,
         "?ban <member> [reason]
 

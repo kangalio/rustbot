@@ -1,4 +1,5 @@
-use crate::{commands::Commands, Error};
+use super::Commands;
+use crate::Error;
 use serenity::{model::prelude::*, prelude::*};
 
 pub struct CommandHistory;

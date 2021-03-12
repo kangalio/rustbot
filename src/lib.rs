@@ -1,15 +1,12 @@
 #[macro_use]
 extern crate log;
 
-mod api;
-mod command_history;
-mod commands;
+mod code_execution;
 mod crates;
-mod godbolt;
+mod framework;
 mod moderation;
-mod playground;
 
-use commands::{Args, Commands};
+use framework::{send_reply, Args, Commands};
 use serenity::{model::prelude::*, prelude::*};
 
 pub type Error = Box<dyn std::error::Error + Send + Sync>;
@@ -42,72 +39,72 @@ fn app() -> Result<(), Error> {
 
     cmds.add(
         "play",
-        playground::play,
+        code_execution::play,
         "Compile and run Rust code in a playground",
-        |args| playground::play_and_eval_help(args, "play"),
+        |args| code_execution::play_and_eval_help(args, "play"),
     )
     .broadcast_typing = true;
 
     cmds.add(
         "eval",
-        playground::eval,
+        code_execution::eval,
         "Evaluate a single Rust expression",
-        |args| playground::play_and_eval_help(args, "eval"),
+        |args| code_execution::play_and_eval_help(args, "eval"),
     )
     .broadcast_typing = true;
 
     cmds.add(
         "miri",
-        playground::miri,
+        code_execution::miri,
         "Run code and detect undefined behavior using Miri",
-        playground::miri_help,
+        code_execution::miri_help,
     )
     .broadcast_typing = true;
 
     cmds.add(
         "expand",
-        playground::expand_macros,
+        code_execution::expand_macros,
         "Expand macros to their raw desugared form",
-        playground::expand_macros_help,
+        code_execution::expand_macros_help,
     )
     .broadcast_typing = true;
 
     cmds.add(
         "clippy",
-        playground::clippy,
+        code_execution::clippy,
         "Catch common mistakes using the Clippy linter",
-        playground::clippy_help,
+        code_execution::clippy_help,
     )
     .broadcast_typing = true;
 
     cmds.add(
         "fmt",
-        playground::fmt,
+        code_execution::fmt,
         "Format code using rustfmt",
-        playground::fmt_help,
+        code_execution::fmt_help,
     )
     .broadcast_typing = true;
 
     cmds.add(
         "microbench",
-        playground::micro_bench,
+        code_execution::micro_bench,
         "Benchmark small snippets of code",
-        playground::micro_bench_help,
+        code_execution::micro_bench_help,
     )
     .broadcast_typing = true;
 
     cmds.add(
         "go",
-        |args| api::send_reply(args, "No"),
+        |args| framework::send_reply(args, "No"),
         "Evaluates Go code",
-        |args| api::send_reply(args, "Evaluates Go code"),
+        |args| framework::send_reply(args, "Evaluates Go code"),
     );
 
     cmds.add(
         "godbolt",
-        godbolt::godbolt,
+        code_execution::godbolt,
         "View assembly using Godbolt",
-        godbolt::help,
+        code_execution::godbolt_help,
     )
     .broadcast_typing = true;
 
@@ -128,107 +125,16 @@ fn app() -> Result<(), Error> {
 
     cmds.add(
         "source",
-        |args| api::send_reply(args, "https://github.com/kangalioo/rustbot"),
+        |args| framework::send_reply(args, "https://github.com/kangalioo/rustbot"),
         "Links to the bot GitHub repo",
-        |args| api::send_reply(args, "?source\n\nLinks to the bot GitHub repo"),
+        |args| framework::send_reply(args, "?source\n\nLinks to the bot GitHub repo"),
     );
 
-    Client::new_with_extras(&discord_token, |e| e.event_handler(Events { cmds }))?.start()?;
+    Client::new_with_extras(&discord_token, |e| {
+        e.event_handler(framework::Events { cmds })
+    })?
+    .start()?;
     Ok(())
-}
-
-/// Send a Discord reply message and truncate the message with a given truncation message if the
-/// text is too long. "Too long" means, it either goes beyond Discord's 2000 char message limit,
-/// or if the text_body has too many lines.
-///
-/// Only `text_body` is truncated. `text_end` will always be appended at the end. This is useful
-/// for example for large code blocks. You will want to truncate the code block contents, but the
-/// finalizing \`\`\` should always stay - that's what `text_end` is for.
-///
-/// ```rust,no_run
-/// # let args = todo!(); use rustbot::reply_potentially_long_text;
-/// // This will send "```\nvery long stringvery long stringver...long stringve\n```"
-/// //                character limit reached, text_end starts ~~~~~~~~~~~~~~~~^
-/// reply_potentially_long_text(
-///     args,
-///     format!("```\n{}", "very long string".repeat(500)),
-///     "\n```"
-/// );
-/// ```
-pub fn reply_potentially_long_text(
-    args: &Args,
-    text_body: &str,
-    text_end: &str,
-) -> Result<(), Error> {
-    const MAX_OUTPUT_LINES: usize = 45;
-
-    // check the 2000 char limit first, because otherwise we could produce a too large message
-    let msg = if text_body.len() + text_end.len() > 2000 {
-        // This is how long the text body may be at max to conform to Discord's limit
-        let available_space = 2000 - text_end.len();
-
-        let mut cut_off_point = available_space;
-        while !text_body.is_char_boundary(cut_off_point) {
-            cut_off_point -= 1;
-        }
-
-        format!("{}{}", &text_body[..cut_off_point], text_end,)
-    } else if text_body.lines().count() > MAX_OUTPUT_LINES {
-        format!(
-            "{}{}",
-            text_body
-                .lines()
-                .take(MAX_OUTPUT_LINES)
-                .collect::<Vec<_>>()
-                .join("\n"),
-            text_end,
-        )
-    } else {
-        format!("{}{}", text_body, text_end)
-    };
-
-    api::send_reply(args, &msg)
-}
-
-/// Extract code from a Discord code block on a best-effort basis
-///
-/// ```rust
-/// # use rustbot::extract_code;
-/// assert_eq!(extract_code("`hello`").unwrap(), "hello");
-/// assert_eq!(extract_code("`    hello `").unwrap(), "hello");
-/// assert_eq!(extract_code("``` hello ```").unwrap(), "hello");
-/// assert_eq!(extract_code("```rust hello ```").unwrap(), "hello");
-/// assert_eq!(extract_code("```rust\nhello\n```").unwrap(), "hello");
-/// assert_eq!(extract_code("``` rust\nhello\n```").unwrap(), "rust\nhello");
-/// ```
-pub fn extract_code(input: &str) -> Result<&str, Error> {
-    fn inner(input: &str) -> Option<&str> {
-        let input = input.trim();
-
-        let extracted_code = if input.starts_with("```") && input.ends_with("```") {
-            let code_starting_point = input.find(char::is_whitespace)?; // skip over lang specifier
-            let code_end_point = input.len() - 3;
-
-            // can't fail but you can never be too sure
-            input.get(code_starting_point..code_end_point)?
-        } else if input.starts_with('`') && input.ends_with('`') {
-            // can't fail but you can never be too sure
-            input.get(1..(input.len() - 1))?
-        } else {
-            return None;
-        };
-
-        Some(extracted_code.trim())
-    }
-
-    Ok(inner(input).ok_or(
-        "Missing code block. Please use the following markdown:
-\\`code here\\`
-or
-\\`\\`\\`rust
-code here
-\\`\\`\\`",
-    )?)
 }
 
 pub fn find_custom_emoji(args: &Args, emoji_name: &str) -> Option<Emoji> {
@@ -265,59 +171,5 @@ pub fn main() {
     if let Err(e) = app() {
         error!("{}", e);
         std::process::exit(1);
-    }
-}
-
-struct BotUserId;
-
-impl TypeMapKey for BotUserId {
-    type Value = UserId;
-}
-
-struct Events {
-    cmds: Commands,
-}
-
-impl EventHandler for Events {
-    fn ready(&self, cx: Context, ready: Ready) {
-        info!("{} connected to discord", ready.user.name);
-        {
-            let mut data = cx.data.write();
-            data.insert::<command_history::CommandHistory>(Vec::new());
-            data.insert::<BotUserId>(ready.user.id);
-        }
-
-        std::thread::spawn(move || -> Result<(), Error> {
-            loop {
-                command_history::clear_command_history(&cx)?;
-                std::thread::sleep(std::time::Duration::from_secs(3600));
-            }
-        });
-    }
-
-    fn message(&self, cx: Context, message: Message) {
-        self.cmds.execute(&cx, &message);
-    }
-
-    fn message_update(
-        &self,
-        cx: Context,
-        _: Option<Message>,
-        _: Option<Message>,
-        ev: MessageUpdateEvent,
-    ) {
-        command_history::apply_message_update(cx, ev, &self.cmds);
-    }
-
-    fn message_delete(&self, cx: Context, channel_id: ChannelId, message_id: MessageId) {
-        let mut data = cx.data.write();
-        let history = data.get_mut::<command_history::CommandHistory>().unwrap();
-        if let Some(history_entry_index) = history
-            .iter()
-            .position(|entry| entry.user_message.id == message_id)
-        {
-            history.remove(history_entry_index);
-            let _ = channel_id.delete_message(&cx, history[history_entry_index].response.id);
-        }
     }
 }

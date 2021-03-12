@@ -1,6 +1,6 @@
 //! run rust code on the rust-lang playground
 
-use crate::{api, commands::Args, Error};
+use crate::{Args, Error};
 
 use reqwest::header;
 use serde::{Deserialize, Serialize};
@@ -235,7 +235,7 @@ fn generic_help(
     }
     reply += "    \tedition: 2015, 2018 (default: 2018)\n";
 
-    api::send_reply(args, &reply)
+    crate::send_reply(args, &reply)
 }
 
 /// Strip the input according to a list of start tokens and end tokens. Everything after the start
@@ -362,9 +362,9 @@ fn send_reply(
     };
 
     if result.trim().is_empty() {
-        api::send_reply(args, &format!("{}``` ```", flag_parse_errors))
+        crate::send_reply(args, &format!("{}``` ```", flag_parse_errors))
     } else {
-        crate::reply_potentially_long_text(
+        super::reply_potentially_long_text(
             args,
             &format!("{}```rust\n{}", flag_parse_errors, result),
             &format!(
@@ -448,7 +448,7 @@ fn format_play_eval_stderr(result: &mut PlayResult) {
 
 // play and eval work similarly, so this function abstracts over the two
 fn play_or_eval(args: &Args, result_handling: ResultHandling) -> Result<(), Error> {
-    let code = maybe_wrap(crate::extract_code(args.body)?, result_handling);
+    let code = maybe_wrap(super::extract_code(args.body)?, result_handling);
     let (flags, flag_parse_errors) = parse_flags(args);
 
     let mut result: PlayResult = args
@@ -487,7 +487,7 @@ pub fn play_and_eval_help(args: &Args, name: &str) -> Result<(), Error> {
 }
 
 pub fn miri(args: &Args) -> Result<(), Error> {
-    let code = &maybe_wrap(crate::extract_code(args.body)?, ResultHandling::Discard);
+    let code = &maybe_wrap(super::extract_code(args.body)?, ResultHandling::Discard);
     let (flags, flag_parse_errors) = parse_flags(args);
 
     let mut result: PlayResult = args
@@ -516,7 +516,7 @@ pub fn miri_help(args: &Args) -> Result<(), Error> {
 }
 
 pub fn expand_macros(args: &Args) -> Result<(), Error> {
-    let code = maybe_wrap(crate::extract_code(args.body)?, ResultHandling::None);
+    let code = maybe_wrap(super::extract_code(args.body)?, ResultHandling::None);
     let was_fn_main_wrapped = matches!(code, Cow::Owned(_));
     let (flags, flag_parse_errors) = parse_flags(args);
 
@@ -557,7 +557,7 @@ pub fn expand_macros_help(args: &Args) -> Result<(), Error> {
 }
 
 pub fn clippy(args: &Args) -> Result<(), Error> {
-    let code = &maybe_wrap(crate::extract_code(args.body)?, ResultHandling::Discard);
+    let code = &maybe_wrap(super::extract_code(args.body)?, ResultHandling::Discard);
     let (flags, flag_parse_errors) = parse_flags(args);
 
     let mut result: PlayResult = args
@@ -596,7 +596,7 @@ pub fn clippy_help(args: &Args) -> Result<(), Error> {
 }
 
 pub fn fmt(args: &Args) -> Result<(), Error> {
-    let code = &maybe_wrap(crate::extract_code(args.body)?, ResultHandling::None);
+    let code = &maybe_wrap(super::extract_code(args.body)?, ResultHandling::None);
     let was_fn_main_wrapped = matches!(code, Cow::Owned(_));
     let (flags, flag_parse_errors) = parse_flags(args);
 
@@ -618,7 +618,7 @@ pub fn micro_bench(args: &Args) -> Result<(), Error> {
         // include convenience import for users
         "#![feature(test)] #[allow(unused_imports)] use std::hint::black_box;\n".to_owned();
 
-    let user_input = crate::extract_code(args.body)?;
+    let user_input = super::extract_code(args.body)?;
     let black_box_hint = !user_input.contains("black_box");
     code += user_input;
 
@@ -671,7 +671,7 @@ fn main() {
 
     let pub_fn_indices = user_input.match_indices("pub fn ");
     if pub_fn_indices.clone().count() == 0 {
-        return api::send_reply(
+        return crate::send_reply(
             args,
             "No public functions found for benchmarking :thinking:",
         );

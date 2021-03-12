@@ -1,8 +1,5 @@
-use crate::{
-    command_history::{CommandHistory, CommandHistoryEntry},
-    commands::Args,
-    Error,
-};
+use super::{Args, CommandHistory, CommandHistoryEntry};
+use crate::Error;
 use serenity::model::prelude::*;
 
 /// Send a reply to the channel the message was received on.  
