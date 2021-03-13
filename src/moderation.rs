@@ -104,38 +104,35 @@ fn parse_member<'a>(members: &'a HashMap<UserId, Member>, string: &str) -> Optio
 }
 
 pub fn joke_ban(args: &Args) -> Result<(), Error> {
-    let guild_id = match args.msg.guild_id {
-        Some(x) => x,
-        None => return crate::send_reply(args, "🤨"),
-    };
-
     let mut parts = args.body.splitn(2, ' ');
-    let banned_person = parts.next().unwrap();
+    let banned_user = parts.next().unwrap();
     let reason = parts.next();
 
-    // Convert banned_person string to serenity Member
-    let banned_person = guild_id.to_guild_cached(&args.cx.cache).and_then(|guild| {
-        parse_member(&guild.read().members, banned_person).map(|m| m.user.read().clone())
-    });
+    let guild = args
+        .msg
+        .guild(&args.cx.cache)
+        .ok_or("can't be used in DMs")?;
+    let banned_user = parse_member(&guild.read().members, banned_user)
+        .ok_or("member not found")?
+        .user
+        .read()
+        .clone();
 
-    match banned_person {
-        Some(banned_person) => crate::send_reply(
-            args,
-            &format!(
-                "{}#{} banned user {}#{}{}  {}",
-                args.msg.author.name,
-                args.msg.author.discriminator,
-                banned_person.name,
-                banned_person.discriminator,
-                match reason {
-                    Some(reason) => format!(" {}", reason.trim()),
-                    None => String::new(),
-                },
-                crate::custom_emoji_code(args, "ferrisBanne", '🔨')
-            ),
+    crate::send_reply(
+        args,
+        &format!(
+            "{}#{} banned user {}#{}{}  {}",
+            args.msg.author.name,
+            args.msg.author.discriminator,
+            banned_user.name,
+            banned_user.discriminator,
+            match reason {
+                Some(reason) => format!(" {}", reason.trim()),
+                None => String::new(),
+            },
+            crate::custom_emoji_code(args, "ferrisBanne", '🔨')
         ),
-        None => Ok(args.msg.react(&args.cx.http, ReactionType::from('❌'))?),
-    }
+    )
 }
 
 pub fn joke_ban_help(args: &Args) -> Result<(), Error> {
@@ -144,5 +141,28 @@ pub fn joke_ban_help(args: &Args) -> Result<(), Error> {
         "?ban <member> [reason]
 
 Bans another person",
+    )
+}
+
+pub fn rustify(args: &Args, rustacean_role: RoleId) -> Result<(), Error> {
+    let guild = args
+        .msg
+        .guild(&args.cx.cache)
+        .ok_or("can't be used in DMs")?;
+
+    parse_member(&guild.read().members, args.body)
+        .ok_or("member not found")?
+        .clone()
+        .add_role(&args.cx.http, rustacean_role)?;
+
+    crate::react_custom_emoji(args, "rustOk", '👌')
+}
+
+pub fn rustify_help(args: &Args) -> Result<(), Error> {
+    crate::send_reply(
+        args,
+        "\\?rustify <member>
+
+Adds the Rustacean role to a member.",
     )
 }

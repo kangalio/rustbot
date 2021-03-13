@@ -17,7 +17,8 @@ https://discord.com/oauth2/authorize?client_id=804340127433752646&permissions=26
 
 Run the bot using `cargo run --release`. You will need to provide several environment variables:
 - DISCORD_TOKEN: the Discord bot token acquired via the Discord Developer Portal
-- MOD_ROLE_ID: the ID of the Moderator role on your Discord server
+- MOD_ROLE_ID: the ID of the Moderator role on your Discord server (for `?cleanup`)
+- RUSTACEAN_ROLE_ID: the ID of the Rustacean role on your Discord server (for `?rustify`)
 
 An example command-line for Linux would be:
-`MOD_ROLE_ID=788427199761481799 DISCORD_TOKEN=... cargo run --release`
+`MOD_ROLE_ID=583178325221048320 RUSTACEAN_ROLE=319953207193501696 DISCORD_TOKEN=... cargo run --release`

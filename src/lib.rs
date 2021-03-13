@@ -11,12 +11,28 @@ use serenity::{model::prelude::*, prelude::*};
 
 pub type Error = Box<dyn std::error::Error + Send + Sync>;
 
+// Wraps a command function and reacts with a red cross emoji on error
+fn react_cross_on_fail(
+    f: impl Fn(&Args) -> Result<(), Error>,
+) -> impl Fn(&Args) -> Result<(), Error> {
+    move |args| {
+        if f(args).is_err() {
+            args.msg.react(&args.cx.http, ReactionType::from('❌'))?;
+        }
+        Ok(())
+    }
+}
+
 fn app() -> Result<(), Error> {
     let discord_token = std::env::var("DISCORD_TOKEN").map_err(|_| "Missing DISCORD_TOKEN")?;
     let mod_role_id = std::env::var("MOD_ROLE_ID")
         .ok()
         .and_then(|s| s.parse().ok())
         .ok_or("Missing MOD_ROLE_ID")?;
+    let rustacean_role = std::env::var("RUSTACEAN_ROLE_ID")
+        .ok()
+        .and_then(|s| s.parse().ok())
+        .ok_or("Missing RUSTACEAN_ROLE_ID")?;
 
     let mut cmds = Commands::new();
 
@@ -117,11 +133,19 @@ fn app() -> Result<(), Error> {
 
     cmds.add(
         "ban",
-        moderation::joke_ban,
+        react_cross_on_fail(moderation::joke_ban),
         "Bans another person",
         moderation::joke_ban_help,
     )
     .aliases = &["banne"];
+
+    cmds.add(
+        "rustify",
+        react_cross_on_fail(move |args| moderation::rustify(args, RoleId(rustacean_role))),
+        "Adds the Rustacean role to a member",
+        moderation::rustify_help,
+    )
+    .aliases = &["wustify"];
 
     cmds.add(
         "source",
