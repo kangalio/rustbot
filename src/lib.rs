@@ -16,7 +16,8 @@ fn react_cross_on_fail(
     f: impl Fn(&Args) -> Result<(), Error>,
 ) -> impl Fn(&Args) -> Result<(), Error> {
     move |args| {
-        if f(args).is_err() {
+        if let Err(e) = f(args) {
+            println!("Reacting with red cross because of error: {} ({0:?})", e);
             args.msg.react(&args.cx.http, ReactionType::from('❌'))?;
         }
         Ok(())

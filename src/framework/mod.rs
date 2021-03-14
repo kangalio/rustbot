@@ -1,3 +1,6 @@
+//! This modules handles command dispatch and updating bot responses when the user edits their
+//! message
+
 mod api;
 pub use api::*;
 

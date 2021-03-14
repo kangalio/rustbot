@@ -3,7 +3,7 @@ use crate::{Args, Error};
 use reqwest::header;
 use serde::Deserialize;
 
-const USER_AGENT: &str = "rust-lang/discord-mods-bot";
+const USER_AGENT: &str = "kangalioo/rustbot";
 
 #[derive(Debug, Deserialize)]
 struct Crates {
