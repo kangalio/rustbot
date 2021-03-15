@@ -170,10 +170,16 @@ impl Commands {
 
     pub fn execute(&self, cx: &Context, serenity_msg: &Message) {
         // find the first matching prefix and strip it
-        let msg = match PREFIXES
-            .iter()
-            .find_map(|prefix| serenity_msg.content.strip_prefix(prefix))
-        {
+        let msg = match PREFIXES.iter().find_map(|prefix| {
+            let msg = serenity_msg.content.to_lowercase();
+            let prefix = prefix.to_lowercase();
+
+            if msg.starts_with(&prefix) {
+                Some(&serenity_msg.content[prefix.len()..])
+            } else {
+                None
+            }
+        }) {
             Some(x) => x,
             None => return,
         };
