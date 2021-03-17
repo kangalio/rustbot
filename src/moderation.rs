@@ -150,10 +150,12 @@ pub fn rustify(args: &Args, rustacean_role: RoleId) -> Result<(), Error> {
         .guild(&args.cx.cache)
         .ok_or("can't be used in DMs")?;
 
-    parse_member(&guild.read().members, args.body)
-        .ok_or("member not found")?
-        .clone()
-        .add_role(&args.cx.http, rustacean_role)?;
+    for user in serenity::utils::parse_quotes(args.body) {
+        parse_member(&guild.read().members, &user)
+            .ok_or("member not found")?
+            .clone()
+            .add_role(&args.cx.http, rustacean_role)?;
+    }
 
     crate::react_custom_emoji(args, "rustOk", '👌')
 }
