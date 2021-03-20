@@ -1,4 +1,4 @@
-# Discord Mods Bot
+# Rustbot
 
 ## Inviting the bot
 
