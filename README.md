@@ -22,3 +22,7 @@ Run the bot using `cargo run --release`. You will need to provide several enviro
 
 An example command-line for Linux would be:
 `MOD_ROLE_ID=583178325221048320 RUSTACEAN_ROLE=319953207193501696 DISCORD_TOKEN=... cargo run --release`
+
+## Credits
+
+This codebase has its roots in [rust-lang/discord-mods-bot](https://github.com/rust-lang/discord-mods-bot/), the Discord bot running on the official Rust server.
