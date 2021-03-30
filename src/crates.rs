@@ -1,4 +1,4 @@
-use crate::{Args, Error};
+use crate::{Context, Error};
 
 use reqwest::header;
 use serde::Deserialize;
@@ -23,7 +23,7 @@ struct Crate {
 
 /// Queries the crates.io crates list and yields the first result, if any
 fn get_crate(http: &reqwest::blocking::Client, query: &str) -> Result<Option<Crate>, Error> {
-    info!("searching for crate `{}`", query);
+    log::info!("searching for crate `{}`", query);
 
     let crate_list = http
         .get("https://crates.io/api/v1/crates")
@@ -35,40 +35,43 @@ fn get_crate(http: &reqwest::blocking::Client, query: &str) -> Result<Option<Cra
     Ok(crate_list.crates.into_iter().next())
 }
 
-pub fn search(args: &Args) -> Result<(), Error> {
-    if let Some(url) = rustc_crate_link(args.body) {
-        return crate::send_reply(args, url);
+pub fn search(ctx: Context<'_>, args: &str) -> Result<(), Error> {
+    let crate_name = poise::parse_args!(args => (String))?;
+
+    if let Some(url) = rustc_crate_link(&crate_name) {
+        poise::say_reply(ctx, url.to_owned())?;
+        return Ok(());
     }
 
-    match get_crate(&args.http, args.body)? {
-        Some(crate_) => {
-            if crate_.exact_match {
-                args.msg.channel_id.send_message(&args.cx, |m| {
+    match get_crate(&ctx.data.http, &crate_name)? {
+        Some(found_crate) => {
+            if found_crate.exact_match {
+                poise::send_reply(ctx, |m| {
                     m.embed(|e| {
-                        e.title(&crate_.name)
-                            .url(format!("https://crates.io/crates/{}", crate_.id))
+                        e.title(&found_crate.name)
+                            .url(format!("https://crates.io/crates/{}", found_crate.id))
                             .description(
-                                &crate_
+                                &found_crate
                                     .description
                                     .as_deref()
                                     .unwrap_or("_<no description available>_"),
                             )
-                            .field("Version", &crate_.newest_version, true)
-                            .field("Downloads", &crate_.downloads, true)
-                            .timestamp(crate_.updated_at.as_str())
+                            .field("Version", &found_crate.newest_version, true)
+                            .field("Downloads", &found_crate.downloads, true)
+                            .timestamp(found_crate.updated_at.as_str())
                     })
                 })?;
             } else {
-                crate::send_reply(
-                    args,
-                    &format!(
+                poise::say_reply(
+                    ctx,
+                    format!(
                         "Crate `{}` not found. Did you mean `{}`?",
-                        args.body, crate_.name
+                        crate_name, found_crate.name
                     ),
                 )?;
             }
         }
-        None => crate::send_reply(args, &format!("Crate `{}` not found", args.body))?,
+        None => poise::say_reply(ctx, format!("Crate `{}` not found", crate_name))?,
     };
     Ok(())
 }
@@ -88,8 +91,10 @@ fn rustc_crate_link(crate_name: &str) -> Option<&'static str> {
     }
 }
 
-pub fn doc_search(args: &Args) -> Result<(), Error> {
-    let mut query_iter = args.body.splitn(2, "::");
+pub fn doc_search(ctx: Context<'_>, args: &str) -> Result<(), Error> {
+    let query = poise::parse_args!(args => (String))?;
+
+    let mut query_iter = query.splitn(2, "::");
     let crate_name = query_iter.next().unwrap();
 
     // The base docs url, e.g. `https://docs.rs/syn` or `https://doc.rust-lang.org/stable/std/`
@@ -98,9 +103,12 @@ pub fn doc_search(args: &Args) -> Result<(), Error> {
     } else if crate_name.is_empty() {
         "https://doc.rust-lang.org/stable/std/".to_owned()
     } else {
-        let crate_ = match get_crate(&args.http, crate_name)? {
+        let crate_ = match get_crate(&ctx.data.http, crate_name)? {
             Some(x) => x,
-            None => return crate::send_reply(args, &format!("Crate `{}` not found", crate_name)),
+            None => {
+                poise::say_reply(ctx, format!("Crate `{}` not found", crate_name))?;
+                return Ok(());
+            }
         };
 
         let crate_name = crate_.name;
@@ -114,27 +122,7 @@ pub fn doc_search(args: &Args) -> Result<(), Error> {
         doc_url += item_path;
     }
 
-    crate::send_reply(args, &doc_url)?;
+    poise::say_reply(ctx, doc_url)?;
 
-    Ok(())
-}
-
-/// Print the help message
-pub fn help(args: &Args) -> Result<(), Error> {
-    let help_string = "search for a crate on crates.io
-```
-?crate query...
-```";
-    crate::send_reply(args, &help_string)?;
-    Ok(())
-}
-
-/// Print the help message
-pub fn doc_help(args: &Args) -> Result<(), Error> {
-    let help_string = "retrieve documentation for a given crate
-```
-?docs crate_name...
-```";
-    crate::send_reply(args, &help_string)?;
     Ok(())
 }

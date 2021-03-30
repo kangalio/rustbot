@@ -6,7 +6,7 @@ pub use godbolt::*;
 mod playground;
 pub use playground::*;
 
-use crate::{Args, Error};
+use crate::{Context, Error};
 
 /// Send a Discord reply message and truncate the message with a given truncation message if the
 /// text is too long. "Too long" means, it either goes beyond Discord's 2000 char message limit,
@@ -27,7 +27,7 @@ use crate::{Args, Error};
 /// );
 /// ```
 fn reply_potentially_long_text(
-    args: &Args,
+    ctx: Context<'_>,
     text_body: &str,
     text_end: &str,
     truncation_msg: &str,
@@ -65,46 +65,42 @@ fn reply_potentially_long_text(
         format!("{}{}", text_body, text_end)
     };
 
-    crate::send_reply(args, &msg)
+    poise::say_reply(ctx, msg)?;
+    Ok(())
 }
 
-/// Extract code from a Discord code block on a best-effort basis
-///
-/// ```rust
-/// # use rustbot::extract_code;
-/// assert_eq!(extract_code("`hello`").unwrap(), "hello");
-/// assert_eq!(extract_code("`    hello `").unwrap(), "hello");
-/// assert_eq!(extract_code("``` hello ```").unwrap(), "hello");
-/// assert_eq!(extract_code("```rust hello ```").unwrap(), "hello");
-/// assert_eq!(extract_code("```rust\nhello\n```").unwrap(), "hello");
-/// assert_eq!(extract_code("``` rust\nhello\n```").unwrap(), "rust\nhello");
-/// ```
-fn extract_code(input: &str) -> Result<&str, Error> {
-    fn inner(input: &str) -> Option<&str> {
-        let input = input.trim();
+// /// Extract code from a Discord code block on a best-effort basis
+// ///
+// /// ```rust
+// /// # use rustbot::extract_code;
+// /// assert_eq!(extract_code("`hello`").unwrap(), "hello");
+// /// assert_eq!(extract_code("`    hello `").unwrap(), "hello");
+// /// assert_eq!(extract_code("``` hello ```").unwrap(), "hello");
+// /// assert_eq!(extract_code("```rust hello ```").unwrap(), "hello");
+// /// assert_eq!(extract_code("```rust\nhello\n```").unwrap(), "hello");
+// /// assert_eq!(extract_code("``` rust\nhello\n```").unwrap(), "rust\nhello");
+// /// ```
+// fn extract_code(input: &str) -> Result<&str, Error> {
+//     fn inner(input: &str) -> Option<&str> {
+//         let input = input.trim();
 
-        let extracted_code = if input.starts_with("```") && input.ends_with("```") {
-            let code_starting_point = input.find(char::is_whitespace)?; // skip over lang specifier
-            let code_end_point = input.len() - 3;
+//         let extracted_code = if input.starts_with("```") && input.ends_with("```") {
+//             let code_starting_point = input.find(char::is_whitespace)?; // skip over lang specifier
+//             let code_end_point = input.len() - 3;
 
-            // can't fail but you can never be too sure
-            input.get(code_starting_point..code_end_point)?
-        } else if input.starts_with('`') && input.ends_with('`') {
-            // can't fail but you can never be too sure
-            input.get(1..(input.len() - 1))?
-        } else {
-            return None;
-        };
+//             // can't fail but you can never be too sure
+//             input.get(code_starting_point..code_end_point)?
+//         } else if input.starts_with('`') && input.ends_with('`') {
+//             // can't fail but you can never be too sure
+//             input.get(1..(input.len() - 1))?
+//         } else {
+//             return None;
+//         };
 
-        Some(extracted_code.trim())
-    }
+//         Some(extracted_code.trim())
+//     }
 
-    Ok(inner(input).ok_or(
-        "Missing code block. Please use the following markdown:
-\\`code here\\`
-or
-\\`\\`\\`rust
-code here
-\\`\\`\\`",
-    )?)
-}
+//     Ok(inner(input).ok_or(
+//         ,
+//     )?)
+// }

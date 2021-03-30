@@ -1,54 +1,38 @@
-use crate::{Args, Error};
+use crate::{Context, Error};
 use serenity::model::prelude::*;
 use std::collections::HashMap;
 
-pub fn cleanup(args: &Args, mod_role_id: RoleId) -> Result<(), Error> {
-    let num_messages = if args.body.is_empty() {
-        5
-    } else {
-        args.body.parse::<usize>()?
-    };
+pub fn cleanup(ctx: Context<'_>, args: &str) -> Result<(), Error> {
+    let num_messages = poise::parse_args!(args => (Option<poise::Wrapper<usize>>))?;
+    let num_messages = num_messages.map_or(5, |x| x.0);
 
-    info!("Cleaning up {} messages", num_messages);
+    println!("Cleaning up {} messages", num_messages);
 
-    let is_mod = match &args.msg.member {
-        Some(member) => member.roles.contains(&mod_role_id),
+    let is_mod = match &ctx.msg.member {
+        Some(member) => member.roles.contains(&ctx.data.mod_role_id),
         None => true, // in DMs, treat the user as an "effective" mod
     };
-    let data = args.cx.data.read();
-    let bot_id = *data.get::<crate::framework::BotUserId>().unwrap();
 
-    args.msg
+    ctx.msg
         .channel_id
-        .messages(&args.cx.http, |m| m.limit(100))?
+        .messages(ctx.discord, |m| m.limit(100))?
         .iter()
         .filter(|msg| {
-            if msg.author.id != bot_id {
+            if msg.author.id != ctx.data.bot_user_id {
                 return false;
             }
             if is_mod {
                 return true;
             }
-            if (msg.timestamp - args.msg.timestamp).num_hours() >= 24 {
+            if (msg.timestamp - ctx.msg.timestamp).num_hours() >= 24 {
                 return false;
             }
             true
         })
         .take(num_messages)
-        .try_for_each(|msg| msg.delete(&args.cx.http))?;
+        .try_for_each(|msg| msg.delete(ctx.discord))?;
 
-    crate::react_custom_emoji(args, "rustOk", '👌')
-}
-
-pub fn cleanup_help(args: &Args) -> Result<(), Error> {
-    crate::send_reply(
-        args,
-        "?cleanup [limit]
-
-Deletes the bot's messages for cleanup.
-You can specify how many messages to look for. Only messages from the last 24 hours can be deleted,
-except for mods",
-    )
+    crate::react_custom_emoji(ctx, "rustOk", '👌')
 }
 
 /// Look up a guild member by a string, case-insensitively.
@@ -103,68 +87,45 @@ fn parse_member<'a>(members: &'a HashMap<UserId, Member>, string: &str) -> Optio
         .or_else(lookup_by_nickname)
 }
 
-pub fn joke_ban(args: &Args) -> Result<(), Error> {
-    let mut parts = args.body.splitn(2, ' ');
-    let banned_user = parts.next().unwrap();
-    let reason = parts.next();
+pub fn joke_ban(ctx: Context<'_>, args: &str) -> Result<(), Error> {
+    let (banned_user, reason) = poise::parse_args!(args => (String), (Option<String>))?;
 
-    let guild = args
-        .msg
-        .guild(&args.cx.cache)
-        .ok_or("can't be used in DMs")?;
-    let banned_user = parse_member(&guild.read().members, banned_user)
+    let guild = ctx.msg.guild(ctx.discord).ok_or("can't be used in DMs")?;
+    let banned_user = parse_member(&guild.read().members, &banned_user)
         .ok_or("member not found")?
         .user
         .read()
         .clone();
 
-    crate::send_reply(
-        args,
-        &format!(
+    poise::say_reply(
+        ctx,
+        format!(
             "{}#{} banned user {}#{}{}  {}",
-            args.msg.author.name,
-            args.msg.author.discriminator,
+            ctx.msg.author.name,
+            ctx.msg.author.discriminator,
             banned_user.name,
             banned_user.discriminator,
             match reason {
                 Some(reason) => format!(" {}", reason.trim()),
                 None => String::new(),
             },
-            crate::custom_emoji_code(args, "ferrisBanne", '🔨')
+            crate::custom_emoji_code(ctx, "ferrisBanne", '🔨')
         ),
-    )
+    )?;
+    Ok(())
 }
 
-pub fn joke_ban_help(args: &Args) -> Result<(), Error> {
-    crate::send_reply(
-        args,
-        "?ban <member> [reason]
+pub fn rustify(ctx: Context<'_>, args: &str) -> Result<(), Error> {
+    let users = poise::parse_args!(args => (Vec<String>))?;
 
-Bans another person",
-    )
-}
+    let guild = ctx.msg.guild(&ctx.discord).ok_or("can't be used in DMs")?;
 
-pub fn rustify(args: &Args, rustacean_role: RoleId) -> Result<(), Error> {
-    let guild = args
-        .msg
-        .guild(&args.cx.cache)
-        .ok_or("can't be used in DMs")?;
-
-    for user in serenity::utils::parse_quotes(args.body) {
+    for user in users {
         parse_member(&guild.read().members, &user)
             .ok_or("member not found")?
             .clone()
-            .add_role(&args.cx.http, rustacean_role)?;
+            .add_role(&ctx.discord, ctx.data.rustacean_role)?;
     }
 
-    crate::react_custom_emoji(args, "rustOk", '👌')
-}
-
-pub fn rustify_help(args: &Args) -> Result<(), Error> {
-    crate::send_reply(
-        args,
-        "\\?rustify <member>
-
-Adds the Rustacean role to a member.",
-    )
+    crate::react_custom_emoji(ctx, "rustOk", '👌')
 }

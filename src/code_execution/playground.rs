@@ -1,6 +1,6 @@
 //! run rust code on the rust-lang playground
 
-use crate::{Args, Error};
+use crate::{Context, Error};
 
 use reqwest::header;
 use serde::{Deserialize, Serialize};
@@ -115,11 +115,12 @@ struct PlayResult {
 }
 
 /// Returns a gist ID
-fn post_gist(args: &Args, code: &str) -> Result<String, Error> {
+fn post_gist(ctx: Context<'_>, code: &str) -> Result<String, Error> {
     let mut payload = HashMap::new();
     payload.insert("code", code);
 
-    let resp = args
+    let resp = ctx
+        .data
         .http
         .post("https://play.rust-lang.org/meta/gist/")
         .header(header::REFERER, "https://discord.gg/rust-lang-community")
@@ -127,7 +128,7 @@ fn post_gist(args: &Args, code: &str) -> Result<String, Error> {
         .send()?;
 
     let mut resp: HashMap<String, String> = resp.json()?;
-    info!("gist response: {:?}", resp);
+    log::info!("gist response: {:?}", resp);
 
     let gist_id = resp.remove("id").ok_or("no gist found")?;
     Ok(gist_id)
@@ -177,7 +178,7 @@ struct CommandFlags {
 
 /// Returns the parsed flags and a String of parse errors. The parse error string will have a
 /// trailing newline (except if empty)
-fn parse_flags(args: &Args) -> (CommandFlags, String) {
+fn parse_flags(args: &poise::KeyValueArgs) -> (CommandFlags, String) {
     let mut errors = String::new();
 
     let mut flags = CommandFlags {
@@ -187,28 +188,28 @@ fn parse_flags(args: &Args) -> (CommandFlags, String) {
         warn: false,
     };
 
-    if let Some(channel) = args.params.get("channel") {
+    if let Some(channel) = args.get("channel") {
         match channel.parse() {
             Ok(x) => flags.channel = x,
             Err(e) => errors += &format!("{}\n", e),
         }
     }
 
-    if let Some(mode) = args.params.get("mode") {
+    if let Some(mode) = args.get("mode") {
         match mode.parse() {
             Ok(x) => flags.mode = x,
             Err(e) => errors += &format!("{}\n", e),
         }
     }
 
-    if let Some(edition) = args.params.get("edition") {
+    if let Some(edition) = args.get("edition") {
         match edition.parse() {
             Ok(x) => flags.edition = x,
             Err(e) => errors += &format!("{}\n", e),
         }
     }
 
-    if let Some(warn) = args.params.get("warn") {
+    if let Some(warn) = args.get("warn") {
         match warn.parse() {
             Ok(x) => flags.warn = x,
             Err(e) => errors += &format!("{}\n", e),
@@ -218,13 +219,7 @@ fn parse_flags(args: &Args) -> (CommandFlags, String) {
     (flags, errors)
 }
 
-fn generic_help(
-    args: &Args,
-    cmd: &str,
-    desc: &str,
-    full: bool,
-    example_code: &str,
-) -> Result<(), Error> {
+fn generic_help(cmd: &str, desc: &str, full: bool, example_code: &str) -> String {
     let mut reply = format!(
         "{}. All code is executed on https://play.rust-lang.org.\n",
         desc
@@ -244,7 +239,7 @@ fn generic_help(
     }
     reply += "    \tedition: 2015, 2018 (default: 2018)\n";
 
-    crate::send_reply(args, &reply)
+    reply
 }
 
 /// Strip the input according to a list of start tokens and end tokens. Everything after the start
@@ -356,7 +351,7 @@ fn maybe_wrap(code: &str, result_handling: ResultHandling) -> Cow<'_, str> {
 
 /// Send a Discord reply with the formatted contents of a Playground result
 fn send_reply(
-    args: &Args<'_>,
+    ctx: Context<'_>,
     result: PlayResult,
     code: &str,
     flags: &CommandFlags,
@@ -371,18 +366,20 @@ fn send_reply(
     };
 
     if result.trim().is_empty() {
-        crate::send_reply(args, &format!("{}``` ```", flag_parse_errors))
+        poise::say_reply(ctx, format!("{}``` ```", flag_parse_errors))?;
     } else {
         super::reply_potentially_long_text(
-            args,
+            ctx,
             &format!("{}```rust\n{}", flag_parse_errors, result),
             "```",
             &format!(
                 "Output too large. Playground link: {}",
-                url_from_gist(&flags, &post_gist(args, code)?),
+                url_from_gist(&flags, &post_gist(ctx, code)?),
             ),
-        )
+        )?;
     }
+
+    Ok(())
 }
 
 fn apply_rustfmt(text: &str, edition: Edition) -> Result<PlayResult, Error> {
@@ -467,11 +464,17 @@ fn format_play_eval_stderr(stderr: &str, warn: bool) -> String {
 // ================================
 
 // play and eval work similarly, so this function abstracts over the two
-fn play_or_eval(args: &Args, result_handling: ResultHandling) -> Result<(), Error> {
-    let code = maybe_wrap(super::extract_code(args.body)?, result_handling);
-    let (flags, flag_parse_errors) = parse_flags(args);
+fn play_or_eval(
+    ctx: Context<'_>,
+    flags: poise::KeyValueArgs,
+    code: poise::CodeBlock,
+    result_handling: ResultHandling,
+) -> Result<(), Error> {
+    let code = maybe_wrap(&code.code, result_handling);
+    let (flags, flag_parse_errors) = parse_flags(&flags);
 
-    let mut result: PlayResult = args
+    let mut result: PlayResult = ctx
+        .data
         .http
         .post("https://play.rust-lang.org/execute")
         .json(&PlaygroundRequest {
@@ -491,26 +494,30 @@ fn play_or_eval(args: &Args, result_handling: ResultHandling) -> Result<(), Erro
 
     result.stderr = format_play_eval_stderr(&result.stderr, flags.warn);
 
-    send_reply(args, result, &code, &flags, &flag_parse_errors)
+    send_reply(ctx, result, &code, &flags, &flag_parse_errors)
 }
 
-pub fn play(args: &Args) -> Result<(), Error> {
-    play_or_eval(args, ResultHandling::None)
+pub fn play(ctx: Context<'_>, args: &str) -> Result<(), Error> {
+    let (flags, code) = poise::parse_args!(args => (poise::KeyValueArgs), (poise::CodeBlock))?;
+    play_or_eval(ctx, flags, code, ResultHandling::None)
 }
 
-pub fn eval(args: &Args) -> Result<(), Error> {
-    play_or_eval(args, ResultHandling::Print)
+pub fn eval(ctx: Context<'_>, args: &str) -> Result<(), Error> {
+    let (flags, code) = poise::parse_args!(args => (poise::KeyValueArgs), (poise::CodeBlock))?;
+    play_or_eval(ctx, flags, code, ResultHandling::Print)
 }
 
-pub fn play_and_eval_help(args: &Args, name: &str) -> Result<(), Error> {
-    generic_help(args, name, "Compile and run Rust code", true, "code")
+pub fn play_and_eval_help(name: &str) -> String {
+    generic_help(name, "Compile and run Rust code", true, "code")
 }
 
-pub fn miri(args: &Args) -> Result<(), Error> {
-    let code = &maybe_wrap(super::extract_code(args.body)?, ResultHandling::Discard);
-    let (flags, flag_parse_errors) = parse_flags(args);
+pub fn miri(ctx: Context<'_>, args: &str) -> Result<(), Error> {
+    let (flags, code) = poise::parse_args!(args => (poise::KeyValueArgs), (poise::CodeBlock))?;
+    let code = &maybe_wrap(&code.code, ResultHandling::Discard);
+    let (flags, flag_parse_errors) = parse_flags(&flags);
 
-    let mut result: PlayResult = args
+    let mut result: PlayResult = ctx
+        .data
         .http
         .post("https://play.rust-lang.org/miri")
         .json(&MiriRequest {
@@ -527,20 +534,22 @@ pub fn miri(args: &Args) -> Result<(), Error> {
     )
     .to_owned();
 
-    send_reply(args, result, code, &flags, &flag_parse_errors)
+    send_reply(ctx, result, code, &flags, &flag_parse_errors)
 }
 
-pub fn miri_help(args: &Args) -> Result<(), Error> {
+pub fn miri_help() -> String {
     let desc = "Execute this program in the Miri interpreter to detect certain cases of undefined behavior (like out-of-bounds memory access)";
-    generic_help(args, "miri", desc, false, "code")
+    generic_help("miri", desc, false, "code")
 }
 
-pub fn expand_macros(args: &Args) -> Result<(), Error> {
-    let code = maybe_wrap(super::extract_code(args.body)?, ResultHandling::None);
+pub fn expand_macros(ctx: Context<'_>, args: &str) -> Result<(), Error> {
+    let (flags, code) = poise::parse_args!(args => (poise::KeyValueArgs), (poise::CodeBlock))?;
+    let code = maybe_wrap(&code.code, ResultHandling::None);
     let was_fn_main_wrapped = matches!(code, Cow::Owned(_));
-    let (flags, flag_parse_errors) = parse_flags(args);
+    let (flags, flag_parse_errors) = parse_flags(&flags);
 
-    let mut result: PlayResult = args
+    let mut result: PlayResult = ctx
+        .data
         .http
         .post("https://play.rust-lang.org/macro-expansion")
         .json(&MacroExpansionRequest {
@@ -560,27 +569,29 @@ pub fn expand_macros(args: &Args) -> Result<(), Error> {
     if result.success {
         match apply_rustfmt(&result.stdout, flags.edition) {
             Ok(PlayResult { success: true, stdout, .. }) => result.stdout = stdout,
-            Ok(PlayResult { success: false, stderr, .. }) => warn!("Huh, rustfmt failed even though this code successfully passed through macro expansion before: {}", stderr),
-            Err(e) => warn!("Couldn't run rustfmt: {}", e),
+            Ok(PlayResult { success: false, stderr, .. }) => log::warn!("Huh, rustfmt failed even though this code successfully passed through macro expansion before: {}", stderr),
+            Err(e) => log::warn!("Couldn't run rustfmt: {}", e),
         }
     }
     if was_fn_main_wrapped {
         result.stdout = strip_fn_main_boilerplate_from_formatted(&result.stdout);
     }
 
-    send_reply(args, result, &code, &flags, &flag_parse_errors)
+    send_reply(ctx, result, &code, &flags, &flag_parse_errors)
 }
 
-pub fn expand_macros_help(args: &Args) -> Result<(), Error> {
+pub fn expand_macros_help() -> String {
     let desc = "Expand macros to their raw desugared form";
-    generic_help(args, "expand", desc, false, "code")
+    generic_help("expand", desc, false, "code")
 }
 
-pub fn clippy(args: &Args) -> Result<(), Error> {
-    let code = &maybe_wrap(super::extract_code(args.body)?, ResultHandling::Discard);
-    let (flags, flag_parse_errors) = parse_flags(args);
+pub fn clippy(ctx: Context<'_>, args: &str) -> Result<(), Error> {
+    let (flags, code) = poise::parse_args!(args => (poise::KeyValueArgs), (poise::CodeBlock))?;
+    let code = &maybe_wrap(&code.code, ResultHandling::Discard);
+    let (flags, flag_parse_errors) = parse_flags(&flags);
 
-    let mut result: PlayResult = args
+    let mut result: PlayResult = ctx
+        .data
         .http
         .post("https://play.rust-lang.org/clippy")
         .json(&ClippyRequest {
@@ -607,40 +618,43 @@ pub fn clippy(args: &Args) -> Result<(), Error> {
     )
     .to_owned();
 
-    send_reply(args, result, code, &flags, &flag_parse_errors)
+    send_reply(ctx, result, code, &flags, &flag_parse_errors)
 }
 
-pub fn clippy_help(args: &Args) -> Result<(), Error> {
+pub fn clippy_help() -> String {
     let desc = "Catch common mistakes and improve the code using the Clippy linter";
-    generic_help(args, "clippy", desc, false, "code")
+    generic_help("clippy", desc, false, "code")
 }
 
-pub fn fmt(args: &Args) -> Result<(), Error> {
-    let code = &maybe_wrap(super::extract_code(args.body)?, ResultHandling::None);
+pub fn fmt(ctx: Context<'_>, args: &str) -> Result<(), Error> {
+    let (flags, code) = poise::parse_args!(args => (poise::KeyValueArgs), (poise::CodeBlock))?;
+    let code = &maybe_wrap(&code.code, ResultHandling::None);
     let was_fn_main_wrapped = matches!(code, Cow::Owned(_));
-    let (flags, flag_parse_errors) = parse_flags(args);
+    let (flags, flag_parse_errors) = parse_flags(&flags);
 
     let mut result = apply_rustfmt(&code, flags.edition)?;
     if was_fn_main_wrapped {
         result.stdout = strip_fn_main_boilerplate_from_formatted(&result.stdout);
     }
 
-    send_reply(args, result, code, &flags, &flag_parse_errors)
+    send_reply(ctx, result, code, &flags, &flag_parse_errors)
 }
 
-pub fn fmt_help(args: &Args) -> Result<(), Error> {
+pub fn fmt_help() -> String {
     let desc = "Format code using rustfmt";
-    generic_help(args, "fmt", desc, false, "code")
+    generic_help("fmt", desc, false, "code")
 }
 
-pub fn micro_bench(args: &Args) -> Result<(), Error> {
+pub fn micro_bench(ctx: Context<'_>, args: &str) -> Result<(), Error> {
+    let (flags, user_code) = poise::parse_args!(args => (poise::KeyValueArgs), (poise::CodeBlock))?;
+    let user_code = &user_code.code;
+
     let mut code =
         // include convenience import for users
         "#![feature(test)] #[allow(unused_imports)] use std::hint::black_box;\n".to_owned();
 
-    let user_input = super::extract_code(args.body)?;
-    let black_box_hint = !user_input.contains("black_box");
-    code += user_input;
+    let black_box_hint = !user_code.contains("black_box");
+    code += user_code;
 
     code += r#"
 fn bench(functions: &[(&str, fn())]) {
@@ -689,29 +703,31 @@ fn bench(functions: &[(&str, fn())]) {
 fn main() {
 "#;
 
-    let pub_fn_indices = user_input.match_indices("pub fn ");
+    let pub_fn_indices = user_code.match_indices("pub fn ");
     if pub_fn_indices.clone().count() == 0 {
-        return crate::send_reply(
-            args,
-            "No public functions found for benchmarking :thinking:",
-        );
+        poise::say_reply(
+            ctx,
+            "No public functions found for benchmarking :thinking:".into(),
+        )?;
+        return Ok(());
     }
 
     code += "bench(&[";
     for (index, _) in pub_fn_indices {
         let function_name_start = index + "pub fn ".len();
-        let function_name_end = match user_input[function_name_start..].find('(') {
+        let function_name_end = match user_code[function_name_start..].find('(') {
             Some(x) => x + function_name_start,
             None => continue,
         };
-        let function_name = user_input[function_name_start..function_name_end].trim();
+        let function_name = user_code[function_name_start..function_name_end].trim();
 
         code += &format!("(\"{0}\", {0}), ", function_name);
     }
     code += "]);\n}\n";
 
-    let (flags, mut flag_parse_errors) = parse_flags(args);
-    let mut result: PlayResult = args
+    let (flags, mut flag_parse_errors) = parse_flags(&flags);
+    let mut result: PlayResult = ctx
+        .data
         .http
         .post("https://play.rust-lang.org/execute")
         .json(&PlaygroundRequest {
@@ -735,17 +751,16 @@ fn main() {
         flag_parse_errors +=
             "Hint: use the black_box function to prevent computations from being optimized out\n";
     }
-    send_reply(args, result, &code, &flags, &flag_parse_errors)
+    send_reply(ctx, result, &code, &flags, &flag_parse_errors)
 }
 
-pub fn micro_bench_help(args: &Args) -> Result<(), Error> {
+pub fn micro_bench_help() -> String {
     let desc =
         "Benchmark small snippets of code by running them repeatedly. The public function snippets are run \
         in chunks, interleaved: Snippet A is ran 10000 times, then snippet B is ran 10000 times, \
         then snippet A again, and so on until a certain time has passed. After that, the \
         measuremants are averaged and the standard deviation is calculated for each";
     generic_help(
-        args,
         "microbench",
         desc,
         false,

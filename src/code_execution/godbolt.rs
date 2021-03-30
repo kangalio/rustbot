@@ -1,4 +1,4 @@
-use crate::{Args, Error};
+use crate::{Context, Error};
 
 enum Compilation {
     Success { asm: String, stderr: String },
@@ -87,46 +87,29 @@ fn compile_rust_source(
     })
 }
 
-pub fn godbolt(args: &Args) -> Result<(), Error> {
-    let rustc = args.params.get("rustc").unwrap_or(&"nightly");
-    let flags = args
-        .params
+pub fn godbolt(ctx: Context<'_>, args: &str) -> Result<(), Error> {
+    let (params, code) = poise::parse_args!(args => (poise::KeyValueArgs), (poise::CodeBlock))?;
+
+    let rustc = params.get("rustc").unwrap_or(&"nightly");
+    let flags = params
         .get("flags")
         .unwrap_or(&"-Copt-level=3 --edition=2018");
     println!("r f = {:?} {:?}", rustc, flags);
-    let (lang, text, note) =
-        match compile_rust_source(args.http, super::extract_code(&args.body)?, rustc, flags)? {
-            Compilation::Success { asm, stderr } => (
-                "x86asm",
-                asm,
-                (!stderr.is_empty()).then(|| "Note: compilation produced warnings\n"),
-            ),
-            Compilation::Error { stderr } => ("rust", stderr, None),
-        };
+    let (lang, text, note) = match compile_rust_source(&ctx.data.http, &code.code, rustc, flags)? {
+        Compilation::Success { asm, stderr } => (
+            "x86asm",
+            asm,
+            (!stderr.is_empty()).then(|| "Note: compilation produced warnings\n"),
+        ),
+        Compilation::Error { stderr } => ("rust", stderr, None),
+    };
 
     super::reply_potentially_long_text(
-        args,
+        ctx,
         &format!("```{}\n{}", lang, text),
         &format!("\n```{}", note.unwrap_or("")),
         "Note: the output was truncated",
     )?;
 
     Ok(())
-}
-
-pub fn godbolt_help(args: &Args) -> Result<(), Error> {
-    crate::send_reply(
-        args,
-        "Compile Rust code using https://rust.godbolt.org. Full optimizations are applied unless overriden.
-```?godbolt
-``\u{200B}`
-pub fn your_function() {
-    // Code
-}
-``\u{200B}` ```
-Optional arguments:
-    \t`flags`: flags to pass to rustc invocation. Defaults to `-Copt-level=3 --edition=2018`
-    \t`rustc`: compiler version to invoke. Defaults to `nightly`. Possible values: `nightly`, `beta` or full version like `1.45.2`
-",
-    )
 }
