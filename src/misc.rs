@@ -7,6 +7,8 @@ pub fn go(ctx: Context<'_>, #[rest] _: &str) -> Result<(), Error> {
     Ok(())
 }
 
+/// Links to the bot GitHub repo
+///
 /// ?source
 ///
 /// Links to the bot GitHub repo
