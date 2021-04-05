@@ -52,7 +52,11 @@ pub async fn cleanup(ctx: Context<'_>, num_messages: Option<usize>) -> Result<()
 ///
 /// Bans another person
 #[poise::command(on_error = "crate::react_cross")]
-pub fn ban(ctx: Context<'_>, banned_user: Member, reason: Option<String>) -> Result<(), Error> {
+pub async fn ban(
+    ctx: Context<'_>,
+    banned_user: Member,
+    reason: Option<String>,
+) -> Result<(), Error> {
     poise::say_reply(
         ctx,
         format!(

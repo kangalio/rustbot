@@ -2,7 +2,7 @@ use crate::{Context, Error};
 
 /// Evaluates Go code
 #[poise::command]
-pub fn go(ctx: Context<'_>, #[rest] _: &str) -> Result<(), Error> {
+pub async fn go(ctx: Context<'_>, #[rest] _: &str) -> Result<(), Error> {
     poise::say_reply(ctx, "No".into()).await?;
     Ok(())
 }
@@ -13,13 +13,13 @@ pub fn go(ctx: Context<'_>, #[rest] _: &str) -> Result<(), Error> {
 ///
 /// Links to the bot GitHub repo
 #[poise::command]
-pub fn source(ctx: Context<'_>, #[rest] _: &str) -> Result<(), Error> {
+pub async fn source(ctx: Context<'_>, #[rest] _: &str) -> Result<(), Error> {
     poise::say_reply(ctx, "https://github.com/kangalioo/rustbot".into()).await?;
     Ok(())
 }
 
 #[poise::command(track_edits)]
-pub fn help(ctx: Context<'_>, query: Option<String>) -> Result<(), Error> {
+pub async fn help(ctx: Context<'_>, query: Option<String>) -> Result<(), Error> {
     let reply = if let Some(query) = query {
         if let Some(cmd) = ctx
             .framework

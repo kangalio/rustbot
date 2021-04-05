@@ -106,7 +106,7 @@ fn rustc_crate_link(crate_name: &str) -> Option<&'static str> {
 /// ?docs crate_name::module::item
 /// ```
 #[poise::command(aliases("docs"), broadcast_typing, track_edits)]
-pub fn doc(ctx: Context<'_>, query: String) -> Result<(), Error> {
+pub async fn doc(ctx: Context<'_>, query: String) -> Result<(), Error> {
     let mut query_iter = query.splitn(2, "::");
     let crate_name = query_iter.next().unwrap();
 
