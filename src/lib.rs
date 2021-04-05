@@ -74,6 +74,7 @@ async fn app() -> Result<(), Error> {
         code_execution::clippy(),
         code_execution::fmt(),
         code_execution::microbench(),
+        code_execution::procmacro(),
         code_execution::godbolt(),
         misc::go(),
         moderation::cleanup(),

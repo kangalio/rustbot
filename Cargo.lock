@@ -255,6 +255,7 @@ checksum = "7f55667319111d593ba876406af7c409c0ebb44dc4be6132a783ccf163ea14c1"
 dependencies = [
  "futures-channel",
  "futures-core",
+ "futures-executor",
  "futures-io",
  "futures-sink",
  "futures-task",
@@ -276,6 +277,17 @@ name = "futures-core"
 version = "0.3.13"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "15496a72fabf0e62bdc3df11a59a3787429221dd0710ba8ef163d6f7a9112c94"
+
+[[package]]
+name = "futures-executor"
+version = "0.3.13"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "891a4b7b96d84d5940084b2a37632dd65deeae662c114ceaa2c879629c9c0ad1"
+dependencies = [
+ "futures-core",
+ "futures-task",
+ "futures-util",
+]
 
 [[package]]
 name = "futures-io"
@@ -736,10 +748,11 @@ checksum = "8b870d8c151b6f2fb93e84a13146138f05d02ed11c7e7c54f8826aaaf7c9f184"
 [[package]]
 name = "poise"
 version = "0.1.0"
-source = "git+https://github.com/kangalioo/poise#9e9c906b39cc92ddbfe633fd40fcd67d51fc9c1d"
+source = "git+https://github.com/kangalioo/poise#f49535f054116518560c19f5c6aea04b7cdde3a9"
 dependencies = [
  "async-trait",
  "chrono",
+ "futures",
  "once_cell",
  "parking_lot",
  "poise_macros",
@@ -751,7 +764,7 @@ dependencies = [
 [[package]]
 name = "poise_macros"
 version = "0.1.0"
-source = "git+https://github.com/kangalioo/poise#9e9c906b39cc92ddbfe633fd40fcd67d51fc9c1d"
+source = "git+https://github.com/kangalioo/poise#f49535f054116518560c19f5c6aea04b7cdde3a9"
 dependencies = [
  "darling",
  "proc-macro2",
