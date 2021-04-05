@@ -90,7 +90,18 @@ async fn compile_rust_source(
 }
 
 /// View assembly using Godbolt
-#[poise::command(track_edits, broadcast_typing, explanation_fn = "godbolt_help")]
+///
+/// Compile Rust code using https://rust.godbolt.org. Full optimizations are applied unless overriden.
+/// ```?godbolt
+/// ``\u{200B}`
+/// pub fn your_function() {
+///     // Code
+/// }
+/// ``\u{200B}` ```
+/// Optional arguments:
+///     \t`flags`: flags to pass to rustc invocation. Defaults to `-Copt-level=3 --edition=2018`
+///     \t`rustc`: compiler version to invoke. Defaults to `nightly`. Possible values: `nightly`, `beta` or full version like `1.45.2`
+#[poise::command(track_edits, broadcast_typing)]
 pub async fn godbolt(
     ctx: Context<'_>,
     params: poise::KeyValueArgs,
@@ -120,18 +131,4 @@ pub async fn godbolt(
     .await?;
 
     Ok(())
-}
-
-fn godbolt_help() -> String {
-    "Compile Rust code using https://rust.godbolt.org. Full optimizations are applied unless overriden.
-```?godbolt
-``\u{200B}`
-pub fn your_function() {
-    // Code
-}
-``\u{200B}` ```
-Optional arguments:
-    \t`flags`: flags to pass to rustc invocation. Defaults to `-Copt-level=3 --edition=2018`
-    \t`rustc`: compiler version to invoke. Defaults to `nightly`. Possible values: `nightly`, `beta` or full version like `1.45.2`
-".into()
 }
