@@ -1,3 +1,4 @@
-fn main() {
-    rustbot::main();
+#[tokio::main]
+async fn main() {
+    rustbot::main().await;
 }

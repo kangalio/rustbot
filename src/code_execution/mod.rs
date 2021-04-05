@@ -26,7 +26,7 @@ use crate::{Context, Error};
 ///     "\n```"
 /// );
 /// ```
-fn reply_potentially_long_text(
+async fn reply_potentially_long_text(
     ctx: Context<'_>,
     text_body: &str,
     text_end: &str,
@@ -65,42 +65,6 @@ fn reply_potentially_long_text(
         format!("{}{}", text_body, text_end)
     };
 
-    poise::say_reply(ctx, msg)?;
+    poise::say_reply(ctx, msg).await?;
     Ok(())
 }
-
-// /// Extract code from a Discord code block on a best-effort basis
-// ///
-// /// ```rust
-// /// # use rustbot::extract_code;
-// /// assert_eq!(extract_code("`hello`").unwrap(), "hello");
-// /// assert_eq!(extract_code("`    hello `").unwrap(), "hello");
-// /// assert_eq!(extract_code("``` hello ```").unwrap(), "hello");
-// /// assert_eq!(extract_code("```rust hello ```").unwrap(), "hello");
-// /// assert_eq!(extract_code("```rust\nhello\n```").unwrap(), "hello");
-// /// assert_eq!(extract_code("``` rust\nhello\n```").unwrap(), "rust\nhello");
-// /// ```
-// fn extract_code(input: &str) -> Result<&str, Error> {
-//     fn inner(input: &str) -> Option<&str> {
-//         let input = input.trim();
-
-//         let extracted_code = if input.starts_with("```") && input.ends_with("```") {
-//             let code_starting_point = input.find(char::is_whitespace)?; // skip over lang specifier
-//             let code_end_point = input.len() - 3;
-
-//             // can't fail but you can never be too sure
-//             input.get(code_starting_point..code_end_point)?
-//         } else if input.starts_with('`') && input.ends_with('`') {
-//             // can't fail but you can never be too sure
-//             input.get(1..(input.len() - 1))?
-//         } else {
-//             return None;
-//         };
-
-//         Some(extracted_code.trim())
-//     }
-
-//     Ok(inner(input).ok_or(
-//         ,
-//     )?)
-// }

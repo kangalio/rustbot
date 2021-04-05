@@ -115,7 +115,7 @@ struct PlayResult {
 }
 
 /// Returns a gist ID
-fn post_gist(ctx: Context<'_>, code: &str) -> Result<String, Error> {
+async fn post_gist(ctx: Context<'_>, code: &str) -> Result<String, Error> {
     let mut payload = HashMap::new();
     payload.insert("code", code);
 
@@ -125,9 +125,10 @@ fn post_gist(ctx: Context<'_>, code: &str) -> Result<String, Error> {
         .post("https://play.rust-lang.org/meta/gist/")
         .header(header::REFERER, "https://discord.gg/rust-lang-community")
         .json(&payload)
-        .send()?;
+        .send()
+        .await?;
 
-    let mut resp: HashMap<String, String> = resp.json()?;
+    let mut resp: HashMap<String, String> = resp.json().await?;
     log::info!("gist response: {:?}", resp);
 
     let gist_id = resp.remove("id").ok_or("no gist found")?;
@@ -350,7 +351,7 @@ fn maybe_wrap(code: &str, result_handling: ResultHandling) -> Cow<'_, str> {
 }
 
 /// Send a Discord reply with the formatted contents of a Playground result
-fn send_reply(
+async fn send_reply(
     ctx: Context<'_>,
     result: PlayResult,
     code: &str,
@@ -366,7 +367,7 @@ fn send_reply(
     };
 
     if result.trim().is_empty() {
-        poise::say_reply(ctx, format!("{}``` ```", flag_parse_errors))?;
+        poise::say_reply(ctx, format!("{}``` ```", flag_parse_errors)).await?;
     } else {
         super::reply_potentially_long_text(
             ctx,
@@ -374,9 +375,10 @@ fn send_reply(
             "```",
             &format!(
                 "Output too large. Playground link: {}",
-                url_from_gist(&flags, &post_gist(ctx, code)?),
+                url_from_gist(&flags, &post_gist(ctx, code).await?),
             ),
-        )?;
+        )
+        .await?;
     }
 
     Ok(())
@@ -464,7 +466,7 @@ fn format_play_eval_stderr(stderr: &str, warn: bool) -> String {
 // ================================
 
 // play and eval work similarly, so this function abstracts over the two
-fn play_or_eval(
+async fn play_or_eval(
     ctx: Context<'_>,
     flags: poise::KeyValueArgs,
     code: poise::CodeBlock,
@@ -489,30 +491,51 @@ fn play_or_eval(
             mode: flags.mode,
             tests: false,
         })
-        .send()?
-        .json()?;
+        .send()
+        .await?
+        .json()
+        .await?;
 
     result.stderr = format_play_eval_stderr(&result.stderr, flags.warn);
 
-    send_reply(ctx, result, &code, &flags, &flag_parse_errors)
+    send_reply(ctx, result, &code, &flags, &flag_parse_errors).await
 }
 
-pub fn play(ctx: Context<'_>, args: &str) -> Result<(), Error> {
-    let (flags, code) = poise::parse_args!(args => (poise::KeyValueArgs), (poise::CodeBlock))?;
-    play_or_eval(ctx, flags, code, ResultHandling::None)
+/// Compile and run Rust code in a playground
+#[poise::command(track_edits, broadcast_typing, explanation_fn = "play_help")]
+pub async fn play(
+    ctx: Context<'_>,
+    flags: poise::KeyValueArgs,
+    code: poise::CodeBlock,
+) -> Result<(), Error> {
+    play_or_eval(ctx, flags, code, ResultHandling::None).await
 }
 
-pub fn eval(ctx: Context<'_>, args: &str) -> Result<(), Error> {
-    let (flags, code) = poise::parse_args!(args => (poise::KeyValueArgs), (poise::CodeBlock))?;
-    play_or_eval(ctx, flags, code, ResultHandling::Print)
+pub fn play_help() -> String {
+    generic_help("play", "Compile and run Rust code", true, "code")
 }
 
-pub fn play_and_eval_help(name: &str) -> String {
-    generic_help(name, "Compile and run Rust code", true, "code")
+/// Evaluate a single Rust expression
+#[poise::command(track_edits, broadcast_typing, explanation_fn = "eval_help")]
+pub async fn eval(
+    ctx: Context<'_>,
+    flags: poise::KeyValueArgs,
+    code: poise::CodeBlock,
+) -> Result<(), Error> {
+    play_or_eval(ctx, flags, code, ResultHandling::Print).await
 }
 
-pub fn miri(ctx: Context<'_>, args: &str) -> Result<(), Error> {
-    let (flags, code) = poise::parse_args!(args => (poise::KeyValueArgs), (poise::CodeBlock))?;
+pub fn eval_help() -> String {
+    generic_help("eval", "Compile and run Rust code", true, "code")
+}
+
+/// Run code and detect undefined behavior using Miri
+#[poise::command(track_edits, broadcast_typing, explanation_fn = "miri_help")]
+pub async fn miri(
+    ctx: Context<'_>,
+    flags: poise::KeyValueArgs,
+    code: poise::CodeBlock,
+) -> Result<(), Error> {
     let code = &maybe_wrap(&code.code, ResultHandling::Discard);
     let (flags, flag_parse_errors) = parse_flags(&flags);
 
@@ -524,8 +547,10 @@ pub fn miri(ctx: Context<'_>, args: &str) -> Result<(), Error> {
             code,
             edition: flags.edition,
         })
-        .send()?
-        .json()?;
+        .send()
+        .await?
+        .json()
+        .await?;
 
     result.stderr = extract_relevant_lines(
         &result.stderr,
@@ -534,7 +559,7 @@ pub fn miri(ctx: Context<'_>, args: &str) -> Result<(), Error> {
     )
     .to_owned();
 
-    send_reply(ctx, result, code, &flags, &flag_parse_errors)
+    send_reply(ctx, result, code, &flags, &flag_parse_errors).await
 }
 
 pub fn miri_help() -> String {
@@ -542,8 +567,13 @@ pub fn miri_help() -> String {
     generic_help("miri", desc, false, "code")
 }
 
-pub fn expand_macros(ctx: Context<'_>, args: &str) -> Result<(), Error> {
-    let (flags, code) = poise::parse_args!(args => (poise::KeyValueArgs), (poise::CodeBlock))?;
+/// Expand macros to their raw desugared form
+#[poise::command(broadcast_typing, track_edits, explanation_fn = "expand_help")]
+pub async fn expand(
+    ctx: Context<'_>,
+    flags: poise::KeyValueArgs,
+    code: poise::CodeBlock,
+) -> Result<(), Error> {
     let code = maybe_wrap(&code.code, ResultHandling::None);
     let was_fn_main_wrapped = matches!(code, Cow::Owned(_));
     let (flags, flag_parse_errors) = parse_flags(&flags);
@@ -556,8 +586,10 @@ pub fn expand_macros(ctx: Context<'_>, args: &str) -> Result<(), Error> {
             code: &code,
             edition: flags.edition,
         })
-        .send()?
-        .json()?;
+        .send()
+        .await?
+        .json()
+        .await?;
 
     result.stderr = extract_relevant_lines(
         &result.stderr,
@@ -577,16 +609,21 @@ pub fn expand_macros(ctx: Context<'_>, args: &str) -> Result<(), Error> {
         result.stdout = strip_fn_main_boilerplate_from_formatted(&result.stdout);
     }
 
-    send_reply(ctx, result, &code, &flags, &flag_parse_errors)
+    send_reply(ctx, result, &code, &flags, &flag_parse_errors).await
 }
 
-pub fn expand_macros_help() -> String {
+pub fn expand_help() -> String {
     let desc = "Expand macros to their raw desugared form";
     generic_help("expand", desc, false, "code")
 }
 
-pub fn clippy(ctx: Context<'_>, args: &str) -> Result<(), Error> {
-    let (flags, code) = poise::parse_args!(args => (poise::KeyValueArgs), (poise::CodeBlock))?;
+/// Catch common mistakes using the Clippy linter
+#[poise::command(broadcast_typing, track_edits, explanation_fn = "clippy_help")]
+pub async fn clippy(
+    ctx: Context<'_>,
+    flags: poise::KeyValueArgs,
+    code: poise::CodeBlock,
+) -> Result<(), Error> {
     let code = &maybe_wrap(&code.code, ResultHandling::Discard);
     let (flags, flag_parse_errors) = parse_flags(&flags);
 
@@ -603,8 +640,10 @@ pub fn clippy(ctx: Context<'_>, args: &str) -> Result<(), Error> {
                 CrateType::Library
             },
         })
-        .send()?
-        .json()?;
+        .send()
+        .await?
+        .json()
+        .await?;
 
     result.stderr = extract_relevant_lines(
         &result.stderr,
@@ -618,7 +657,7 @@ pub fn clippy(ctx: Context<'_>, args: &str) -> Result<(), Error> {
     )
     .to_owned();
 
-    send_reply(ctx, result, code, &flags, &flag_parse_errors)
+    send_reply(ctx, result, code, &flags, &flag_parse_errors).await
 }
 
 pub fn clippy_help() -> String {
@@ -626,8 +665,13 @@ pub fn clippy_help() -> String {
     generic_help("clippy", desc, false, "code")
 }
 
-pub fn fmt(ctx: Context<'_>, args: &str) -> Result<(), Error> {
-    let (flags, code) = poise::parse_args!(args => (poise::KeyValueArgs), (poise::CodeBlock))?;
+/// Format code using rustfmt
+#[poise::command(broadcast_typing, track_edits, explanation_fn = "fmt_help")]
+pub async fn fmt(
+    ctx: Context<'_>,
+    flags: poise::KeyValueArgs,
+    code: poise::CodeBlock,
+) -> Result<(), Error> {
     let code = &maybe_wrap(&code.code, ResultHandling::None);
     let was_fn_main_wrapped = matches!(code, Cow::Owned(_));
     let (flags, flag_parse_errors) = parse_flags(&flags);
@@ -637,7 +681,7 @@ pub fn fmt(ctx: Context<'_>, args: &str) -> Result<(), Error> {
         result.stdout = strip_fn_main_boilerplate_from_formatted(&result.stdout);
     }
 
-    send_reply(ctx, result, code, &flags, &flag_parse_errors)
+    send_reply(ctx, result, code, &flags, &flag_parse_errors).await
 }
 
 pub fn fmt_help() -> String {
@@ -645,9 +689,14 @@ pub fn fmt_help() -> String {
     generic_help("fmt", desc, false, "code")
 }
 
-pub fn micro_bench(ctx: Context<'_>, args: &str) -> Result<(), Error> {
-    let (flags, user_code) = poise::parse_args!(args => (poise::KeyValueArgs), (poise::CodeBlock))?;
-    let user_code = &user_code.code;
+/// Benchmark small snippets of code
+#[poise::command(broadcast_typing, track_edits, explanation_fn = "microbench_help")]
+pub async fn microbench(
+    ctx: Context<'_>,
+    flags: poise::KeyValueArgs,
+    code: poise::CodeBlock,
+) -> Result<(), Error> {
+    let user_code = &code.code;
 
     let mut code =
         // include convenience import for users
@@ -708,7 +757,8 @@ fn main() {
         poise::say_reply(
             ctx,
             "No public functions found for benchmarking :thinking:".into(),
-        )?;
+        )
+        .await?;
         return Ok(());
     }
 
@@ -742,8 +792,10 @@ fn main() {
             mode: Mode::Release, // benchmarks on debug don't make sense
             tests: false,
         })
-        .send()?
-        .json()?;
+        .send()
+        .await?
+        .json()
+        .await?;
 
     result.stderr = format_play_eval_stderr(&result.stderr, flags.warn);
 
@@ -751,10 +803,10 @@ fn main() {
         flag_parse_errors +=
             "Hint: use the black_box function to prevent computations from being optimized out\n";
     }
-    send_reply(ctx, result, &code, &flags, &flag_parse_errors)
+    send_reply(ctx, result, &code, &flags, &flag_parse_errors).await
 }
 
-pub fn micro_bench_help() -> String {
+pub fn microbench_help() -> String {
     let desc =
         "Benchmark small snippets of code by running them repeatedly. The public function snippets are run \
         in chunks, interleaved: Snippet A is ran 10000 times, then snippet B is ran 10000 times, \

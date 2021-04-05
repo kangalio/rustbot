@@ -2,9 +2,16 @@ use crate::{Context, Error};
 use serenity::model::prelude::*;
 use std::collections::HashMap;
 
-pub fn cleanup(ctx: Context<'_>, args: &str) -> Result<(), Error> {
-    let num_messages = poise::parse_args!(args => (Option<poise::Wrapper<usize>>))?;
-    let num_messages = num_messages.map_or(5, |x| x.0);
+/// Deletes the bot's messages for cleanup
+///
+/// ?cleanup [limit]
+///
+/// Deletes the bot's messages for cleanup.
+/// You can specify how many messages to look for. Only messages from the last 24 hours can be deleted,
+/// except for mods
+#[poise::command(on_error = "crate::react_cross")]
+pub async fn cleanup(ctx: Context<'_>, num_messages: Option<usize>) -> Result<(), Error> {
+    let num_messages = num_messages.unwrap_or(5);
 
     println!("Cleaning up {} messages", num_messages);
 
@@ -13,10 +20,12 @@ pub fn cleanup(ctx: Context<'_>, args: &str) -> Result<(), Error> {
         None => true, // in DMs, treat the user as an "effective" mod
     };
 
-    ctx.msg
+    let messages_to_delete = ctx
+        .msg
         .channel_id
-        .messages(ctx.discord, |m| m.limit(100))?
-        .iter()
+        .messages(ctx.discord, |m| m.limit(100))
+        .await?
+        .into_iter()
         .filter(|msg| {
             if msg.author.id != ctx.data.bot_user_id {
                 return false;
@@ -28,11 +37,14 @@ pub fn cleanup(ctx: Context<'_>, args: &str) -> Result<(), Error> {
                 return false;
             }
             true
-        })
-        .take(num_messages)
-        .try_for_each(|msg| msg.delete(ctx.discord))?;
+        });
 
-    crate::react_custom_emoji(ctx, "rustOk", '👌')
+    ctx.msg
+        .channel_id
+        .delete_messages(ctx.discord, messages_to_delete)
+        .await?;
+
+    crate::react_custom_emoji(ctx, "rustOk", '👌').await
 }
 
 /// Look up a guild member by a string, case-insensitively.
@@ -62,16 +74,11 @@ fn parse_member<'a>(members: &'a HashMap<UserId, Member>, string: &str) -> Optio
         let name = &string[..pound_sign];
         let discrim = string[(pound_sign + 1)..].parse::<u16>().ok()?;
         members.values().find(|member| {
-            let member = member.user.read();
-            member.discriminator == discrim && member.name.eq_ignore_ascii_case(name)
+            member.user.discriminator == discrim && member.user.name.eq_ignore_ascii_case(name)
         })
     };
 
-    let lookup_by_name = || {
-        members
-            .values()
-            .find(|member| member.user.read().name == string)
-    };
+    let lookup_by_name = || members.values().find(|member| member.user.name == string);
 
     let lookup_by_nickname = || {
         members.values().find(|member| match &member.nick {
@@ -87,14 +94,21 @@ fn parse_member<'a>(members: &'a HashMap<UserId, Member>, string: &str) -> Optio
         .or_else(lookup_by_nickname)
 }
 
-pub fn joke_ban(ctx: Context<'_>, args: &str) -> Result<(), Error> {
-    let (banned_user, reason) = poise::parse_args!(args => (String), (Option<String>))?;
-
-    let guild = ctx.msg.guild(ctx.discord).ok_or("can't be used in DMs")?;
-    let banned_user = parse_member(&guild.read().members, &banned_user)
+/// Bans another person
+///
+/// ?ban <member> [reason]
+///
+/// Bans another person
+#[poise::command(on_error = "crate::react_cross")]
+pub fn ban(ctx: Context<'_>, banned_user: String, reason: Option<String>) -> Result<(), Error> {
+    let guild = ctx
+        .msg
+        .guild(ctx.discord)
+        .await
+        .ok_or("can't be used in DMs")?;
+    let banned_user = parse_member(&guild.members, &banned_user)
         .ok_or("member not found")?
         .user
-        .read()
         .clone();
 
     poise::say_reply(
@@ -109,23 +123,28 @@ pub fn joke_ban(ctx: Context<'_>, args: &str) -> Result<(), Error> {
                 Some(reason) => format!(" {}", reason.trim()),
                 None => String::new(),
             },
-            crate::custom_emoji_code(ctx, "ferrisBanne", '🔨')
+            crate::custom_emoji_code(ctx, "ferrisBanne", '🔨').await
         ),
-    )?;
+    )
+    .await?;
     Ok(())
 }
 
-pub fn rustify(ctx: Context<'_>, args: &str) -> Result<(), Error> {
-    let users = poise::parse_args!(args => (Vec<String>))?;
-
-    let guild = ctx.msg.guild(&ctx.discord).ok_or("can't be used in DMs")?;
+#[poise::command(on_error = "crate::react_cross")]
+pub async fn rustify(ctx: Context<'_>, users: Vec<String>) -> Result<(), Error> {
+    let guild = ctx
+        .msg
+        .guild(&ctx.discord)
+        .await
+        .ok_or("can't be used in DMs")?;
 
     for user in users {
-        parse_member(&guild.read().members, &user)
+        parse_member(&guild.members, &user)
             .ok_or("member not found")?
             .clone()
-            .add_role(&ctx.discord, ctx.data.rustacean_role)?;
+            .add_role(&ctx.discord, ctx.data.rustacean_role)
+            .await?;
     }
 
-    crate::react_custom_emoji(ctx, "rustOk", '👌')
+    crate::react_custom_emoji(ctx, "rustOk", '👌').await
 }

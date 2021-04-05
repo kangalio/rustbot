@@ -54,8 +54,8 @@ fn translate_rustc_version(version: &str) -> Result<std::borrow::Cow<'_, str>, E
 /// Compile a given Rust source code file on Godbolt using the latest nightly compiler with
 /// full optimizations (-O3)
 /// Returns a multiline string with the pretty printed assembly
-fn compile_rust_source(
-    http: &reqwest::blocking::Client,
+async fn compile_rust_source(
+    http: &reqwest::Client,
     source_code: &str,
     rustc: &str,
     flags: &str,
@@ -71,8 +71,10 @@ fn compile_rust_source(
             .header(reqwest::header::ACCEPT, "application/json")
             .body(source_code.to_owned())
             .build()?,
-        )?
-        .json()?;
+        )
+        .await?
+        .json()
+        .await?;
 
     // TODO: use the extract_relevant_lines utility to strip stderr nicely
     Ok(if response.code == 0 {
@@ -87,29 +89,49 @@ fn compile_rust_source(
     })
 }
 
-pub fn godbolt(ctx: Context<'_>, args: &str) -> Result<(), Error> {
-    let (params, code) = poise::parse_args!(args => (poise::KeyValueArgs), (poise::CodeBlock))?;
-
+/// View assembly using Godbolt
+#[poise::command(track_edits, broadcast_typing, explanation_fn = "godbolt_help")]
+pub async fn godbolt(
+    ctx: Context<'_>,
+    params: poise::KeyValueArgs,
+    code: poise::CodeBlock,
+) -> Result<(), Error> {
     let rustc = params.get("rustc").unwrap_or(&"nightly");
     let flags = params
         .get("flags")
         .unwrap_or(&"-Copt-level=3 --edition=2018");
     println!("r f = {:?} {:?}", rustc, flags);
-    let (lang, text, note) = match compile_rust_source(&ctx.data.http, &code.code, rustc, flags)? {
-        Compilation::Success { asm, stderr } => (
-            "x86asm",
-            asm,
-            (!stderr.is_empty()).then(|| "Note: compilation produced warnings\n"),
-        ),
-        Compilation::Error { stderr } => ("rust", stderr, None),
-    };
+    let (lang, text, note) =
+        match compile_rust_source(&ctx.data.http, &code.code, rustc, flags).await? {
+            Compilation::Success { asm, stderr } => (
+                "x86asm",
+                asm,
+                (!stderr.is_empty()).then(|| "Note: compilation produced warnings\n"),
+            ),
+            Compilation::Error { stderr } => ("rust", stderr, None),
+        };
 
     super::reply_potentially_long_text(
         ctx,
         &format!("```{}\n{}", lang, text),
         &format!("\n```{}", note.unwrap_or("")),
         "Note: the output was truncated",
-    )?;
+    )
+    .await?;
 
     Ok(())
+}
+
+fn godbolt_help() -> String {
+    "Compile Rust code using https://rust.godbolt.org. Full optimizations are applied unless overriden.
+```?godbolt
+``\u{200B}`
+pub fn your_function() {
+    // Code
+}
+``\u{200B}` ```
+Optional arguments:
+    \t`flags`: flags to pass to rustc invocation. Defaults to `-Copt-level=3 --edition=2018`
+    \t`rustc`: compiler version to invoke. Defaults to `nightly`. Possible values: `nightly`, `beta` or full version like `1.45.2`
+".into()
 }
