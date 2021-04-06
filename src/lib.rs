@@ -65,6 +65,7 @@ async fn app() -> Result<(), Error> {
         .ok_or("Missing/invalid RUSTACEAN_ROLE_ID")?;
 
     let commands = vec![
+        misc::help(),
         crates::crate_(),
         crates::doc(),
         code_execution::play(),
@@ -75,13 +76,12 @@ async fn app() -> Result<(), Error> {
         code_execution::fmt(),
         code_execution::microbench(),
         code_execution::procmacro(),
-        code_execution::godbolt(),
         misc::go(),
+        code_execution::godbolt(),
         moderation::cleanup(),
         moderation::ban(),
         moderation::rustify(),
         misc::source(),
-        misc::help(),
     ];
 
     let framework = poise::Framework::new(
