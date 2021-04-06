@@ -18,6 +18,7 @@ pub async fn source(ctx: Context<'_>, #[rest] _: &str) -> Result<(), Error> {
     Ok(())
 }
 
+/// Show this menu
 #[poise::command(track_edits)]
 pub async fn help(ctx: Context<'_>, query: Option<String>) -> Result<(), Error> {
     let reply = if let Some(query) = query {

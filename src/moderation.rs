@@ -6,18 +6,10 @@ use serenity::model::prelude::*;
 /// ?cleanup [limit]
 ///
 /// Deletes the bot's messages for cleanup.
-/// You can specify how many messages to look for. Only messages from the last 24 hours can be deleted,
-/// except for mods
+/// You can specify how many messages to look for. Only messages from the last 24 hours can be deleted.
 #[poise::command(on_error = "crate::react_cross")]
 pub async fn cleanup(ctx: Context<'_>, num_messages: Option<usize>) -> Result<(), Error> {
     let num_messages = num_messages.unwrap_or(5);
-
-    println!("Cleaning up {} messages", num_messages);
-
-    let is_mod = match &ctx.msg.member {
-        Some(member) => member.roles.contains(&ctx.data.mod_role_id),
-        None => true, // in DMs, treat the user as an "effective" mod
-    };
 
     let messages_to_delete = ctx
         .msg
@@ -29,14 +21,12 @@ pub async fn cleanup(ctx: Context<'_>, num_messages: Option<usize>) -> Result<()
             if msg.author.id != ctx.data.bot_user_id {
                 return false;
             }
-            if is_mod {
-                return true;
-            }
             if (msg.timestamp - ctx.msg.timestamp).num_hours() >= 24 {
                 return false;
             }
             true
-        });
+        })
+        .take(num_messages);
 
     ctx.msg
         .channel_id
@@ -76,6 +66,7 @@ pub async fn ban(
     Ok(())
 }
 
+/// Adds the Rustacean role to a member
 #[poise::command(on_error = "crate::react_cross")]
 pub async fn rustify(ctx: Context<'_>, users: Vec<Member>) -> Result<(), Error> {
     for mut user in users {
