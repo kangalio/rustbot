@@ -1,6 +1,6 @@
 //! run rust code on the rust-lang playground
 
-use crate::{Context, Error};
+use crate::{Error, PrefixContext};
 
 use reqwest::header;
 use serde::{Deserialize, Serialize};
@@ -115,7 +115,7 @@ struct PlayResult {
 }
 
 /// Returns a gist ID
-async fn post_gist(ctx: Context<'_>, code: &str) -> Result<String, Error> {
+async fn post_gist(ctx: PrefixContext<'_>, code: &str) -> Result<String, Error> {
     let mut payload = HashMap::new();
     payload.insert("code", code);
 
@@ -353,7 +353,7 @@ fn maybe_wrap(code: &str, result_handling: ResultHandling) -> Cow<'_, str> {
 
 /// Send a Discord reply with the formatted contents of a Playground result
 async fn send_reply(
-    ctx: Context<'_>,
+    ctx: PrefixContext<'_>,
     result: PlayResult,
     code: &str,
     flags: &CommandFlags,
@@ -368,7 +368,11 @@ async fn send_reply(
     };
 
     if result.trim().is_empty() {
-        poise::say_reply(ctx, format!("{}``` ```", flag_parse_errors)).await?;
+        poise::say_reply(
+            poise::Context::Prefix(ctx),
+            format!("{}``` ```", flag_parse_errors),
+        )
+        .await?;
     } else {
         super::reply_potentially_long_text(
             ctx,
@@ -468,7 +472,7 @@ fn format_play_eval_stderr(stderr: &str, warn: bool) -> String {
 
 // play and eval work similarly, so this function abstracts over the two
 async fn play_or_eval(
-    ctx: Context<'_>,
+    ctx: PrefixContext<'_>,
     flags: poise::KeyValueArgs,
     code: poise::CodeBlock,
     result_handling: ResultHandling,
@@ -505,7 +509,7 @@ async fn play_or_eval(
 /// Compile and run Rust code in a playground
 #[poise::command(track_edits, broadcast_typing, explanation_fn = "play_help")]
 pub async fn play(
-    ctx: Context<'_>,
+    ctx: PrefixContext<'_>,
     flags: poise::KeyValueArgs,
     code: poise::CodeBlock,
 ) -> Result<(), Error> {
@@ -519,7 +523,7 @@ pub fn play_help() -> String {
 /// Evaluate a single Rust expression
 #[poise::command(track_edits, broadcast_typing, explanation_fn = "eval_help")]
 pub async fn eval(
-    ctx: Context<'_>,
+    ctx: PrefixContext<'_>,
     flags: poise::KeyValueArgs,
     code: poise::CodeBlock,
 ) -> Result<(), Error> {
@@ -533,7 +537,7 @@ pub fn eval_help() -> String {
 /// Run code and detect undefined behavior using Miri
 #[poise::command(track_edits, broadcast_typing, explanation_fn = "miri_help")]
 pub async fn miri(
-    ctx: Context<'_>,
+    ctx: PrefixContext<'_>,
     flags: poise::KeyValueArgs,
     code: poise::CodeBlock,
 ) -> Result<(), Error> {
@@ -571,7 +575,7 @@ pub fn miri_help() -> String {
 /// Expand macros to their raw desugared form
 #[poise::command(broadcast_typing, track_edits, explanation_fn = "expand_help")]
 pub async fn expand(
-    ctx: Context<'_>,
+    ctx: PrefixContext<'_>,
     flags: poise::KeyValueArgs,
     code: poise::CodeBlock,
 ) -> Result<(), Error> {
@@ -621,7 +625,7 @@ pub fn expand_help() -> String {
 /// Catch common mistakes using the Clippy linter
 #[poise::command(broadcast_typing, track_edits, explanation_fn = "clippy_help")]
 pub async fn clippy(
-    ctx: Context<'_>,
+    ctx: PrefixContext<'_>,
     flags: poise::KeyValueArgs,
     code: poise::CodeBlock,
 ) -> Result<(), Error> {
@@ -669,7 +673,7 @@ pub fn clippy_help() -> String {
 /// Format code using rustfmt
 #[poise::command(broadcast_typing, track_edits, explanation_fn = "fmt_help")]
 pub async fn fmt(
-    ctx: Context<'_>,
+    ctx: PrefixContext<'_>,
     flags: poise::KeyValueArgs,
     code: poise::CodeBlock,
 ) -> Result<(), Error> {
@@ -693,7 +697,7 @@ pub fn fmt_help() -> String {
 /// Benchmark small snippets of code
 #[poise::command(broadcast_typing, track_edits, explanation_fn = "microbench_help")]
 pub async fn microbench(
-    ctx: Context<'_>,
+    ctx: PrefixContext<'_>,
     flags: poise::KeyValueArgs,
     code: poise::CodeBlock,
 ) -> Result<(), Error> {
@@ -756,7 +760,7 @@ fn main() {
     let pub_fn_indices = user_code.match_indices("pub fn ");
     if pub_fn_indices.clone().count() == 0 {
         poise::say_reply(
-            ctx,
+            poise::Context::Prefix(ctx),
             "No public functions found for benchmarking :thinking:".into(),
         )
         .await?;
@@ -827,7 +831,7 @@ pub fn snippet_b() { /* code */ }
 /// Compile and use a procedural macro
 #[poise::command(track_edits, broadcast_typing, explanation_fn = "procmacro_help")]
 pub async fn procmacro(
-    ctx: Context<'_>,
+    ctx: PrefixContext<'_>,
     flags: poise::KeyValueArgs,
     macro_code: poise::CodeBlock,
     usage_code: poise::CodeBlock,

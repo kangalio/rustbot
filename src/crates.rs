@@ -43,14 +43,17 @@ async fn get_crate(http: &reqwest::Client, query: &str) -> Result<Option<Crate>,
 /// ```
 /// ?crate crate_name
 /// ```
-#[poise::command(rename = "crate", broadcast_typing, track_edits)]
-pub async fn crate_(ctx: Context<'_>, crate_name: String) -> Result<(), Error> {
+#[poise::command(rename = "crate", broadcast_typing, track_edits, slash_command)]
+pub async fn crate_(
+    ctx: Context<'_>,
+    #[description = "Name of the searched crate"] crate_name: String,
+) -> Result<(), Error> {
     if let Some(url) = rustc_crate_link(&crate_name) {
         poise::say_reply(ctx, url.to_owned()).await?;
         return Ok(());
     }
 
-    match get_crate(&ctx.data.http, &crate_name).await? {
+    match get_crate(&ctx.data().http, &crate_name).await? {
         Some(found_crate) => {
             if found_crate.exact_match {
                 poise::send_reply(ctx, |m| {
@@ -105,8 +108,11 @@ fn rustc_crate_link(crate_name: &str) -> Option<&'static str> {
 /// ```
 /// ?docs crate_name::module::item
 /// ```
-#[poise::command(aliases("docs"), broadcast_typing, track_edits)]
-pub async fn doc(ctx: Context<'_>, query: String) -> Result<(), Error> {
+#[poise::command(aliases("docs"), broadcast_typing, track_edits, slash_command)]
+pub async fn doc(
+    ctx: Context<'_>,
+    #[description = "Path of the crate and item to lookup"] query: String,
+) -> Result<(), Error> {
     let mut query_iter = query.splitn(2, "::");
     let crate_name = query_iter.next().unwrap();
 
@@ -116,7 +122,7 @@ pub async fn doc(ctx: Context<'_>, query: String) -> Result<(), Error> {
     } else if crate_name.is_empty() {
         "https://doc.rust-lang.org/stable/std/".to_owned()
     } else {
-        let crate_ = match get_crate(&ctx.data.http, crate_name).await? {
+        let crate_ = match get_crate(&ctx.data().http, crate_name).await? {
             Some(x) => x,
             None => {
                 poise::say_reply(ctx, format!("Crate `{}` not found", crate_name)).await?;

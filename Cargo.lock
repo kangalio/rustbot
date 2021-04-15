@@ -155,9 +155,9 @@ dependencies = [
 
 [[package]]
 name = "darling"
-version = "0.12.2"
+version = "0.12.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a06d4a9551359071d1890820e3571252b91229e0712e7c36b08940e603c5a8fc"
+checksum = "e9d6ddad5866bb2170686ed03f6839d31a76e5407d80b1c334a2c24618543ffa"
 dependencies = [
  "darling_core",
  "darling_macro",
@@ -165,9 +165,9 @@ dependencies = [
 
 [[package]]
 name = "darling_core"
-version = "0.12.2"
+version = "0.12.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b443e5fb0ddd56e0c9bfa47dc060c5306ee500cb731f2b91432dd65589a77684"
+checksum = "a9ced1fd13dc386d5a8315899de465708cf34ee2a6d9394654515214e67bb846"
 dependencies = [
  "fnv",
  "ident_case",
@@ -179,9 +179,9 @@ dependencies = [
 
 [[package]]
 name = "darling_macro"
-version = "0.12.2"
+version = "0.12.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c0220073ce504f12a70efc4e7cdaea9e9b1b324872e7ad96a208056d7a638b81"
+checksum = "0a7a1445d54b2f9792e3b31a3e715feabbace393f38dc4ffd49d94ee9bc487d5"
 dependencies = [
  "darling_core",
  "quote",
@@ -748,7 +748,7 @@ checksum = "8b870d8c151b6f2fb93e84a13146138f05d02ed11c7e7c54f8826aaaf7c9f184"
 [[package]]
 name = "poise"
 version = "0.1.0"
-source = "git+https://github.com/kangalioo/poise#f49535f054116518560c19f5c6aea04b7cdde3a9"
+source = "git+https://github.com/kangalioo/poise#7a95cbc21444e35a77f3506fd5c769e6a2642450"
 dependencies = [
  "async-trait",
  "chrono",
@@ -764,7 +764,7 @@ dependencies = [
 [[package]]
 name = "poise_macros"
 version = "0.1.0"
-source = "git+https://github.com/kangalioo/poise#f49535f054116518560c19f5c6aea04b7cdde3a9"
+source = "git+https://github.com/kangalioo/poise#7a95cbc21444e35a77f3506fd5c769e6a2642450"
 dependencies = [
  "darling",
  "proc-macro2",
@@ -944,7 +944,6 @@ dependencies = [
  "reqwest",
  "serde",
  "serde_json",
- "serenity",
  "strip-ansi-escapes",
  "tokio",
 ]
@@ -1030,8 +1029,7 @@ dependencies = [
 [[package]]
 name = "serenity"
 version = "0.10.5"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "deead3f7ecbbbe4c249e07af17686937ccb9d7fa24ca3accd1d223e369a75272"
+source = "git+https://github.com/kangalioo/serenity?branch=parse-changes#2fa2f08b4388aa9c3ea2a3da2c0af12a096c4352"
 dependencies = [
  "async-trait",
  "async-tungstenite",

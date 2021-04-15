@@ -6,7 +6,7 @@ pub use godbolt::*;
 mod playground;
 pub use playground::*;
 
-use crate::{Context, Error};
+use crate::{Error, PrefixContext};
 
 /// Send a Discord reply message and truncate the message with a given truncation message if the
 /// text is too long. "Too long" means, it either goes beyond Discord's 2000 char message limit,
@@ -27,7 +27,7 @@ use crate::{Context, Error};
 /// );
 /// ```
 async fn reply_potentially_long_text(
-    ctx: Context<'_>,
+    ctx: PrefixContext<'_>,
     text_body: &str,
     text_end: &str,
     truncation_msg: &str,
@@ -65,6 +65,6 @@ async fn reply_potentially_long_text(
         format!("{}{}", text_body, text_end)
     };
 
-    poise::say_reply(ctx, msg).await?;
+    poise::say_prefix_reply(ctx, msg).await?;
     Ok(())
 }

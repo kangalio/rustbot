@@ -7,11 +7,12 @@ Some permissions are required:
 - Manage Roles: for `?rustify` command
 - Manage Messages: for `?cleanup` command
 - Add Reactions: for `?rustify` command feedback
+Furthermore, the `applications.commands` OAuth2 scope is required for slash commands.
 
-The permissions integer for these four permissions is `268445760`.
+Here's an invite link to an instance hosted by me on my Raspberry Pi, with the permissions and scopes incorporated:
+https://discord.com/oauth2/authorize?client_id=804340127433752646&permissions=268445760&scope=bot%20applications.commands
 
-Here's an invite link to an instance hosted by me on my Raspberry Pi:
-https://discord.com/oauth2/authorize?client_id=804340127433752646&permissions=268445760&scope=bot
+Adjust the client_id in the URL for your own hosted instances of the bot.
 
 ## Hosting the bot
 

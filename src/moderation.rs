@@ -1,5 +1,4 @@
 use crate::{Context, Error};
-use serenity::model::prelude::*;
 
 /// Deletes the bot's messages for cleanup
 ///
@@ -7,33 +6,34 @@ use serenity::model::prelude::*;
 ///
 /// Deletes the bot's messages for cleanup.
 /// You can specify how many messages to look for. Only messages from the last 24 hours can be deleted.
-#[poise::command(on_error = "crate::react_cross")]
-pub async fn cleanup(ctx: Context<'_>, num_messages: Option<usize>) -> Result<(), Error> {
+#[poise::command(on_error = "crate::acknowledge_fail", slash_command)]
+pub async fn cleanup(
+    ctx: Context<'_>,
+    #[description = "Number of messages to delete"] num_messages: Option<usize>,
+) -> Result<(), Error> {
     let num_messages = num_messages.unwrap_or(5);
 
     let messages_to_delete = ctx
-        .msg
-        .channel_id
-        .messages(ctx.discord, |m| m.limit(100))
+        .channel_id()
+        .messages(ctx.discord(), |m| m.limit(100))
         .await?
         .into_iter()
         .filter(|msg| {
-            if msg.author.id != ctx.data.bot_user_id {
+            if msg.author.id != ctx.data().bot_user_id {
                 return false;
             }
-            if (msg.timestamp - ctx.msg.timestamp).num_hours() >= 24 {
+            if (msg.timestamp - ctx.created_at()).num_hours() >= 24 {
                 return false;
             }
             true
         })
         .take(num_messages);
 
-    ctx.msg
-        .channel_id
-        .delete_messages(ctx.discord, messages_to_delete)
+    ctx.channel_id()
+        .delete_messages(ctx.discord(), messages_to_delete)
         .await?;
 
-    crate::react_custom_emoji(ctx, "rustOk", '👌').await
+    crate::acknowledge_success(ctx, "rustOk", '👌').await
 }
 
 /// Bans another person
@@ -41,18 +41,18 @@ pub async fn cleanup(ctx: Context<'_>, num_messages: Option<usize>) -> Result<()
 /// ?ban <member> [reason]
 ///
 /// Bans another person
-#[poise::command(on_error = "crate::react_cross")]
+#[poise::command(on_error = "crate::acknowledge_fail", slash_command)]
 pub async fn ban(
     ctx: Context<'_>,
-    banned_user: Member,
-    reason: Option<String>,
+    #[description = "Banned user"] banned_user: serenity::Member,
+    #[description = "Ban reason"] reason: Option<String>,
 ) -> Result<(), Error> {
     poise::say_reply(
         ctx,
         format!(
             "{}#{} banned user {}#{}{}  {}",
-            ctx.msg.author.name,
-            ctx.msg.author.discriminator,
+            ctx.author().name,
+            ctx.author().discriminator,
             banned_user.user.name,
             banned_user.user.discriminator,
             match reason {
@@ -67,10 +67,16 @@ pub async fn ban(
 }
 
 /// Adds the Rustacean role to a member
-#[poise::command(on_error = "crate::react_cross")]
-pub async fn rustify(ctx: Context<'_>, users: Vec<Member>) -> Result<(), Error> {
-    for mut user in users {
-        user.add_role(&ctx.discord, ctx.data.rustacean_role).await?;
-    }
-    crate::react_custom_emoji(ctx, "rustOk", '👌').await
+#[poise::command(on_error = "crate::acknowledge_fail", slash_command)]
+pub async fn rustify(
+    ctx: Context<'_>,
+    // TODO: make this work with a list of users again
+    // #[description = "List of users to rustify"] users: Vec<serenity::Member>,
+    #[description = "User to rustify"] mut user: serenity::Member,
+) -> Result<(), Error> {
+    // for mut user in users {
+    user.add_role(&ctx.discord(), ctx.data().rustacean_role)
+        .await?;
+    // }
+    crate::acknowledge_success(ctx, "rustOk", '👌').await
 }
