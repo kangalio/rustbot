@@ -22,7 +22,7 @@ pub async fn cleanup(
             if msg.author.id != ctx.data().bot_user_id {
                 return false;
             }
-            if (msg.timestamp - ctx.created_at()).num_hours() >= 24 {
+            if (ctx.created_at() - msg.timestamp).num_hours() >= 24 {
                 return false;
             }
             true
