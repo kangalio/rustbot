@@ -1,4 +1,4 @@
-use crate::{Context, Error};
+use crate::{Context, Error, PrefixContext};
 
 /// Evaluates Go code
 #[poise::command(discard_spare_arguments, slash_command)]
@@ -57,5 +57,18 @@ pub async fn help(
 
     poise::say_reply(ctx, reply).await?;
 
+    Ok(())
+}
+
+pub async fn is_owner(ctx: crate::PrefixContext<'_>) -> Result<bool, Error> {
+    Ok(ctx.msg.author.id.0 == 472029906943868929)
+}
+
+#[poise::command(check = "is_owner")]
+pub async fn register(ctx: PrefixContext<'_>) -> Result<(), Error> {
+    let guild_id = ctx.msg.guild_id.ok_or("not in guild")?;
+    ctx.framework
+        .register_slash_commands_in_guild(&ctx.discord.http, guild_id)
+        .await?;
     Ok(())
 }

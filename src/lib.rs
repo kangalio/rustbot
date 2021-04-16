@@ -138,18 +138,12 @@ async fn app() -> Result<(), Error> {
     options.command(moderation::ban);
     options.command(moderation::rustify);
     options.command(misc::about);
+    options.command(misc::register);
 
     let framework = poise::Framework::new(
         "?",
         move |_ctx, bot, _framework| {
             Box::pin(async move {
-                // _framework
-                //     .register_slash_commands_in_guild(
-                //         &_ctx.http,
-                //         serenity::GuildId(703332075914264606),
-                //     )
-                //     .await?;
-
                 Ok(Data {
                     bot_user_id: bot.user.id,
                     mod_role_id,
