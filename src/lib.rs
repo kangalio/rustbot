@@ -209,11 +209,23 @@ pub async fn acknowledge_success(
         Context::Slash(ctx) => {
             // this is a bad solution........ it will attempt to acknowledge the user command
             // but ignore failures because a response might have been sent already
-            let emoji = match emoji {
+            let msg_content = match emoji {
                 Some(e) => e.to_string(),
                 None => fallback.to_string(),
             };
-            let _: Result<_, _> = poise::say_slash_reply(ctx, emoji).await;
+            if let Ok(()) = poise::say_slash_reply(ctx, msg_content.clone()).await {
+                if let Some(channel) = ctx.interaction.channel_id {
+                    let message_we_just_sent = channel
+                        .messages(ctx.discord, |f| f.limit(5))
+                        .await?
+                        .into_iter()
+                        .find(|msg| msg.content == msg_content);
+                    if let Some(message_we_just_sent) = message_we_just_sent {
+                        tokio::time::sleep(std::time::Duration::from_secs(3)).await;
+                        message_we_just_sent.delete(ctx.discord).await?;
+                    }
+                }
+            }
         }
     }
     Ok(())
