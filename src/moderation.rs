@@ -41,11 +41,13 @@ pub async fn cleanup(
 /// ?ban <member> [reason]
 ///
 /// Bans another person
-#[poise::command(on_error = "crate::acknowledge_fail", slash_command)]
+#[poise::command(on_error = "crate::acknowledge_fail", aliases("banne"), slash_command)]
 pub async fn ban(
     ctx: Context<'_>,
     #[description = "Banned user"] banned_user: serenity::Member,
-    #[description = "Ban reason"] reason: Option<String>,
+    #[description = "Ban reason"]
+    #[rest]
+    reason: Option<String>,
 ) -> Result<(), Error> {
     poise::say_reply(
         ctx,
