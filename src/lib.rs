@@ -142,6 +142,7 @@ async fn app() -> Result<(), Error> {
 
     let framework = poise::Framework::new(
         "?",
+        serenity::ApplicationId(application_id),
         move |_ctx, bot, _framework| {
             Box::pin(async move {
                 Ok(Data {
@@ -210,7 +211,7 @@ pub async fn acknowledge_success(
             if let Ok(()) = poise::say_slash_reply(ctx, msg_content.clone()).await {
                 if let Some(channel) = ctx.interaction.channel_id {
                     let message_we_just_sent = channel
-                        .messages(ctx.discord, |f| f.limit(5))
+                        .messages(ctx.discord, |f| f.limit(10))
                         .await?
                         .into_iter()
                         .find(|msg| msg.content == msg_content);

@@ -32,10 +32,14 @@ pub async fn help(
             .iter()
             .find(|cmd| cmd.name == command)
         {
-            command
-                .options
-                .multiline_help
-                .map_or("No help available".into(), |f| f())
+            match command.options.multiline_help {
+                Some(f) => f(),
+                None => command
+                    .options
+                    .inline_help
+                    .unwrap_or("No help available")
+                    .to_owned(),
+            }
         } else {
             format!("No such command `{}`", command)
         }
@@ -67,8 +71,8 @@ pub async fn is_owner(ctx: crate::PrefixContext<'_>) -> Result<bool, Error> {
 #[poise::command(check = "is_owner")]
 pub async fn register(ctx: PrefixContext<'_>) -> Result<(), Error> {
     let guild_id = ctx.msg.guild_id.ok_or("not in guild")?;
-    ctx.framework
-        .register_slash_commands_in_guild(&ctx.discord.http, guild_id)
-        .await?;
+    for cmd in &ctx.framework.options().slash_options.commands {
+        cmd.create_in_guild(&ctx.discord.http, guild_id).await?;
+    }
     Ok(())
 }
