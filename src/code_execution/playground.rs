@@ -235,11 +235,11 @@ fn generic_help(cmd: &str, desc: &str, full: bool, example_code: &str) -> String
 
     reply += "Optional arguments:\n";
     if full {
-        reply += "    \tmode: debug, release (default: debug)\n";
-        reply += "    \tchannel: stable, beta, nightly (default: nightly)\n";
+        reply += "- mode: debug, release (default: debug)\n";
+        reply += "- channel: stable, beta, nightly (default: nightly)\n";
     }
-    reply += "    \tedition: 2015, 2018 (default: 2018)\n";
-    reply += "    \twarn: true, false (default: false)\n";
+    reply += "- edition: 2015, 2018 (default: 2018)\n";
+    reply += "- warn: true, false (default: false)\n";
 
     reply
 }
