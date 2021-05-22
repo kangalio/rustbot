@@ -100,9 +100,9 @@ async fn compile_rust_source(
 /// ``​`
 /// ```
 /// Optional arguments:
-///     \t`flags`: flags to pass to rustc invocation. Defaults to `"-Copt-level=3 --edition=2018"`
-///     \t`rustc`: compiler version to invoke. Defaults to `nightly`. Possible values: `nightly`, `beta` or full version like `1.45.2`
-#[poise::command(broadcast_typing)]
+/// - `flags`: flags to pass to rustc invocation. Defaults to `"-Copt-level=3 --edition=2018"`
+/// - `rustc`: compiler version to invoke. Defaults to `nightly`. Possible values: `nightly`, `beta` or full version like `1.45.2`
+#[poise::command(broadcast_typing, track_edits)]
 pub async fn godbolt(
     ctx: PrefixContext<'_>,
     params: poise::KeyValueArgs,
