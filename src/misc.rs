@@ -7,13 +7,10 @@ pub async fn go(ctx: Context<'_>) -> Result<(), Error> {
     Ok(())
 }
 
-/// Information about this bot
-///
-/// Information about this bot, for example a link to the GitHub repo.
+/// Links to the bot GitHub repo
 #[poise::command(discard_spare_arguments, slash_command)]
-pub async fn about(ctx: Context<'_>) -> Result<(), Error> {
-    // TODO: add more info...? At some point I had ideas about what to put here but I forgot
-    poise::say_reply(ctx, r"GitHub: https://github.com/kangalioo/rustbot".into()).await?;
+pub async fn source(ctx: Context<'_>) -> Result<(), Error> {
+    poise::say_reply(ctx, r"https://github.com/kangalioo/rustbot".into()).await?;
     Ok(())
 }
 
@@ -46,6 +43,10 @@ pub async fn help(
     } else {
         let mut menu = "```\nCommands:\n".to_owned();
         for command in &ctx.framework().options().prefix_options.commands {
+            if command.options.hide_in_help {
+                continue;
+            }
+
             menu += &format!(
                 "\t?{:<12}{}\n",
                 command.name,
@@ -68,7 +69,7 @@ pub async fn is_owner(ctx: crate::PrefixContext<'_>) -> Result<bool, Error> {
     Ok(ctx.msg.author.id.0 == 472029906943868929)
 }
 
-#[poise::command(check = "is_owner")]
+#[poise::command(check = "is_owner", hide_in_help)]
 pub async fn register(ctx: PrefixContext<'_>) -> Result<(), Error> {
     let guild_id = ctx.msg.guild_id.ok_or("not in guild")?;
     for cmd in &ctx.framework.options().slash_options.commands {

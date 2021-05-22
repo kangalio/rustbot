@@ -145,7 +145,7 @@ async fn app() -> Result<(), Error> {
         let slash_impl = moderation::slash_rustify().1;
         (prefix_impl, slash_impl)
     });
-    options.command(misc::about);
+    options.command(misc::source);
     options.command(misc::register);
 
     let framework = poise::Framework::new(
