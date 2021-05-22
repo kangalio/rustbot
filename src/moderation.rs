@@ -1,4 +1,4 @@
-use crate::{Context, Error};
+use crate::{serenity, Context, Error, PrefixContext};
 
 /// Deletes the bot's messages for cleanup
 ///
@@ -68,17 +68,42 @@ pub async fn ban(
     Ok(())
 }
 
-/// Adds the Rustacean role to a member
-#[poise::command(on_error = "crate::acknowledge_fail", slash_command)]
-pub async fn rustify(
-    ctx: Context<'_>,
-    // TODO: make this work with a list of users again
-    // #[description = "List of users to rustify"] users: Vec<serenity::Member>,
-    #[description = "User to rustify"] mut user: serenity::Member,
-) -> Result<(), Error> {
-    // for mut user in users {
-    user.add_role(&ctx.discord(), ctx.data().rustacean_role)
-        .await?;
-    // }
+async fn rustify_inner(ctx: Context<'_>, users: &[serenity::Member]) -> Result<(), Error> {
+    for user in users {
+        ctx.discord()
+            .http
+            .add_member_role(
+                user.guild_id.0,
+                user.user.id.0,
+                ctx.data().rustacean_role.0,
+                Some(&format!(
+                    "You have been rusted by {}! owo",
+                    ctx.author().name
+                )),
+            )
+            .await?;
+    }
     crate::acknowledge_success(ctx, "rustOk", '👌').await
+}
+
+/// Adds the Rustacean role to members
+#[poise::command(on_error = "crate::acknowledge_prefix_fail", rename = "rustify")]
+pub async fn prefix_rustify(
+    ctx: PrefixContext<'_>,
+    users: Vec<serenity::Member>,
+) -> Result<(), Error> {
+    rustify_inner(Context::Prefix(ctx), &users).await
+}
+
+/// Adds the Rustacean role to a member
+#[poise::command(
+    on_error = "crate::acknowledge_fail",
+    slash_command,
+    rename = "rustify"
+)]
+pub async fn slash_rustify(
+    ctx: Context<'_>,
+    #[description = "User to rustify"] user: serenity::Member,
+) -> Result<(), Error> {
+    rustify_inner(ctx, &[user]).await
 }

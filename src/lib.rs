@@ -36,6 +36,10 @@ async fn acknowledge_fail(error: Error, ctx: poise::CommandErrorContext<'_, Data
     }
 }
 
+async fn acknowledge_prefix_fail(error: Error, ctx: poise::PrefixCommandErrorContext<'_, Data, Error>) {
+    acknowledge_fail(error, poise::CommandErrorContext::Prefix(ctx)).await
+}
+
 async fn on_error(error: Error, ctx: poise::ErrorContext<'_, Data, Error>) {
     if let poise::ErrorContext::Command(ctx) = ctx {
         let reply = if let Some(poise::ArgumentParseError(error)) = error.downcast_ref() {
@@ -136,7 +140,11 @@ async fn app() -> Result<(), Error> {
     options.command(code_execution::godbolt);
     options.command(moderation::cleanup);
     options.command(moderation::ban);
-    options.command(moderation::rustify);
+    options.command(|| {
+        let prefix_impl = moderation::prefix_rustify().0;
+        let slash_impl = moderation::slash_rustify().1;
+        (prefix_impl, slash_impl)
+    });
     options.command(misc::about);
     options.command(misc::register);
 
