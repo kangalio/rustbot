@@ -28,14 +28,18 @@ use crate::{Error, PrefixContext};
 /// ```
 async fn reply_potentially_long_text(
     ctx: PrefixContext<'_>,
-    text_body: &str,
+    mut text_body: &str,
     text_end: &str,
     truncation_msg: &str,
 ) -> Result<(), Error> {
     const MAX_OUTPUT_LINES: usize = 45;
 
-    // check the 2000 char limit first, because otherwise we could produce a too large message
-    let msg = if text_body.len() + text_end.len() > 2000 {
+    let mut was_truncated = false;
+
+    // check Discord's 2000 char message limit first
+    if text_body.len() + text_end.len() > 2000 {
+        was_truncated = true;
+
         // This is how long the text body may be at max to conform to Discord's limit
         let available_space = 2000 - text_end.len() - truncation_msg.len();
 
@@ -44,23 +48,24 @@ async fn reply_potentially_long_text(
             cut_off_point -= 1;
         }
 
-        format!(
-            "{}{}{}",
-            &text_body[..cut_off_point],
-            text_end,
-            truncation_msg
-        )
-    } else if text_body.lines().count() > MAX_OUTPUT_LINES {
-        format!(
-            "{}{}{}",
-            text_body
-                .lines()
-                .take(MAX_OUTPUT_LINES)
-                .collect::<Vec<_>>()
-                .join("\n"),
-            text_end,
-            truncation_msg,
-        )
+        text_body = &text_body[..cut_off_point];
+    }
+
+    // check number of lines
+    let text_body = if text_body.lines().count() > MAX_OUTPUT_LINES {
+        was_truncated = true;
+
+        text_body
+            .lines()
+            .take(MAX_OUTPUT_LINES)
+            .collect::<Vec<_>>()
+            .join("\n")
+    } else {
+        text_body.to_owned()
+    };
+
+    let msg = if was_truncated {
+        format!("{}{}{}", text_body, text_end, truncation_msg)
     } else {
         format!("{}{}", text_body, text_end)
     };
