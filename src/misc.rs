@@ -41,14 +41,24 @@ pub async fn help(
             format!("No such command `{}`", command)
         }
     } else {
+        let prefix_commands = &ctx.framework().options().prefix_options.commands;
+        let slash_commands = &ctx.framework().options().slash_options.commands;
+
         let mut menu = "```\nCommands:\n".to_owned();
-        for command in &ctx.framework().options().prefix_options.commands {
+        for command in prefix_commands {
             if command.options.hide_in_help {
                 continue;
             }
 
+            let prefix = if slash_commands.iter().any(|c| c.name == command.name) {
+                '/'
+            } else {
+                '?'
+            };
+
             menu += &format!(
-                "\t?{:<12}{}\n",
+                "\t{}{:<12}{}\n",
+                prefix,
                 command.name,
                 command.options.inline_help.unwrap_or("")
             );
