@@ -41,27 +41,41 @@ pub async fn help(
             format!("No such command `{}`", command)
         }
     } else {
-        let prefix_commands = &ctx.framework().options().prefix_options.commands;
-        let slash_commands = &ctx.framework().options().slash_options.commands;
+        let is_also_a_slash_command = |command_name| {
+            let slash_commands = &ctx.framework().options().slash_options.commands;
+            slash_commands.iter().any(|c| c.name == command_name)
+        };
 
-        let mut menu = "```\nCommands:\n".to_owned();
-        for command in prefix_commands {
-            if command.options.hide_in_help {
-                continue;
+        let mut categories = indexmap::IndexMap::new();
+        for cmd in &ctx.framework().options().prefix_options.commands {
+            categories
+                .entry(cmd.options.category)
+                .or_insert(Vec::new())
+                .push(cmd);
+        }
+
+        let mut menu = String::from("```\n");
+        for (category_name, commands) in categories {
+            menu += category_name.unwrap_or("Commands");
+            menu += ":\n";
+            for command in commands {
+                if command.options.hide_in_help {
+                    continue;
+                }
+
+                let prefix = if is_also_a_slash_command(command.name) {
+                    '/'
+                } else {
+                    '?'
+                };
+
+                menu += &format!(
+                    "  {}{:<12}{}\n",
+                    prefix,
+                    command.name,
+                    command.options.inline_help.unwrap_or("")
+                );
             }
-
-            let prefix = if slash_commands.iter().any(|c| c.name == command.name) {
-                '/'
-            } else {
-                '?'
-            };
-
-            menu += &format!(
-                "\t{}{:<12}{}\n",
-                prefix,
-                command.name,
-                command.options.inline_help.unwrap_or("")
-            );
         }
         menu += "\nType ?help command for more info on a command.";
         menu += "\nYou can edit your message to the bot and the bot will edit its response.";

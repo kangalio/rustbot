@@ -36,7 +36,10 @@ async fn acknowledge_fail(error: Error, ctx: poise::CommandErrorContext<'_, Data
     }
 }
 
-async fn acknowledge_prefix_fail(error: Error, ctx: poise::PrefixCommandErrorContext<'_, Data, Error>) {
+async fn acknowledge_prefix_fail(
+    error: Error,
+    ctx: poise::PrefixCommandErrorContext<'_, Data, Error>,
+) {
     acknowledge_fail(error, poise::CommandErrorContext::Prefix(ctx)).await
 }
 
@@ -125,28 +128,30 @@ async fn app() -> Result<(), Error> {
         on_error: |error, ctx| Box::pin(on_error(error, ctx)),
         ..Default::default()
     };
-    options.command(misc::help);
-    options.command(crates::crate_);
-    options.command(crates::doc);
-    options.command(code_execution::play);
-    options.command(code_execution::eval);
-    options.command(code_execution::miri);
-    options.command(code_execution::expand);
-    options.command(code_execution::clippy);
-    options.command(code_execution::fmt);
-    options.command(code_execution::microbench);
-    options.command(code_execution::procmacro);
-    options.command(misc::go);
-    options.command(code_execution::godbolt);
-    options.command(moderation::cleanup);
-    options.command(moderation::ban);
-    options.command(|| {
+
+    let rustify = || {
         let prefix_impl = moderation::prefix_rustify().0;
         let slash_impl = moderation::slash_rustify().1;
         (prefix_impl, slash_impl)
-    });
-    options.command(misc::source);
-    options.command(misc::register);
+    };
+    options.command_with_category(code_execution::play, "Playground");
+    options.command_with_category(code_execution::eval, "Playground");
+    options.command_with_category(code_execution::miri, "Playground");
+    options.command_with_category(code_execution::expand, "Playground");
+    options.command_with_category(code_execution::clippy, "Playground");
+    options.command_with_category(code_execution::fmt, "Playground");
+    options.command_with_category(code_execution::microbench, "Playground");
+    options.command_with_category(code_execution::procmacro, "Playground");
+    options.command_with_category(code_execution::godbolt, "Playground");
+    options.command_with_category(crates::crate_, "Crates");
+    options.command_with_category(crates::doc, "Crates");
+    options.command_with_category(moderation::cleanup, "Moderation");
+    options.command_with_category(moderation::ban, "Moderation");
+    options.command_with_category(rustify, "Moderation");
+    options.command_with_category(misc::go, "Miscellaneous");
+    options.command_with_category(misc::source, "Miscellaneous");
+    options.command_with_category(misc::help, "Miscellaneous");
+    options.command_with_category(misc::register, "Miscellaneous");
 
     let framework = poise::Framework::new(
         "?",
