@@ -20,72 +20,9 @@ pub async fn help(
     ctx: Context<'_>,
     #[description = "Specific command to show help about"] command: Option<String>,
 ) -> Result<(), Error> {
-    let reply = if let Some(command) = command {
-        if let Some(command) = ctx
-            .framework()
-            .options()
-            .prefix_options
-            .commands
-            .iter()
-            .find(|cmd| cmd.name == command)
-        {
-            match command.options.multiline_help {
-                Some(f) => f(),
-                None => command
-                    .options
-                    .inline_help
-                    .unwrap_or("No help available")
-                    .to_owned(),
-            }
-        } else {
-            format!("No such command `{}`", command)
-        }
-    } else {
-        let is_also_a_slash_command = |command_name| {
-            let slash_commands = &ctx.framework().options().slash_options.commands;
-            slash_commands.iter().any(|c| c.name == command_name)
-        };
-
-        let mut categories = indexmap::IndexMap::new();
-        for cmd in &ctx.framework().options().prefix_options.commands {
-            categories
-                .entry(cmd.options.category)
-                .or_insert(Vec::new())
-                .push(cmd);
-        }
-
-        let mut menu = String::from("```\n");
-        for (category_name, commands) in categories {
-            menu += category_name.unwrap_or("Commands");
-            menu += ":\n";
-            for command in commands {
-                if command.options.hide_in_help {
-                    continue;
-                }
-
-                let prefix = if is_also_a_slash_command(command.name) {
-                    '/'
-                } else {
-                    '?'
-                };
-
-                menu += &format!(
-                    "  {}{:<12}{}\n",
-                    prefix,
-                    command.name,
-                    command.options.inline_help.unwrap_or("")
-                );
-            }
-        }
-        menu += "\nType ?help command for more info on a command.";
-        menu += "\nYou can edit your message to the bot and the bot will edit its response.";
-        menu += "\n```";
-
-        menu
-    };
-
-    poise::say_reply(ctx, reply).await?;
-
+    let bottom_text = "Type ?help command for more info on a command.
+You can edit your message to the bot and the bot will edit its response.";
+    poise::defaults::help(ctx, command.as_deref(), bottom_text).await?;
     Ok(())
 }
 
