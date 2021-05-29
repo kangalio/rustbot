@@ -1,9 +1,9 @@
 use crate::{Context, Error, PrefixContext};
 
 /// Evaluates Go code
-#[poise::command(discard_spare_arguments, slash_command)]
-pub async fn go(ctx: Context<'_>) -> Result<(), Error> {
-    poise::say_reply(ctx, "No".into()).await?;
+#[poise::command(discard_spare_arguments)]
+pub async fn go(ctx: PrefixContext<'_>) -> Result<(), Error> {
+    poise::say_prefix_reply(ctx, "No".into()).await?;
     Ok(())
 }
 
