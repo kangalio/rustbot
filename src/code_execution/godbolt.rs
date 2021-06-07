@@ -128,6 +128,35 @@ async fn compile_rust_source(
     })
 }
 
+async fn save_to_shortlink(
+    http: &reqwest::Client,
+    code: &str,
+    rustc: &str,
+    flags: &str,
+) -> Result<String, Error> {
+    #[derive(serde::Deserialize)]
+    struct GodboltShortenerResponse {
+        url: String,
+    }
+
+    let response = http
+        .post("https://godbolt.org/api/shortener")
+        .json(&serde_json::json! { {
+            "sessions": [{
+                "language": "rust",
+                "source": code,
+                "compilers": [{
+                    "id": rustc,
+                    "options": flags,
+                }],
+            }]
+        } })
+        .send()
+        .await?;
+
+    Ok(response.json::<GodboltShortenerResponse>().await?.url)
+}
+
 /// View assembly using Godbolt
 ///
 /// Compile Rust code using https://rust.godbolt.org. Full optimizations are applied unless \
@@ -171,7 +200,10 @@ pub async fn godbolt(
         ctx,
         &format!("```{}\n{}", lang, text),
         &format!("\n```{}", note.unwrap_or("")),
-        "Note: the output was truncated",
+        &format!(
+            "Output too large. Godbolt link: <{}>",
+            save_to_shortlink(&ctx.data.http, &code.code, rustc, flags).await?,
+        ),
     )
     .await?;
 
