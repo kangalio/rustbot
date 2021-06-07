@@ -1,5 +1,7 @@
 use crate::{Error, PrefixContext};
 
+const LLVM_MCA_TOOL_ID: &str = "llvm-mcatrunk";
+
 enum Compilation {
     Success {
         asm: String,
@@ -78,8 +80,6 @@ async fn compile_rust_source(
 ) -> Result<Compilation, Error> {
     let rustc = translate_rustc_version(rustc)?;
 
-    const LLVM_MCA_TOOL_ID: &str = "llvm-mcatrunk";
-
     let tools = if run_llvm_mca {
         serde_json::json! {
             [{"id": LLVM_MCA_TOOL_ID}]
@@ -133,11 +133,22 @@ async fn save_to_shortlink(
     code: &str,
     rustc: &str,
     flags: &str,
+    run_llvm_mca: bool,
 ) -> Result<String, Error> {
     #[derive(serde::Deserialize)]
     struct GodboltShortenerResponse {
         url: String,
     }
+
+    let tools = if run_llvm_mca {
+        serde_json::json! {
+            [{"id": LLVM_MCA_TOOL_ID}]
+        }
+    } else {
+        serde_json::json! {
+            []
+        }
+    };
 
     let response = http
         .post("https://godbolt.org/api/shortener")
@@ -148,6 +159,7 @@ async fn save_to_shortlink(
                 "compilers": [{
                     "id": rustc,
                     "options": flags,
+                    "tools": tools,
                 }],
             }]
         } })
@@ -202,7 +214,7 @@ pub async fn godbolt(
         &format!("\n```{}", note.unwrap_or("")),
         &format!(
             "Output too large. Godbolt link: <{}>",
-            save_to_shortlink(&ctx.data.http, &code.code, rustc, flags).await?,
+            save_to_shortlink(&ctx.data.http, &code.code, rustc, flags, false).await?,
         ),
     )
     .await?;
@@ -257,7 +269,10 @@ pub async fn mca(
         ctx,
         &format!("```{}\n{}", lang, text),
         &format!("\n```{}", note.unwrap_or("")),
-        "Note: the output was truncated",
+        &format!(
+            "Output too large. Godbolt link: <{}>",
+            save_to_shortlink(&ctx.data.http, &code.code, rustc, flags, false).await?,
+        ),
     )
     .await?;
 
