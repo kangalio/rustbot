@@ -17,12 +17,23 @@ Adjust the client_id in the URL for your own hosted instances of the bot.
 ## Hosting the bot
 
 Run the bot using `cargo run --release`. You will need to provide several environment variables:
+- APPLICATION_ID: the ID of your Discord bot application
 - DISCORD_TOKEN: the Discord bot token acquired via the Discord Developer Portal
 - MOD_ROLE_ID: the ID of the Moderator role on your Discord server (for `?cleanup`)
 - RUSTACEAN_ROLE_ID: the ID of the Rustacean role on your Discord server (for `?rustify`)
 
 An example command-line for Linux would be:
-`MOD_ROLE_ID=583178325221048320 RUSTACEAN_ROLE=319953207193501696 DISCORD_TOKEN=... cargo run --release`
+`APPLICATION_ID=812377560917868595 MOD_ROLE_ID=583178325221048320 RUSTACEAN_ROLE_ID=319953207193501696 DISCORD_TOKEN=... cargo run --release`
+
+### Docker
+
+This project has a Dockerfile, so you can use Docker to run this bot if you wish:
+
+```sh
+docker build -t rust-debian .
+# Fill in the environment variables here as listed above
+docker run --env KEY=value --env KEY=value . rustbot
+```
 
 ## Credits
 
