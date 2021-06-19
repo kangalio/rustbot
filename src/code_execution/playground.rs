@@ -696,7 +696,8 @@ pub async fn fmt(
     let was_fn_main_wrapped = matches!(code, Cow::Owned(_));
     let (flags, flag_parse_errors) = parse_flags(&flags);
 
-    let mut result = apply_rustfmt(&code, flags.edition)?;
+    let mut result = apply_rustfmt(&code, flags.edition)
+        .map_err(|e| format!("Error while executing rustfmt: {}", e))?;
     if was_fn_main_wrapped {
         result.stdout = strip_fn_main_boilerplate_from_formatted(&result.stdout);
     }
