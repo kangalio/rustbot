@@ -421,10 +421,25 @@ fn apply_rustfmt(text: &str, edition: Edition) -> Result<PlayResult, Error> {
     })
 }
 
+// This function must not break when provided non-formatted text with messed up formatting: rustfmt
+// may not be installed on the host's computer!
 fn strip_fn_main_boilerplate_from_formatted(text: &str) -> String {
-    // Remove all the fn main boilerplate and also revert the indent introduced by rustfmt
+    // Remove the fn main boilerplate
+    let prefix = "fn main() {";
+    let postfix = "}";
+
+    let text =
+        if let (Some(prefix_pos), Some(postfix_pos)) = (text.find(prefix), text.rfind(postfix)) {
+            text.get((prefix_pos + prefix.len())..postfix_pos)
+                .unwrap_or(text)
+        } else {
+            text
+        };
+    let text = text.trim();
+
+    // Revert the indent introduced by rustfmt
     let mut output = String::new();
-    for line in extract_relevant_lines(text, &["fn main() {"], &["}"]).lines() {
+    for line in text.lines() {
         output.push_str(line.strip_prefix("    ").unwrap_or(line));
         output.push('\n');
     }
