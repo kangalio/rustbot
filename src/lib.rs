@@ -125,6 +125,40 @@ async fn app() -> Result<(), Error> {
             )),
             ..Default::default()
         },
+        pre_command: |ctx| {
+            Box::pin(async move {
+                let datetime = ctx.created_at();
+                let channel_name = ctx
+                    .channel_id()
+                    .name(&ctx.discord())
+                    .await
+                    .unwrap_or_else(|| "<unknown>".to_owned());
+                let author = match ctx.author() {
+                    Some(author) => format!("{}#{}", author.name, author.discriminator),
+                    None => String::from("<unknown>"),
+                };
+
+                match ctx {
+                    poise::Context::Prefix(ctx) => {
+                        println!(
+                            "[{}] {} in {}: {}",
+                            datetime, author, channel_name, &ctx.msg.content
+                        );
+                    }
+                    poise::Context::Slash(ctx) => {
+                        let command_name = match &ctx.interaction.data {
+                            Some(data) => &data.name,
+                            None => "<unknown>",
+                        };
+
+                        println!(
+                            "[{}] {} in {} used slash command '{}'",
+                            datetime, author, channel_name, command_name
+                        );
+                    }
+                }
+            })
+        },
         on_error: |error, ctx| Box::pin(on_error(error, ctx)),
         ..Default::default()
     };

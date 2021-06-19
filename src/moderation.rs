@@ -74,10 +74,9 @@ async fn rustify_inner(ctx: Context<'_>, users: &[serenity::Member]) -> Result<(
                 user.guild_id.0,
                 user.user.id.0,
                 ctx.data().rustacean_role.0,
-                Some(&format!(
-                    "You have been rusted by {}! owo",
-                    ctx.author().name
-                )),
+                ctx.author()
+                    .map(|author| format!("You have been rusted by {}! owo", author.name))
+                    .as_deref(),
             )
             .await?;
     }
