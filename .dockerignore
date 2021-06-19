@@ -1,2 +1,4 @@
-.*/
-.env
+*
+**
+!/Cargo.toml
+!/src
