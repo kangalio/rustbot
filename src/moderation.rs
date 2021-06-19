@@ -49,17 +49,10 @@ pub async fn ban(
     #[rest]
     reason: Option<String>,
 ) -> Result<(), Error> {
-    let author = match ctx.author() {
-        Some(author) => author,
-        None => return Ok(()), // may happen in future with new Discord interaction features
-    };
-
     poise::say_reply(
         ctx,
         format!(
-            "{}#{} banned user {}#{}{}  {}",
-            author.name,
-            author.discriminator,
+            "Banned user {}#{}{}  {}",
             banned_user.user.name,
             banned_user.user.discriminator,
             match reason {

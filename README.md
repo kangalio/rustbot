@@ -27,12 +27,12 @@ An example command-line for Linux would be:
 
 ### Docker
 
-This project has a Dockerfile, so you can use Docker to run this bot if you wish:
+This project has a Dockerfile, so you can use Docker to run this bot if you wish.
+For that, rename the `.env.example` file into `.env`, fill out the values, and run the commands:
 
 ```sh
-docker build -t rust-debian .
-# Fill in the environment variables here as listed above
-docker run --env KEY=value --env KEY=value . rustbot
+docker build -t rustbot -f Dockerfile .
+docker run -d --rm --name rustbot --env-file .env rustbot
 ```
 
 ## Credits
