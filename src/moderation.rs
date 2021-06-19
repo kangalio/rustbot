@@ -49,12 +49,17 @@ pub async fn ban(
     #[rest]
     reason: Option<String>,
 ) -> Result<(), Error> {
+    let author = match ctx.author() {
+        Some(author) => author,
+        None => return Ok(()), // may happen in future with new Discord interaction features
+    };
+
     poise::say_reply(
         ctx,
         format!(
             "{}#{} banned user {}#{}{}  {}",
-            ctx.author().name,
-            ctx.author().discriminator,
+            author.name,
+            author.discriminator,
             banned_user.user.name,
             banned_user.user.discriminator,
             match reason {
@@ -76,10 +81,9 @@ async fn rustify_inner(ctx: Context<'_>, users: &[serenity::Member]) -> Result<(
                 user.guild_id.0,
                 user.user.id.0,
                 ctx.data().rustacean_role.0,
-                Some(&format!(
-                    "You have been rusted by {}! owo",
-                    ctx.author().name
-                )),
+                ctx.author()
+                    .map(|author| format!("You have been rusted by {}! owo", author.name))
+                    .as_deref(),
             )
             .await?;
     }
