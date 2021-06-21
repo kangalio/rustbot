@@ -721,7 +721,7 @@ pub async fn microbench(
 
     let mut code =
         // include convenience import for users
-        "#![feature(test)] #[allow(unused_imports)] use std::hint::black_box;\n".to_owned();
+        "#![feature(bench_black_box)] #[allow(unused_imports)] use std::hint::black_box;\n".to_owned();
 
     let black_box_hint = !user_code.contains("black_box");
     code += user_code;
@@ -777,7 +777,7 @@ fn main() {
     if pub_fn_indices.clone().count() == 0 {
         poise::say_reply(
             poise::Context::Prefix(ctx),
-            "No public functions found for benchmarking :thinking:".into(),
+            "No public functions (`pub fn`) found for benchmarking :thinking:".into(),
         )
         .await?;
         return Ok(());
@@ -829,10 +829,9 @@ fn main() {
 
 pub fn microbench_help() -> String {
     let desc =
-        "Benchmark small snippets of code by running them repeatedly. The public function snippets are run \
-        in chunks, interleaved: Snippet A is ran 10000 times, then snippet B is ran 10000 times, \
-        then snippet A again, and so on until a certain time has passed. After that, the \
-        measuremants are averaged and the standard deviation is calculated for each";
+        "Benchmark small snippets of code by running them repeatedly. Public function snippets are \
+        run in blocks of 10000 repetitions in a cycle until a certain time has passed. Measurements \
+        are averaged and standard deviation is calculated for each";
     generic_help(
         "microbench",
         desc,
