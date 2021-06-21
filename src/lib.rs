@@ -134,7 +134,7 @@ async fn app() -> Result<(), Error> {
                     .await
                     .unwrap_or_else(|| "<unknown>".to_owned());
                 let author = match ctx.author() {
-                    Some(author) => format!("{}#{}", author.name, author.discriminator),
+                    Some(author) => format!("{}#{:0>4}", author.name, author.discriminator),
                     None => String::from("<unknown>"),
                 };
 

@@ -52,7 +52,7 @@ pub async fn ban(
     poise::say_reply(
         ctx,
         format!(
-            "Banned user {}#{}{}  {}",
+            "Banned user {}#{:0>4}{}  {}",
             banned_user.user.name,
             banned_user.user.discriminator,
             match reason {
