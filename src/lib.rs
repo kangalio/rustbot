@@ -212,7 +212,10 @@ async fn app() -> Result<(), Error> {
         .start(
             serenity::ClientBuilder::new(discord_token)
                 .application_id(application_id)
-                .intents(serenity::GatewayIntents::all()),
+                .intents(
+                    serenity::GatewayIntents::non_privileged()
+                        | serenity::GatewayIntents::GUILD_MEMBERS,
+                ),
         )
         .await?;
     Ok(())
