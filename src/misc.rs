@@ -7,6 +7,13 @@ pub async fn go(ctx: PrefixContext<'_>) -> Result<(), Error> {
     Ok(())
 }
 
+/// Evaluates Ablescript code
+#[poise::command(discard_spare_arguments)]
+pub async fn able(ctx: PrefixContext<'_>) -> Result<(), Error> {
+    poise::say_prefix_reply(ctx, "unAble to execute".into()).await?;
+    Ok(())
+}
+
 /// Links to the bot GitHub repo
 #[poise::command(discard_spare_arguments, slash_command)]
 pub async fn source(ctx: Context<'_>) -> Result<(), Error> {
