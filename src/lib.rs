@@ -169,6 +169,7 @@ async fn app() -> Result<(), Error> {
         (prefix_impl, slash_impl)
     };
     options.command_with_category(code_execution::play, "Playground");
+    options.command_with_category(code_execution::playwarn, "Playground");
     options.command_with_category(code_execution::eval, "Playground");
     options.command_with_category(code_execution::miri, "Playground");
     options.command_with_category(code_execution::expand, "Playground");

@@ -503,11 +503,16 @@ fn format_play_eval_stderr(stderr: &str, warn: bool) -> String {
 async fn play_or_eval(
     ctx: PrefixContext<'_>,
     flags: poise::KeyValueArgs,
+    force_warnings: bool, // If true, force enable warnings regardless of flags
     code: poise::CodeBlock,
     result_handling: ResultHandling,
 ) -> Result<(), Error> {
     let code = maybe_wrap(&code.code, result_handling);
-    let (flags, flag_parse_errors) = parse_flags(&flags);
+    let (mut flags, flag_parse_errors) = parse_flags(&flags);
+
+    if force_warnings {
+        flags.warn = true;
+    }
 
     let mut result: PlayResult = ctx
         .data
@@ -542,11 +547,36 @@ pub async fn play(
     flags: poise::KeyValueArgs,
     code: poise::CodeBlock,
 ) -> Result<(), Error> {
-    play_or_eval(ctx, flags, code, ResultHandling::None).await
+    play_or_eval(ctx, flags, false, code, ResultHandling::None).await
 }
 
 pub fn play_help() -> String {
     generic_help("play", "Compile and run Rust code", true, true, "code")
+}
+
+/// Compile and run Rust code with warnings
+#[poise::command(
+    track_edits,
+    broadcast_typing,
+    hide_in_help, // don't clutter help menu with something that ?play can do too
+    explanation_fn = "playwarn_help"
+)]
+pub async fn playwarn(
+    ctx: PrefixContext<'_>,
+    flags: poise::KeyValueArgs,
+    code: poise::CodeBlock,
+) -> Result<(), Error> {
+    play_or_eval(ctx, flags, true, code, ResultHandling::None).await
+}
+
+pub fn playwarn_help() -> String {
+    generic_help(
+        "playwarn",
+        "Compile and run Rust code with warnings. Equivalent to `?play warn=true`",
+        true,
+        false,
+        "code",
+    )
 }
 
 /// Evaluate a single Rust expression
@@ -556,7 +586,7 @@ pub async fn eval(
     flags: poise::KeyValueArgs,
     code: poise::CodeBlock,
 ) -> Result<(), Error> {
-    play_or_eval(ctx, flags, code, ResultHandling::Print).await
+    play_or_eval(ctx, flags, false, code, ResultHandling::Print).await
 }
 
 pub fn eval_help() -> String {
