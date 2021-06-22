@@ -53,3 +53,24 @@ pub async fn register(ctx: PrefixContext<'_>, #[flag] global: bool) -> Result<()
     poise::say_prefix_reply(ctx, "Done!".to_owned()).await?;
     Ok(())
 }
+
+/// Tells you how long the bot has been up for
+#[poise::command(slash_command, hide_in_help)]
+pub async fn uptime(ctx: Context<'_>) -> Result<(), Error> {
+    let uptime = std::time::Instant::now() - ctx.data().bot_start_time;
+
+    let div_mod = |a, b| (a / b, a % b);
+
+    let seconds = uptime.as_secs();
+    let (minutes, seconds) = div_mod(seconds, 60);
+    let (hours, minutes) = div_mod(minutes, 60);
+    let (days, hours) = div_mod(hours, 24);
+
+    poise::say_reply(
+        ctx,
+        format!("Uptime: {}d {}h {}m {}s", days, hours, minutes, seconds),
+    )
+    .await?;
+
+    Ok(())
+}

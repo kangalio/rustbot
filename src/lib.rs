@@ -85,6 +85,7 @@ pub struct Data {
     #[allow(dead_code)] // might add back in
     mod_role_id: serenity::RoleId,
     rustacean_role: serenity::RoleId,
+    bot_start_time: std::time::Instant,
     http: reqwest::Client,
 }
 
@@ -188,6 +189,7 @@ async fn app() -> Result<(), Error> {
     options.command_with_category(misc::source, "Miscellaneous");
     options.command_with_category(misc::help, "Miscellaneous");
     options.command_with_category(misc::register, "Miscellaneous");
+    options.command_with_category(misc::uptime, "Miscellaneous");
 
     let framework = poise::Framework::new(
         "?",
@@ -198,6 +200,7 @@ async fn app() -> Result<(), Error> {
                     bot_user_id: bot.user.id,
                     mod_role_id,
                     rustacean_role,
+                    bot_start_time: std::time::Instant::now(),
                     http: reqwest::Client::new(),
                 })
             })
