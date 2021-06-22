@@ -220,26 +220,40 @@ fn parse_flags(args: &poise::KeyValueArgs) -> (CommandFlags, String) {
     (flags, errors)
 }
 
-fn generic_help(cmd: &str, desc: &str, full: bool, example_code: &str) -> String {
+fn generic_help(
+    cmd: &str,
+    desc: &str,
+    mode_and_channel: bool,
+    warn: bool,
+    example_code: &str,
+) -> String {
     let mut reply = format!(
         "{}. All code is executed on https://play.rust-lang.org.\n",
         desc
     );
 
-    reply += &format!(
-        "```rust\n?{} {}edition={{}} warn={{}} ``\u{200B}`{}``\u{200B}`\n```\n",
-        cmd,
-        if full { "mode={} channel={} " } else { "" },
-        example_code,
-    );
+    reply += "```rust\n?";
+    reply += cmd;
+    if mode_and_channel {
+        reply += " mode={} channel={}";
+    }
+    reply += " edition={}";
+    if warn {
+        reply += " warn={}";
+    }
+    reply += " ``\u{200B}`";
+    reply += example_code;
+    reply += "``\u{200B}`\n```\n";
 
     reply += "Optional arguments:\n";
-    if full {
+    if mode_and_channel {
         reply += "- mode: debug, release (default: debug)\n";
         reply += "- channel: stable, beta, nightly (default: nightly)\n";
     }
     reply += "- edition: 2015, 2018 (default: 2018)\n";
-    reply += "- warn: true, false (default: false)\n";
+    if warn {
+        reply += "- warn: true, false (default: false)\n";
+    }
 
     reply
 }
@@ -532,7 +546,7 @@ pub async fn play(
 }
 
 pub fn play_help() -> String {
-    generic_help("play", "Compile and run Rust code", true, "code")
+    generic_help("play", "Compile and run Rust code", true, true, "code")
 }
 
 /// Evaluate a single Rust expression
@@ -546,7 +560,7 @@ pub async fn eval(
 }
 
 pub fn eval_help() -> String {
-    generic_help("eval", "Compile and run Rust code", true, "code")
+    generic_help("eval", "Compile and run Rust code", true, true, "code")
 }
 
 /// Run code and detect undefined behavior using Miri
@@ -584,7 +598,9 @@ pub async fn miri(
 
 pub fn miri_help() -> String {
     let desc = "Execute this program in the Miri interpreter to detect certain cases of undefined behavior (like out-of-bounds memory access)";
-    generic_help("miri", desc, false, "code")
+    // Playgrounds sends miri warnings/errors and output in the same field so we can't filter
+    // warnings out
+    generic_help("miri", desc, false, false, "code")
 }
 
 /// Expand macros to their raw desugared form
@@ -634,7 +650,7 @@ pub async fn expand(
 
 pub fn expand_help() -> String {
     let desc = "Expand macros to their raw desugared form";
-    generic_help("expand", desc, false, "code")
+    generic_help("expand", desc, false, false, "code")
 }
 
 /// Catch common mistakes using the Clippy linter
@@ -682,7 +698,7 @@ pub async fn clippy(
 
 pub fn clippy_help() -> String {
     let desc = "Catch common mistakes and improve the code using the Clippy linter";
-    generic_help("clippy", desc, false, "code")
+    generic_help("clippy", desc, false, false, "code")
 }
 
 /// Format code using rustfmt
@@ -707,7 +723,7 @@ pub async fn fmt(
 
 pub fn fmt_help() -> String {
     let desc = "Format code using rustfmt";
-    generic_help("fmt", desc, false, "code")
+    generic_help("fmt", desc, false, false, "code")
 }
 
 /// Benchmark small snippets of code
@@ -836,6 +852,7 @@ pub fn microbench_help() -> String {
         "microbench",
         desc,
         false,
+        true,
         "
 pub fn snippet_a() { /* code */ }
 pub fn snippet_b() { /* code */ }
@@ -935,6 +952,7 @@ pub fn procmacro_help() -> String {
         "procmacro",
         desc,
         false,
+        true,
         "
 #[proc_macro]
 pub fn foo(_: proc_macro::TokenStream) -> proc_macro::TokenStream {
