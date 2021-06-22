@@ -184,6 +184,7 @@ async fn app() -> Result<(), Error> {
     options.command_with_category(moderation::ban, "Moderation");
     options.command_with_category(rustify, "Moderation");
     options.command_with_category(misc::go, "Miscellaneous");
+    options.command_with_category(misc::able, "Miscellaneous");
     options.command_with_category(misc::source, "Miscellaneous");
     options.command_with_category(misc::help, "Miscellaneous");
     options.command_with_category(misc::register, "Miscellaneous");
