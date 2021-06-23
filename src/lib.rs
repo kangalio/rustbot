@@ -120,6 +120,8 @@ async fn app() -> Result<(), Error> {
                 "hey ferris, can you ",
                 "hey fewwis can you ",
                 "hey fewwis, can you ",
+                "yo crab can you ",
+                "yo crab, can you ",
             ],
             edit_tracker: Some(poise::EditTracker::for_timespan(
                 std::time::Duration::from_secs(3600 * 24 * 2),
