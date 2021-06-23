@@ -200,16 +200,22 @@ async fn generic_godbolt(
             Compilation::Error { stderr } => ("rust", stderr, None),
         };
 
-    super::reply_potentially_long_text(
-        ctx,
-        &format!("```{}\n{}", lang, text),
-        &format!("\n```{}", note.unwrap_or("")),
-        &format!(
-            "Output too large. Godbolt link: <{}>",
-            save_to_shortlink(&ctx.data.http, &code.code, rustc, flags, mca_mode).await?,
-        ),
-    )
-    .await?;
+    let note = note.unwrap_or("");
+
+    if text.trim().is_empty() {
+        poise::say_prefix_reply(ctx, format!("``` ```{}", note)).await?;
+    } else {
+        super::reply_potentially_long_text(
+            ctx,
+            &format!("```{}\n{}", lang, text),
+            &format!("\n```{}", note),
+            &format!(
+                "Output too large. Godbolt link: <{}>",
+                save_to_shortlink(&ctx.data.http, &code.code, rustc, flags, mca_mode).await?,
+            ),
+        )
+        .await?;
+    }
 
     Ok(())
 }
