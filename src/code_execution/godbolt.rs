@@ -169,6 +169,51 @@ async fn save_to_shortlink(
     Ok(response.json::<GodboltShortenerResponse>().await?.url)
 }
 
+async fn generic_godbolt(
+    ctx: PrefixContext<'_>,
+    params: poise::KeyValueArgs,
+    code: poise::CodeBlock,
+    mca_mode: bool,
+) -> Result<(), Error> {
+    let rustc = params.get("rustc").unwrap_or(&"nightly");
+    let flags = params
+        .get("flags")
+        .unwrap_or(&"-Copt-level=3 --edition=2018");
+    let (lang, text, note) =
+        match compile_rust_source(&ctx.data.http, &code.code, rustc, flags, mca_mode).await? {
+            Compilation::Success {
+                asm,
+                stderr,
+                llvm_mca,
+            } => (
+                if mca_mode { "rust" } else { "x86asm" },
+                if mca_mode {
+                    strip_llvm_mca_result(
+                        &llvm_mca.ok_or("No llvm-mca result was sent by Godbolt")?,
+                    )
+                    .to_owned()
+                } else {
+                    asm
+                },
+                (!stderr.is_empty()).then(|| "Note: compilation produced warnings\n"),
+            ),
+            Compilation::Error { stderr } => ("rust", stderr, None),
+        };
+
+    super::reply_potentially_long_text(
+        ctx,
+        &format!("```{}\n{}", lang, text),
+        &format!("\n```{}", note.unwrap_or("")),
+        &format!(
+            "Output too large. Godbolt link: <{}>",
+            save_to_shortlink(&ctx.data.http, &code.code, rustc, flags, mca_mode).await?,
+        ),
+    )
+    .await?;
+
+    Ok(())
+}
+
 /// View assembly using Godbolt
 ///
 /// Compile Rust code using https://rust.godbolt.org. Full optimizations are applied unless \
@@ -189,37 +234,7 @@ pub async fn godbolt(
     params: poise::KeyValueArgs,
     code: poise::CodeBlock,
 ) -> Result<(), Error> {
-    let rustc = params.get("rustc").unwrap_or(&"nightly");
-    let flags = params
-        .get("flags")
-        .unwrap_or(&"-Copt-level=3 --edition=2018");
-    println!("r f = {:?} {:?}", rustc, flags);
-    let (lang, text, note) =
-        match compile_rust_source(&ctx.data.http, &code.code, rustc, flags, false).await? {
-            Compilation::Success {
-                asm,
-                stderr,
-                llvm_mca: _,
-            } => (
-                "x86asm",
-                asm,
-                (!stderr.is_empty()).then(|| "Note: compilation produced warnings\n"),
-            ),
-            Compilation::Error { stderr } => ("rust", stderr, None),
-        };
-
-    super::reply_potentially_long_text(
-        ctx,
-        &format!("```{}\n{}", lang, text),
-        &format!("\n```{}", note.unwrap_or("")),
-        &format!(
-            "Output too large. Godbolt link: <{}>",
-            save_to_shortlink(&ctx.data.http, &code.code, rustc, flags, false).await?,
-        ),
-    )
-    .await?;
-
-    Ok(())
+    generic_godbolt(ctx, params, code, false).await
 }
 
 fn strip_llvm_mca_result(text: &str) -> &str {
@@ -231,7 +246,7 @@ fn strip_llvm_mca_result(text: &str) -> &str {
 /// Runs the performance analysis tool llvm-mca using https://rust.godbolt.org. Full optimizations \
 /// are applied unless overriden.
 /// ```
-/// ?godbolt ``​`
+/// ?mca ``​`
 /// pub fn your_function() {
 ///     // Code
 /// }
@@ -246,35 +261,5 @@ pub async fn mca(
     params: poise::KeyValueArgs,
     code: poise::CodeBlock,
 ) -> Result<(), Error> {
-    let rustc = params.get("rustc").unwrap_or(&"nightly");
-    let flags = params
-        .get("flags")
-        .unwrap_or(&"-Copt-level=3 --edition=2018");
-    let (lang, text, note) =
-        match compile_rust_source(&ctx.data.http, &code.code, rustc, flags, true).await? {
-            Compilation::Success {
-                asm: _,
-                stderr,
-                llvm_mca,
-            } => (
-                "rust",
-                strip_llvm_mca_result(&llvm_mca.ok_or("No llvm-mca result was sent by Godbolt")?)
-                    .to_owned(),
-                (!stderr.is_empty()).then(|| "Note: compilation produced warnings\n"),
-            ),
-            Compilation::Error { stderr } => ("rust", stderr, None),
-        };
-
-    super::reply_potentially_long_text(
-        ctx,
-        &format!("```{}\n{}", lang, text),
-        &format!("\n```{}", note.unwrap_or("")),
-        &format!(
-            "Output too large. Godbolt link: <{}>",
-            save_to_shortlink(&ctx.data.http, &code.code, rustc, flags, false).await?,
-        ),
-    )
-    .await?;
-
-    Ok(())
+    generic_godbolt(ctx, params, code, true).await
 }
