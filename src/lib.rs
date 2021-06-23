@@ -122,7 +122,7 @@ async fn app() -> Result<(), Error> {
                 "hey fewwis, can you ",
             ],
             edit_tracker: Some(poise::EditTracker::for_timespan(
-                std::time::Duration::from_secs(3600),
+                std::time::Duration::from_secs(3600 * 24 * 2),
             )),
             ..Default::default()
         },
