@@ -10,6 +10,9 @@ pub type Context<'a> = poise::Context<'a, Data, Error>;
 pub type PrefixContext<'a> = poise::PrefixContext<'a, Data, Error>;
 pub type SlashContext<'a> = poise::SlashContext<'a, Data, Error>;
 
+// pub const EMBED_COLOR: (u8, u8, u8) = (0xf7, 0x4c, 0x00);
+pub const EMBED_COLOR: (u8, u8, u8) = (0xb7, 0x47, 0x00); // slightly less saturated
+
 /// In prefix commands, react with a red cross emoji. In slash commands, respond with a short
 /// explanation.
 async fn acknowledge_fail(error: Error, ctx: poise::CommandErrorContext<'_, Data, Error>) {
