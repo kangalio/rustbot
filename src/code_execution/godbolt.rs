@@ -169,38 +169,64 @@ async fn save_to_shortlink(
     Ok(response.json::<GodboltShortenerResponse>().await?.url)
 }
 
+#[derive(PartialEq)]
+enum GodboltMode {
+    Asm,
+    LlvmIr,
+    Mca,
+}
+
 async fn generic_godbolt(
     ctx: PrefixContext<'_>,
     params: poise::KeyValueArgs,
     code: poise::CodeBlock,
-    mca_mode: bool,
+    mode: GodboltMode,
 ) -> Result<(), Error> {
-    let rustc = params.get("rustc").unwrap_or(&"nightly");
-    let flags = params
-        .get("flags")
-        .unwrap_or(&"-Copt-level=3 --edition=2018");
-    let (lang, text, note) =
-        match compile_rust_source(&ctx.data.http, &code.code, rustc, flags, mca_mode).await? {
-            Compilation::Success {
-                asm,
-                stderr,
-                llvm_mca,
-            } => (
-                if mca_mode { "rust" } else { "x86asm" },
-                if mca_mode {
-                    strip_llvm_mca_result(
-                        &llvm_mca.ok_or("No llvm-mca result was sent by Godbolt")?,
-                    )
-                    .to_owned()
-                } else {
-                    asm
-                },
-                (!stderr.is_empty()).then(|| "Note: compilation produced warnings\n"),
-            ),
-            Compilation::Error { stderr } => ("rust", stderr, None),
-        };
+    let run_llvm_mca = mode == GodboltMode::Mca;
 
-    let note = note.unwrap_or("");
+    let rustc = params.get("rustc").unwrap_or(&"nightly");
+    let mut flags = params
+        .get("flags")
+        .unwrap_or("-Copt-level=3 --edition=2018")
+        .to_owned();
+
+    if mode == GodboltMode::LlvmIr {
+        flags += " --emit=llvm-ir -Cdebuginfo=0";
+    }
+
+    let (lang, text, note);
+    let godbolt_result =
+        compile_rust_source(&ctx.data.http, &code.code, rustc, &flags, run_llvm_mca).await?;
+    match godbolt_result {
+        Compilation::Success {
+            asm,
+            stderr,
+            llvm_mca,
+        } => {
+            lang = match mode {
+                GodboltMode::Asm => "x86asm",
+                GodboltMode::Mca => "rust",
+                GodboltMode::LlvmIr => "llvm",
+            };
+            text = match mode {
+                GodboltMode::Mca => {
+                    let llvm_mca = llvm_mca.ok_or("No llvm-mca result was sent by Godbolt")?;
+                    strip_llvm_mca_result(&llvm_mca).to_owned()
+                }
+                GodboltMode::Asm | GodboltMode::LlvmIr => asm,
+            };
+            note = if stderr.is_empty() {
+                ""
+            } else {
+                "Note: compilation produced warnings\n"
+            };
+        }
+        Compilation::Error { stderr } => {
+            lang = "rust";
+            text = stderr;
+            note = "";
+        }
+    };
 
     if text.trim().is_empty() {
         poise::say_prefix_reply(ctx, format!("``` ```{}", note)).await?;
@@ -211,7 +237,7 @@ async fn generic_godbolt(
             &format!("\n```{}", note),
             &format!(
                 "Output too large. Godbolt link: <{}>",
-                save_to_shortlink(&ctx.data.http, &code.code, rustc, flags, mca_mode).await?,
+                save_to_shortlink(&ctx.data.http, &code.code, rustc, &flags, run_llvm_mca).await?,
             ),
         )
         .await?;
@@ -222,7 +248,7 @@ async fn generic_godbolt(
 
 /// View assembly using Godbolt
 ///
-/// Compile Rust code using https://rust.godbolt.org. Full optimizations are applied unless \
+/// Compile Rust code using <https://rust.godbolt.org>. Full optimizations are applied unless \
 /// overriden.
 /// ```
 /// ?godbolt ``​`
@@ -240,7 +266,7 @@ pub async fn godbolt(
     params: poise::KeyValueArgs,
     code: poise::CodeBlock,
 ) -> Result<(), Error> {
-    generic_godbolt(ctx, params, code, false).await
+    generic_godbolt(ctx, params, code, GodboltMode::Asm).await
 }
 
 fn strip_llvm_mca_result(text: &str) -> &str {
@@ -249,7 +275,7 @@ fn strip_llvm_mca_result(text: &str) -> &str {
 
 /// Run performance analysis using llvm-mca
 ///
-/// Runs the performance analysis tool llvm-mca using https://rust.godbolt.org. Full optimizations \
+/// Run the performance analysis tool llvm-mca using <https://rust.godbolt.org>. Full optimizations \
 /// are applied unless overriden.
 /// ```
 /// ?mca ``​`
@@ -267,5 +293,30 @@ pub async fn mca(
     params: poise::KeyValueArgs,
     code: poise::CodeBlock,
 ) -> Result<(), Error> {
-    generic_godbolt(ctx, params, code, true).await
+    generic_godbolt(ctx, params, code, GodboltMode::Mca).await
+}
+
+/// View LLVM IR using Godbolt
+///
+/// Compile Rust code using <https://rust.godbolt.org> and emits LLVM IR. Full optimizations \
+/// are applied unless overriden.
+///
+/// Equivalent to ?godbolt but with extra flags `--emit=llvm-ir -Cdebuginfo=0`.
+/// ```
+/// ?llvmir ``​`
+/// pub fn your_function() {
+///     // Code
+/// }
+/// ``​`
+/// ```
+/// Optional arguments:
+/// - `flags`: flags to pass to rustc invocation. Defaults to `"-Copt-level=3 --edition=2018"`
+/// - `rustc`: compiler version to invoke. Defaults to `nightly`. Possible values: `nightly`, `beta` or full version like `1.45.2`
+#[poise::command(broadcast_typing, track_edits)]
+pub async fn llvmir(
+    ctx: PrefixContext<'_>,
+    params: poise::KeyValueArgs,
+    code: poise::CodeBlock,
+) -> Result<(), Error> {
+    generic_godbolt(ctx, params, code, GodboltMode::LlvmIr).await
 }
