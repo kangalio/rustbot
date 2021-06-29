@@ -67,6 +67,11 @@ pub async fn ban(
 }
 
 async fn rustify_inner(ctx: Context<'_>, users: &[serenity::Member]) -> Result<(), Error> {
+    if users.is_empty() {
+        // This error message won't be seen
+        return Err("Please specify a user to rustify".into());
+    }
+
     for user in users {
         ctx.discord()
             .http
