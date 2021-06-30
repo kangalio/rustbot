@@ -200,8 +200,10 @@ async fn app() -> Result<(), Error> {
     let framework = poise::Framework::new(
         "?",
         serenity::ApplicationId(application_id),
-        move |_ctx, bot, _framework| {
+        move |ctx, bot, _framework| {
             Box::pin(async move {
+                ctx.set_activity(serenity::Activity::listening("?help"))
+                    .await;
                 Ok(Data {
                     bot_user_id: bot.user.id,
                     mod_role_id,
