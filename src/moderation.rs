@@ -88,6 +88,9 @@ async fn rustify_inner(ctx: Context<'_>, users: &[serenity::Member]) -> Result<(
     crate::acknowledge_success(ctx, "rustOk", '👌').await
 }
 
+// We need separate implementations for the rustify command, because the slash command only supports
+// a single argument while the normal (prefix) version supports variadic arguments
+
 /// Adds the Rustacean role to members
 #[poise::command(on_error = "crate::acknowledge_prefix_fail", rename = "rustify")]
 pub async fn prefix_rustify(
