@@ -17,4 +17,4 @@ strip-ansi-escapes = "0.1.0" # To remove colors from rustc output from godbolt
 chrono = "0.4.0" # To interact with serenity
 # poise = { path = "../poise" }
 poise = { git = "https://github.com/kangalioo/poise" }
-tokio = { version = "1.4.0", features = ["rt-multi-thread"] }
+tokio = { version = "1.4.0", features = ["rt-multi-thread", "process"] }

@@ -736,7 +736,7 @@ checksum = "8b870d8c151b6f2fb93e84a13146138f05d02ed11c7e7c54f8826aaaf7c9f184"
 [[package]]
 name = "poise"
 version = "0.1.0"
-source = "git+https://github.com/kangalioo/poise#695a7ef10114a080312332d59a0d22238839a3bf"
+source = "git+https://github.com/kangalioo/poise#26d8e07a2bf8179e49665c9fdb7bac8fcebdb71f"
 dependencies = [
  "async-trait",
  "chrono",
@@ -752,7 +752,7 @@ dependencies = [
 [[package]]
 name = "poise_macros"
 version = "0.1.0"
-source = "git+https://github.com/kangalioo/poise#695a7ef10114a080312332d59a0d22238839a3bf"
+source = "git+https://github.com/kangalioo/poise#26d8e07a2bf8179e49665c9fdb7bac8fcebdb71f"
 dependencies = [
  "darling",
  "proc-macro2",
@@ -1050,6 +1050,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "signal-hook-registry"
+version = "1.4.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e51e73328dc4ac0c7ccbda3a494dfa03df1de2f46018127f60c693f2648455b0"
+dependencies = [
+ "libc",
+]
+
+[[package]]
 name = "slab"
 version = "0.4.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1170,8 +1179,11 @@ dependencies = [
  "memchr",
  "mio",
  "num_cpus",
+ "once_cell",
  "pin-project-lite",
+ "signal-hook-registry",
  "tokio-macros",
+ "winapi",
 ]
 
 [[package]]
