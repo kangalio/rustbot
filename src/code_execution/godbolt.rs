@@ -353,8 +353,10 @@ pub async fn asmdiff(
 ) -> Result<(), Error> {
     let (rustc, flags) = rustc_version_and_flags(&params, GodboltMode::Asm);
 
-    let asm1 = compile_rust_source(&ctx.data.http, &code1.code, rustc, &flags, false).await?;
-    let asm2 = compile_rust_source(&ctx.data.http, &code2.code, rustc, &flags, false).await?;
+    let (asm1, asm2) = tokio::try_join!(
+        compile_rust_source(&ctx.data.http, &code1.code, rustc, &flags, false),
+        compile_rust_source(&ctx.data.http, &code2.code, rustc, &flags, false),
+    )?;
     let result = match (asm1, asm2) {
         (Compilation::Success { asm: a, .. }, Compilation::Success { asm: b, .. }) => Ok((a, b)),
         (Compilation::Error { stderr }, _) => Err(stderr),
