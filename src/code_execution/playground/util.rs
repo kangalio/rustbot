@@ -221,10 +221,10 @@ pub async fn send_reply(
     flags: &api::CommandFlags,
     flag_parse_errors: &str,
 ) -> Result<(), Error> {
-    let result = if !result.success {
-        result.stderr
-    } else if result.stderr.is_empty() {
+    let result = if result.stderr.is_empty() {
         result.stdout
+    } else if result.stdout.is_empty() {
+        result.stderr
     } else {
         format!("{}\n{}", result.stderr, result.stdout)
     };
