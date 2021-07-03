@@ -1,22 +1,7 @@
 use super::{api::*, util::*};
 use crate::{Error, PrefixContext};
 
-/// Benchmark small snippets of code
-#[poise::command(broadcast_typing, track_edits, explanation_fn = "microbench_help")]
-pub async fn microbench(
-    ctx: PrefixContext<'_>,
-    flags: poise::KeyValueArgs,
-    code: poise::CodeBlock,
-) -> Result<(), Error> {
-    let user_code = &code.code;
-    let black_box_hint = !user_code.contains("black_box");
-
-    // insert convenience import for users
-    let after_crate_attrs =
-        "#![feature(bench_black_box)] #[allow(unused_imports)] use std::hint::black_box;\n";
-
-    // insert this after user code
-    let mut after_code = r#"
+const BENCH_FUNCTION: &str = r#"
 fn bench(functions: &[(&str, fn())]) {
     const CHUNK_SIZE: usize = 10000;
 
@@ -58,11 +43,21 @@ fn bench(functions: &[(&str, fn())]) {
             standard_deviation * 1_000_000_000.0,
         );
     }
-}
+}"#;
 
-fn main() {
-"#
-    .to_owned();
+/// Benchmark small snippets of code
+#[poise::command(broadcast_typing, track_edits, explanation_fn = "microbench_help")]
+pub async fn microbench(
+    ctx: PrefixContext<'_>,
+    flags: poise::KeyValueArgs,
+    code: poise::CodeBlock,
+) -> Result<(), Error> {
+    let user_code = &code.code;
+    let black_box_hint = !user_code.contains("black_box");
+
+    // insert convenience import for users
+    let after_crate_attrs =
+        "#![feature(bench_black_box)] #[allow(unused_imports)] use std::hint::black_box;\n";
 
     let pub_fn_indices = user_code.match_indices("pub fn ");
     if pub_fn_indices.clone().count() == 0 {
@@ -74,7 +69,9 @@ fn main() {
         return Ok(());
     }
 
-    after_code += "bench(&[";
+    // insert this after user code
+    let mut after_code = BENCH_FUNCTION.to_owned();
+    after_code += "fn main() {\nbench(&[";
     for (index, _) in pub_fn_indices {
         let function_name_start = index + "pub fn ".len();
         let function_name_end = match user_code[function_name_start..].find('(') {
