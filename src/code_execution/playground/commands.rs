@@ -268,15 +268,14 @@ pub async fn microbench(
     code: poise::CodeBlock,
 ) -> Result<(), Error> {
     let user_code = &code.code;
-
-    let mut code =
-        // include convenience import for users
-        "#![feature(bench_black_box)] #[allow(unused_imports)] use std::hint::black_box;\n".to_owned();
-
     let black_box_hint = !user_code.contains("black_box");
-    code += user_code;
 
-    code += r#"
+    // insert convenience import for users
+    let after_crate_attrs =
+        "#![feature(bench_black_box)] #[allow(unused_imports)] use std::hint::black_box;\n";
+
+    // insert this after user code
+    let mut after_code = r#"
 fn bench(functions: &[(&str, fn())]) {
     const CHUNK_SIZE: usize = 10000;
 
@@ -321,7 +320,8 @@ fn bench(functions: &[(&str, fn())]) {
 }
 
 fn main() {
-"#;
+"#
+    .to_owned();
 
     let pub_fn_indices = user_code.match_indices("pub fn ");
     if pub_fn_indices.clone().count() == 0 {
@@ -333,7 +333,7 @@ fn main() {
         return Ok(());
     }
 
-    code += "bench(&[";
+    after_code += "bench(&[";
     for (index, _) in pub_fn_indices {
         let function_name_start = index + "pub fn ".len();
         let function_name_end = match user_code[function_name_start..].find('(') {
@@ -342,9 +342,12 @@ fn main() {
         };
         let function_name = user_code[function_name_start..function_name_end].trim();
 
-        code += &format!("(\"{0}\", {0}), ", function_name);
+        after_code += &format!("(\"{0}\", {0}), ", function_name);
     }
-    code += "]);\n}\n";
+    after_code += "]);\n}\n";
+
+    // final assembled code
+    let code = hoise_crate_attributes(user_code, after_crate_attrs, &after_code);
 
     let (flags, mut flag_parse_errors) = parse_flags(&flags);
     let mut result: PlayResult = ctx

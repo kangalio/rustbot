@@ -152,13 +152,7 @@ pub enum ResultHandling {
     Print,
 }
 
-/// Utility used by the commands to wrap the given code in a `fn main` if not already wrapped.
-/// To check, whether a wrap was done, check if the return type is Cow::Borrowed vs Cow::Owned
-pub fn maybe_wrap(code: &str, result_handling: ResultHandling) -> Cow<'_, str> {
-    if code.contains("fn main") {
-        return Cow::Borrowed(code);
-    }
-
+pub fn hoise_crate_attributes(code: &str, after_crate_attrs: &str, after_code: &str) -> String {
     let mut lines = code.lines().peekable();
 
     let mut output = String::new();
@@ -179,12 +173,7 @@ pub fn maybe_wrap(code: &str, result_handling: ResultHandling) -> Cow<'_, str> {
         lines.next(); // Advance the iterator
     }
 
-    // fn main boilerplate
-    output.push_str(match result_handling {
-        ResultHandling::None => "fn main() {\n",
-        ResultHandling::Discard => "fn main() { let _ = {\n",
-        ResultHandling::Print => "fn main() { println!(\"{:?}\", {\n",
-    });
+    output.push_str(after_crate_attrs);
 
     // Write the rest of the lines that don't contain crate attributes
     for line in lines {
@@ -192,22 +181,42 @@ pub fn maybe_wrap(code: &str, result_handling: ResultHandling) -> Cow<'_, str> {
         output.push('\n');
     }
 
+    output.push_str(after_code);
+
+    output
+}
+
+/// Utility used by the commands to wrap the given code in a `fn main` if not already wrapped.
+/// To check, whether a wrap was done, check if the return type is Cow::Borrowed vs Cow::Owned
+/// If a wrap was done, also hoists crate attributes to the top so they keep working
+pub fn maybe_wrap(code: &str, result_handling: ResultHandling) -> Cow<'_, str> {
+    if code.contains("fn main") {
+        return Cow::Borrowed(code);
+    }
+
+    // fn main boilerplate
+    let after_crate_attrs = match result_handling {
+        ResultHandling::None => "fn main() {\n",
+        ResultHandling::Discard => "fn main() { let _ = {\n",
+        ResultHandling::Print => "fn main() { println!(\"{:?}\", {\n",
+    };
+
     // fn main boilerplate counterpart
-    output.push_str(match result_handling {
+    let after_code = match result_handling {
         ResultHandling::None => "}",
         ResultHandling::Discard => "}; }",
         ResultHandling::Print => "}); }",
-    });
+    };
 
-    Cow::Owned(output)
+    Cow::Owned(hoise_crate_attributes(code, after_crate_attrs, after_code))
 }
 
 /// Send a Discord reply with the formatted contents of a Playground result
 pub async fn send_reply(
     ctx: PrefixContext<'_>,
-    result: PlayResult,
+    result: api::PlayResult,
     code: &str,
-    flags: &CommandFlags,
+    flags: &api::CommandFlags,
     flag_parse_errors: &str,
 ) -> Result<(), Error> {
     let result = if !result.success {
@@ -231,7 +240,7 @@ pub async fn send_reply(
             "```",
             &format!(
                 "Output too large. Playground link: <{}>",
-                url_from_gist(&flags, &post_gist(ctx, code).await?),
+                api::url_from_gist(&flags, &api::post_gist(ctx, code).await?),
             ),
         )
         .await?;
@@ -240,15 +249,15 @@ pub async fn send_reply(
     Ok(())
 }
 
-pub fn apply_rustfmt(text: &str, edition: Edition) -> Result<PlayResult, Error> {
+pub fn apply_rustfmt(text: &str, edition: api::Edition) -> Result<api::PlayResult, Error> {
     use std::io::Write as _;
 
     let mut child = std::process::Command::new("rustfmt")
         .args(&[
             "--edition",
             match edition {
-                Edition::E2015 => "2015",
-                Edition::E2018 => "2018",
+                api::Edition::E2015 => "2015",
+                api::Edition::E2018 => "2018",
             },
             "--color",
             "never",
@@ -265,7 +274,7 @@ pub fn apply_rustfmt(text: &str, edition: Edition) -> Result<PlayResult, Error> 
         .write_all(text.as_bytes())?;
 
     let output = child.wait_with_output()?;
-    Ok(PlayResult {
+    Ok(api::PlayResult {
         stdout: String::from_utf8_lossy(&output.stdout).into_owned(),
         stderr: String::from_utf8_lossy(&output.stderr).into_owned(),
         success: output.status.success(),
