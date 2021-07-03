@@ -86,15 +86,14 @@ fn main() -> std::io::Result<()> {
 }
 
 pub fn procmacro_help() -> String {
-    let desc = "Compile and use a procedural macro by providing two snippets: one for the \
+    generic_help(GenericHelp {
+        command: "procmacro",
+        desc: "Compile and use a procedural macro by providing two snippets: one for the \
         proc-macro code, and one for the usage code which can refer to the proc-macro crate as \
-        `procmacro`";
-    generic_help(
-        "procmacro",
-        desc,
-        false,
-        true,
-        "
+        `procmacro`",
+        mode_and_channel: false,
+        warn: true,
+        example_code: "
 #[proc_macro]
 pub fn foo(_: proc_macro::TokenStream) -> proc_macro::TokenStream {
     r#\"compile_error!(\"Fish is on fire\")\"#.parse().unwrap()
@@ -102,5 +101,5 @@ pub fn foo(_: proc_macro::TokenStream) -> proc_macro::TokenStream {
 ``\u{200B}` ``\u{200B}`
 procmacro::foo!();
 ",
-    )
+    })
 }

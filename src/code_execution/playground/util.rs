@@ -57,38 +57,40 @@ pub fn parse_flags(args: &poise::KeyValueArgs) -> (api::CommandFlags, String) {
     (flags, errors)
 }
 
-pub fn generic_help(
-    cmd: &str,
-    desc: &str,
-    mode_and_channel: bool,
-    warn: bool,
-    example_code: &str,
-) -> String {
+pub struct GenericHelp<'a> {
+    pub command: &'a str,
+    pub desc: &'a str,
+    pub mode_and_channel: bool,
+    pub warn: bool,
+    pub example_code: &'a str,
+}
+
+pub fn generic_help(spec: GenericHelp<'_>) -> String {
     let mut reply = format!(
         "{}. All code is executed on https://play.rust-lang.org.\n",
-        desc
+        spec.desc
     );
 
     reply += "```rust\n?";
-    reply += cmd;
-    if mode_and_channel {
+    reply += spec.command;
+    if spec.mode_and_channel {
         reply += " mode={} channel={}";
     }
     reply += " edition={}";
-    if warn {
+    if spec.warn {
         reply += " warn={}";
     }
     reply += " ``\u{200B}`";
-    reply += example_code;
+    reply += spec.example_code;
     reply += "``\u{200B}`\n```\n";
 
     reply += "Optional arguments:\n";
-    if mode_and_channel {
+    if spec.mode_and_channel {
         reply += "- mode: debug, release (default: debug)\n";
         reply += "- channel: stable, beta, nightly (default: nightly)\n";
     }
     reply += "- edition: 2015, 2018 (default: 2018)\n";
-    if warn {
+    if spec.warn {
         reply += "- warn: true, false (default: false)\n";
     }
 

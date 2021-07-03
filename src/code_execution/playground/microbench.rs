@@ -119,18 +119,16 @@ pub async fn microbench(
 }
 
 pub fn microbench_help() -> String {
-    let desc =
-        "Benchmark small snippets of code by running them repeatedly. Public function snippets are \
-        run in blocks of 10000 repetitions in a cycle until a certain time has passed. Measurements \
-        are averaged and standard deviation is calculated for each";
-    generic_help(
-        "microbench",
-        desc,
-        false,
-        true,
-        "
+    generic_help(GenericHelp {
+        command: "microbench",
+        desc: "Benchmark small snippets of code by running them repeatedly. Public function \
+        snippets are run in blocks of 10000 repetitions in a cycle until a certain time has \
+        passed. Measurements are averaged and standard deviation is calculated for each",
+        mode_and_channel: false,
+        warn: true,
+        example_code: "
 pub fn snippet_a() { /* code */ }
 pub fn snippet_b() { /* code */ }
 ",
-    )
+    })
 }

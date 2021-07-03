@@ -37,10 +37,16 @@ pub async fn miri(
 }
 
 pub fn miri_help() -> String {
-    let desc = "Execute this program in the Miri interpreter to detect certain cases of undefined behavior (like out-of-bounds memory access)";
-    // Playgrounds sends miri warnings/errors and output in the same field so we can't filter
-    // warnings out
-    generic_help("miri", desc, false, false, "code")
+    generic_help(GenericHelp {
+        command: "miri",
+        desc: "Execute this program in the Miri interpreter to detect certain cases of undefined \
+        behavior (like out-of-bounds memory access)",
+        mode_and_channel: false,
+        // Playgrounds sends miri warnings/errors and output in the same field so we can't filter
+        // warnings out
+        warn: false,
+        example_code: "code",
+    })
 }
 
 /// Expand macros to their raw desugared form
@@ -89,8 +95,13 @@ pub async fn expand(
 }
 
 pub fn expand_help() -> String {
-    let desc = "Expand macros to their raw desugared form";
-    generic_help("expand", desc, false, false, "code")
+    generic_help(GenericHelp {
+        command: "expand",
+        desc: "Expand macros to their raw desugared form",
+        mode_and_channel: false,
+        warn: false,
+        example_code: "code",
+    })
 }
 
 /// Catch common mistakes using the Clippy linter
@@ -137,8 +148,13 @@ pub async fn clippy(
 }
 
 pub fn clippy_help() -> String {
-    let desc = "Catch common mistakes and improve the code using the Clippy linter";
-    generic_help("clippy", desc, false, false, "code")
+    generic_help(GenericHelp {
+        command: "clippy",
+        desc: "Catch common mistakes and improve the code using the Clippy linter",
+        mode_and_channel: false,
+        warn: false,
+        example_code: "code",
+    })
 }
 
 /// Format code using rustfmt
@@ -162,6 +178,11 @@ pub async fn fmt(
 }
 
 pub fn fmt_help() -> String {
-    let desc = "Format code using rustfmt";
-    generic_help("fmt", desc, false, false, "code")
+    generic_help(GenericHelp {
+        command: "fmt",
+        desc: "Format code using rustfmt",
+        mode_and_channel: false,
+        warn: false,
+        example_code: "code",
+    })
 }

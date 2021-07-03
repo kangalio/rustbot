@@ -53,7 +53,13 @@ pub async fn play(
 }
 
 pub fn play_help() -> String {
-    generic_help("play", "Compile and run Rust code", true, true, "code")
+    generic_help(GenericHelp {
+        command: "play",
+        desc: "Compile and run Rust code",
+        mode_and_channel: true,
+        warn: true,
+        example_code: "code",
+    })
 }
 
 /// Compile and run Rust code with warnings
@@ -72,13 +78,13 @@ pub async fn playwarn(
 }
 
 pub fn playwarn_help() -> String {
-    generic_help(
-        "playwarn",
-        "Compile and run Rust code with warnings. Equivalent to `?play warn=true`",
-        true,
-        false,
-        "code",
-    )
+    generic_help(GenericHelp {
+        command: "playwarn",
+        desc: "Compile and run Rust code with warnings. Equivalent to `?play warn=true`",
+        mode_and_channel: true,
+        warn: false,
+        example_code: "code",
+    })
 }
 
 /// Evaluate a single Rust expression
@@ -92,5 +98,11 @@ pub async fn eval(
 }
 
 pub fn eval_help() -> String {
-    generic_help("eval", "Compile and run Rust code", true, true, "code")
+    generic_help(GenericHelp {
+        command: "eval",
+        desc: "Compile and run Rust code",
+        mode_and_channel: true,
+        warn: true,
+        example_code: "code",
+    })
 }
