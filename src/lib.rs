@@ -186,6 +186,7 @@ async fn app() -> Result<(), Error> {
     options.command_with_category(code_execution::godbolt, "Playground");
     options.command_with_category(code_execution::mca, "Playground");
     options.command_with_category(code_execution::llvmir, "Playground");
+    options.command_with_category(code_execution::asmdiff, "Playground");
     options.command_with_category(crates::crate_, "Crates");
     options.command_with_category(crates::doc, "Crates");
     options.command_with_category(moderation::cleanup, "Moderation");

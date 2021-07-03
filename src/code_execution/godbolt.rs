@@ -169,11 +169,25 @@ async fn save_to_shortlink(
     Ok(response.json::<GodboltShortenerResponse>().await?.url)
 }
 
-#[derive(PartialEq)]
+#[derive(PartialEq, Clone, Copy)]
 enum GodboltMode {
     Asm,
     LlvmIr,
     Mca,
+}
+
+fn rustc_version_and_flags(params: &poise::KeyValueArgs, mode: GodboltMode) -> (&str, String) {
+    let rustc = params.get("rustc").unwrap_or(&"nightly");
+    let mut flags = params
+        .get("flags")
+        .unwrap_or("-Copt-level=3 --edition=2018")
+        .to_owned();
+
+    if mode == GodboltMode::LlvmIr {
+        flags += " --emit=llvm-ir -Cdebuginfo=0";
+    }
+
+    (rustc, flags)
 }
 
 async fn generic_godbolt(
@@ -184,15 +198,7 @@ async fn generic_godbolt(
 ) -> Result<(), Error> {
     let run_llvm_mca = mode == GodboltMode::Mca;
 
-    let rustc = params.get("rustc").unwrap_or(&"nightly");
-    let mut flags = params
-        .get("flags")
-        .unwrap_or("-Copt-level=3 --edition=2018")
-        .to_owned();
-
-    if mode == GodboltMode::LlvmIr {
-        flags += " --emit=llvm-ir -Cdebuginfo=0";
-    }
+    let (rustc, flags) = rustc_version_and_flags(&params, mode);
 
     let (lang, text, note);
     let godbolt_result =
@@ -319,4 +325,78 @@ pub async fn llvmir(
     code: poise::CodeBlock,
 ) -> Result<(), Error> {
     generic_godbolt(ctx, params, code, GodboltMode::LlvmIr).await
+}
+
+// TODO: adjust doc
+/// View LLVM IR using Godbolt
+///
+/// Compile Rust code using <https://rust.godbolt.org> and emits LLVM IR. Full optimizations \
+/// are applied unless overriden.
+///
+/// Equivalent to ?godbolt but with extra flags `--emit=llvm-ir -Cdebuginfo=0`.
+/// ```
+/// ?llvmir ``​`
+/// pub fn your_function() {
+///     // Code
+/// }
+/// ``​`
+/// ```
+/// Optional arguments:
+/// - `flags`: flags to pass to rustc invocation. Defaults to `"-Copt-level=3 --edition=2018"`
+/// - `rustc`: compiler version to invoke. Defaults to `nightly`. Possible values: `nightly`, `beta` or full version like `1.45.2`
+#[poise::command(broadcast_typing, track_edits, hide_in_help)]
+pub async fn asmdiff(
+    ctx: PrefixContext<'_>,
+    params: poise::KeyValueArgs,
+    code1: poise::CodeBlock,
+    code2: poise::CodeBlock,
+) -> Result<(), Error> {
+    let (rustc, flags) = rustc_version_and_flags(&params, GodboltMode::Asm);
+
+    let asm1 = compile_rust_source(&ctx.data.http, &code1.code, rustc, &flags, false).await?;
+    let asm2 = compile_rust_source(&ctx.data.http, &code2.code, rustc, &flags, false).await?;
+    let result = match (asm1, asm2) {
+        (Compilation::Success { asm: a, .. }, Compilation::Success { asm: b, .. }) => Ok((a, b)),
+        (Compilation::Error { stderr }, _) => Err(stderr),
+        (_, Compilation::Error { stderr }) => Err(stderr),
+    };
+
+    match result {
+        Ok((asm1, asm2)) => {
+            let mut path1 = std::env::temp_dir();
+            path1.push("a");
+            tokio::fs::write(&path1, asm1).await?;
+
+            let mut path2 = std::env::temp_dir();
+            path2.push("b");
+            tokio::fs::write(&path2, asm2).await?;
+
+            let diff = tokio::process::Command::new("git")
+                .args(&["diff", "--no-index"])
+                .arg(&path1)
+                .arg(&path2)
+                .output()
+                .await?
+                .stdout;
+
+            super::reply_potentially_long_text(
+                ctx,
+                &format!("```diff\n{}", String::from_utf8_lossy(&diff)),
+                "```",
+                "(output was truncated)",
+            )
+            .await?;
+        }
+        Err(stderr) => {
+            super::reply_potentially_long_text(
+                ctx,
+                &format!("```rust\n{}", stderr),
+                "```",
+                "(output was truncated)",
+            )
+            .await?;
+        }
+    }
+
+    Ok(())
 }
