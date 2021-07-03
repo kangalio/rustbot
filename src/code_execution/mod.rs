@@ -4,7 +4,7 @@ mod godbolt;
 pub use godbolt::*;
 
 mod playground;
-pub use playground::commands::*;
+pub use playground::*;
 
 use crate::{Error, PrefixContext};
 
