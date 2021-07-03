@@ -229,6 +229,8 @@ pub async fn send_reply(
         format!("{}\n{}", result.stderr, result.stdout)
     };
 
+    // Discord displays empty code blocks weirdly if they're not formatted in a specific style,
+    // so we special-case empty code blocks
     if result.trim().is_empty() {
         poise::say_reply(
             poise::Context::Prefix(ctx),
@@ -290,13 +292,12 @@ pub fn strip_fn_main_boilerplate_from_formatted(text: &str) -> String {
     let prefix = "fn main() {";
     let postfix = "}";
 
-    let text =
-        if let (Some(prefix_pos), Some(postfix_pos)) = (text.find(prefix), text.rfind(postfix)) {
-            text.get((prefix_pos + prefix.len())..postfix_pos)
-                .unwrap_or(text)
-        } else {
-            text
-        };
+    let text = match (text.find(prefix), text.rfind(postfix)) {
+        (Some(prefix_pos), Some(postfix_pos)) => text
+            .get((prefix_pos + prefix.len())..postfix_pos)
+            .unwrap_or(text),
+        _ => text,
+    };
     let text = text.trim();
 
     // Revert the indent introduced by rustfmt
@@ -308,8 +309,11 @@ pub fn strip_fn_main_boilerplate_from_formatted(text: &str) -> String {
     output
 }
 
-/// Extract compiler output and program stderr output and format the two nicely
-pub fn format_play_eval_stderr(stderr: &str, warn: bool) -> String {
+/// Split stderr into compiler output and program stderr output and format the two nicely
+///
+/// If the program doesn't compile, the compiler output is returned. If it did compile and run,
+/// compiler output (i.e. warnings) is shown only when show_compiler_warnings is true.
+pub fn format_play_eval_stderr(stderr: &str, show_compiler_warnings: bool) -> String {
     let compiler_output = extract_relevant_lines(
         &stderr,
         &["Compiling playground"],
@@ -325,7 +329,7 @@ pub fn format_play_eval_stderr(stderr: &str, warn: bool) -> String {
         // Program successfully compiled, so compiler output will be just warnings
         let program_stderr = extract_relevant_lines(&stderr, &["Running `target"], &[]);
 
-        if warn {
+        if show_compiler_warnings {
             // Concatenate compiler output and program stderr with a newline
             match (compiler_output, program_stderr) {
                 ("", "") => String::new(),
