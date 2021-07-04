@@ -67,6 +67,8 @@ pub enum Edition {
     E2015,
     #[serde(rename = "2018")]
     E2018,
+    #[serde(rename = "2021")]
+    E2021,
 }
 
 impl FromStr for Edition {
@@ -76,6 +78,7 @@ impl FromStr for Edition {
         match s {
             "2015" => Ok(Edition::E2015),
             "2018" => Ok(Edition::E2018),
+            "2021" => Ok(Edition::E2021),
             _ => Err(format!("invalid edition `{}`", s).into()),
         }
     }
@@ -151,6 +154,7 @@ pub fn url_from_gist(flags: &CommandFlags, gist_id: &str) -> String {
         match flags.edition {
             Edition::E2015 => "2015",
             Edition::E2018 => "2018",
+            Edition::E2021 => "2021",
         },
         gist_id
     )

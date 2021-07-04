@@ -89,7 +89,7 @@ pub fn generic_help(spec: GenericHelp<'_>) -> String {
         reply += "- mode: debug, release (default: debug)\n";
         reply += "- channel: stable, beta, nightly (default: nightly)\n";
     }
-    reply += "- edition: 2015, 2018 (default: 2018)\n";
+    reply += "- edition: 2015, 2018, 2021 (default: 2018)\n";
     if spec.warn {
         reply += "- warn: true, false (default: false)\n";
     }
@@ -262,6 +262,8 @@ pub fn apply_rustfmt(text: &str, edition: api::Edition) -> Result<api::PlayResul
             match edition {
                 api::Edition::E2015 => "2015",
                 api::Edition::E2018 => "2018",
+                // Fallback to 2018 edition when 2021 was specified since `rustfmt` does not support it yet
+                api::Edition::E2021 => "2018",
             },
             "--color",
             "never",
