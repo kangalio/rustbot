@@ -234,6 +234,11 @@ async fn generic_godbolt(
         }
     };
 
+    let mut note = note.to_owned();
+    if !code.code.contains("pub fn") {
+        note += "Note: only public functions (`pub fn`) are shown";
+    }
+
     if text.trim().is_empty() {
         poise::say_prefix_reply(ctx, format!("``` ```{}", note)).await?;
     } else {
