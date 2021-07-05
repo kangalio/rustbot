@@ -257,7 +257,7 @@ async fn generic_godbolt(
 /// Compile Rust code using <https://rust.godbolt.org>. Full optimizations are applied unless \
 /// overriden.
 /// ```
-/// ?godbolt ``​`
+/// ?godbolt flags={} rustc={} ``​`
 /// pub fn your_function() {
 ///     // Code
 /// }
@@ -284,7 +284,7 @@ fn strip_llvm_mca_result(text: &str) -> &str {
 /// Run the performance analysis tool llvm-mca using <https://rust.godbolt.org>. Full optimizations \
 /// are applied unless overriden.
 /// ```
-/// ?mca ``​`
+/// ?mca flags={} rustc={} ``​`
 /// pub fn your_function() {
 ///     // Code
 /// }
@@ -309,7 +309,7 @@ pub async fn mca(
 ///
 /// Equivalent to ?godbolt but with extra flags `--emit=llvm-ir -Cdebuginfo=0`.
 /// ```
-/// ?llvmir ``​`
+/// ?llvmir flags={} rustc={} ``​`
 /// pub fn your_function() {
 ///     // Code
 /// }
@@ -328,16 +328,18 @@ pub async fn llvmir(
 }
 
 // TODO: adjust doc
-/// View LLVM IR using Godbolt
+/// View difference between assembled functions
 ///
-/// Compile Rust code using <https://rust.godbolt.org> and emits LLVM IR. Full optimizations \
+/// Compiles two Rust code snippets using <https://rust.godbolt.org> and diffs them. Full optimizations \
 /// are applied unless overriden.
-///
-/// Equivalent to ?godbolt but with extra flags `--emit=llvm-ir -Cdebuginfo=0`.
 /// ```
-/// ?llvmir ``​`
-/// pub fn your_function() {
-///     // Code
+/// ?asmdiff flags={} rustc={} ``​`
+/// pub fn foo(x: u32) -> u32 {
+///     x
+/// }
+/// ``​` ``​`
+/// pub fn foo(x: u64) -> u64 {
+///     x
 /// }
 /// ``​`
 /// ```
