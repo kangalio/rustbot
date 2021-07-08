@@ -40,6 +40,19 @@ pub struct ClippyRequest<'a> {
     pub code: &'a str,
 }
 
+#[derive(Debug, Serialize)]
+pub struct FormatRequest<'a> {
+    pub code: &'a str,
+    pub edition: Edition,
+}
+#[derive(Debug, Deserialize)]
+pub struct FormatResponse {
+    pub success: bool,
+    pub code: String,
+    pub stdout: String,
+    pub stderr: String,
+}
+
 #[derive(Debug, Clone, Copy, Serialize)]
 #[serde(rename_all = "snake_case")]
 pub enum Channel {
@@ -158,4 +171,26 @@ pub fn url_from_gist(flags: &CommandFlags, gist_id: &str) -> String {
         },
         gist_id
     )
+}
+
+pub async fn apply_online_rustfmt(
+    ctx: PrefixContext<'_>,
+    code: &str,
+    edition: Edition,
+) -> Result<PlayResult, Error> {
+    let result = ctx
+        .data
+        .http
+        .post("https://play.rust-lang.org/format")
+        .json(&FormatRequest { code, edition })
+        .send()
+        .await?
+        .json::<FormatResponse>()
+        .await?;
+
+    Ok(PlayResult {
+        success: result.success,
+        stdout: result.code,
+        stderr: result.stderr,
+    })
 }

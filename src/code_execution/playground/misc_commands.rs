@@ -81,7 +81,7 @@ pub async fn expand(
     .to_owned();
 
     if result.success {
-        match apply_rustfmt(&result.stdout, flags.edition) {
+        match apply_local_rustfmt(&result.stdout, flags.edition) {
             Ok(PlayResult { success: true, stdout, .. }) => result.stdout = stdout,
             Ok(PlayResult { success: false, stderr, .. }) => log::warn!("Huh, rustfmt failed even though this code successfully passed through macro expansion before: {}", stderr),
             Err(e) => log::warn!("Couldn't run rustfmt: {}", e),
@@ -168,8 +168,14 @@ pub async fn fmt(
     let was_fn_main_wrapped = matches!(code, Cow::Owned(_));
     let (flags, flag_parse_errors) = parse_flags(&flags);
 
-    let mut result = apply_rustfmt(&code, flags.edition)
-        .map_err(|e| format!("Error while executing rustfmt: {}", e))?;
+    let mut result = match apply_local_rustfmt(&code, flags.edition) {
+        Ok(x) => x,
+        Err(e) => {
+            log::warn!("Error while executing local rustfmt: {}", e);
+            apply_online_rustfmt(ctx, &code, flags.edition).await?
+        }
+    };
+
     if was_fn_main_wrapped {
         result.stdout = strip_fn_main_boilerplate_from_formatted(&result.stdout);
     }

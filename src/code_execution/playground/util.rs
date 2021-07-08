@@ -253,7 +253,7 @@ pub async fn send_reply(
     Ok(())
 }
 
-pub fn apply_rustfmt(text: &str, edition: api::Edition) -> Result<api::PlayResult, Error> {
+pub fn apply_local_rustfmt(text: &str, edition: api::Edition) -> Result<api::PlayResult, Error> {
     use std::io::Write as _;
 
     let mut child = std::process::Command::new("rustfmt")
