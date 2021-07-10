@@ -88,6 +88,7 @@ pub struct Data {
     #[allow(dead_code)] // might add back in
     mod_role_id: serenity::RoleId,
     rustacean_role: serenity::RoleId,
+    reports_channel: Option<serenity::ChannelId>,
     bot_start_time: std::time::Instant,
     http: reqwest::Client,
 }
@@ -106,6 +107,7 @@ async fn app() -> Result<(), Error> {
     let discord_token: String = env_var("DISCORD_TOKEN")?;
     let mod_role_id = env_var("MOD_ROLE_ID")?;
     let rustacean_role = env_var("RUSTACEAN_ROLE_ID")?;
+    let reports_channel = env_var("REPORTS_CHANNEL_ID").ok();
     let application_id = env_var("APPLICATION_ID")?;
 
     let mut options = poise::FrameworkOptions {
@@ -198,6 +200,10 @@ async fn app() -> Result<(), Error> {
     options.command_with_category(misc::register, "Miscellaneous");
     options.command_with_category(misc::uptime, "Miscellaneous");
 
+    if reports_channel.is_some() {
+        options.command_with_category(moderation::report, "Moderation");
+    }
+
     let framework = poise::Framework::new(
         "?",
         serenity::ApplicationId(application_id),
@@ -209,6 +215,7 @@ async fn app() -> Result<(), Error> {
                     bot_user_id: bot.user.id,
                     mod_role_id,
                     rustacean_role,
+                    reports_channel,
                     bot_start_time: std::time::Instant::now(),
                     http: reqwest::Client::new(),
                 })

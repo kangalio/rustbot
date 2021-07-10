@@ -117,3 +117,56 @@ pub async fn slash_rustify(
 ) -> Result<(), Error> {
     rustify_inner(ctx, &[user]).await
 }
+
+/// Discreetly report a user for breaking the rules
+#[poise::command(slash_command, ephemeral, hide_in_help)]
+pub async fn report(
+    ctx: Context<'_>,
+    #[description = "What did the user do wrong?"] reason: String,
+) -> Result<(), Error> {
+    let slash_ctx = match ctx {
+        poise::Context::Slash(ctx) => ctx,
+        _ => return Ok(()),
+    };
+
+    let reports_channel = ctx
+        .data()
+        .reports_channel
+        .ok_or("No reports channel was configured")?;
+
+    let naughty_channel = ctx
+        .channel_id()
+        .to_channel(ctx.discord())
+        .await?
+        .guild()
+        .ok_or("This command can only be used in a guild")?;
+
+    let naughty_message = naughty_channel
+        .messages(ctx.discord(), |f| f.limit(1))
+        .await?
+        .into_iter()
+        .next()
+        .ok_or("Couldn't retrieve latest message in channel")?;
+
+    reports_channel
+        .say(
+            ctx.discord(),
+            format!(
+                "{} sent a report from channel {}: {}\n> {}",
+                ctx.try_author()?.name,
+                naughty_channel.name,
+                naughty_message.link_ensured(ctx.discord()).await,
+                reason
+            ),
+        )
+        .await?;
+
+    poise::say_slash_reply(
+        slash_ctx,
+        "Successfully sent report. Thanks for helping to make this community a better place!"
+            .into(),
+    )
+    .await?;
+
+    Ok(())
+}
