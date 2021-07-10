@@ -16,14 +16,13 @@ Adjust the client_id in the URL for your own hosted instances of the bot.
 
 ## Hosting the bot
 
-Run the bot using `cargo run --release`. You will need to provide several environment variables:
-- APPLICATION_ID: the ID of your Discord bot application
-- DISCORD_TOKEN: the Discord bot token acquired via the Discord Developer Portal
-- MOD_ROLE_ID: the ID of the Moderator role on your Discord server (for `?cleanup`)
-- RUSTACEAN_ROLE_ID: the ID of the Rustacean role on your Discord server (for `?rustify`)
+Run the bot using `cargo run --release`.
 
-An example command-line for Linux would be:
-`APPLICATION_ID=812377560917868595 MOD_ROLE_ID=583178325221048320 RUSTACEAN_ROLE_ID=319953207193501696 DISCORD_TOKEN=... cargo run --release`
+You will need to provide several environment variables. A convenient way to do this is to copy the
+`.env.example` file to `.env` and fill out the values. Then run the bot with the `.env` file applied.
+
+Example command-line for Linux:
+`set -a && source .env && set +a && cargo run --release`
 
 ### Docker
 
