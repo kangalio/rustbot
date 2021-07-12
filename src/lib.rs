@@ -171,37 +171,36 @@ async fn app() -> Result<(), Error> {
         ..Default::default()
     };
 
-    let rustify = || {
-        let prefix_impl = moderation::prefix_rustify().0;
-        let slash_impl = moderation::slash_rustify().1;
-        (prefix_impl, slash_impl)
-    };
-    options.command_with_category(code_execution::play, "Playground");
-    options.command_with_category(code_execution::playwarn, "Playground");
-    options.command_with_category(code_execution::eval, "Playground");
-    options.command_with_category(code_execution::miri, "Playground");
-    options.command_with_category(code_execution::expand, "Playground");
-    options.command_with_category(code_execution::clippy, "Playground");
-    options.command_with_category(code_execution::fmt, "Playground");
-    options.command_with_category(code_execution::microbench, "Playground");
-    options.command_with_category(code_execution::procmacro, "Playground");
-    options.command_with_category(code_execution::godbolt, "Playground");
-    options.command_with_category(code_execution::mca, "Playground");
-    options.command_with_category(code_execution::llvmir, "Playground");
-    options.command_with_category(code_execution::asmdiff, "Playground");
-    options.command_with_category(crates::crate_, "Crates");
-    options.command_with_category(crates::doc, "Crates");
-    options.command_with_category(moderation::cleanup, "Moderation");
-    options.command_with_category(moderation::ban, "Moderation");
-    options.command_with_category(rustify, "Moderation");
-    options.command_with_category(misc::go, "Miscellaneous");
-    options.command_with_category(misc::source, "Miscellaneous");
-    options.command_with_category(misc::help, "Miscellaneous");
-    options.command_with_category(misc::register, "Miscellaneous");
-    options.command_with_category(misc::uptime, "Miscellaneous");
+    options.command_with_category(code_execution::play(), "Playground");
+    options.command_with_category(code_execution::playwarn(), "Playground");
+    options.command_with_category(code_execution::eval(), "Playground");
+    options.command_with_category(code_execution::miri(), "Playground");
+    options.command_with_category(code_execution::expand(), "Playground");
+    options.command_with_category(code_execution::clippy(), "Playground");
+    options.command_with_category(code_execution::fmt(), "Playground");
+    options.command_with_category(code_execution::microbench(), "Playground");
+    options.command_with_category(code_execution::procmacro(), "Playground");
+    options.command_with_category(code_execution::godbolt(), "Playground");
+    options.command_with_category(code_execution::mca(), "Playground");
+    options.command_with_category(code_execution::llvmir(), "Playground");
+    options.command_with_category(code_execution::asmdiff(), "Playground");
+    options.command_with_category(crates::crate_(), "Crates");
+    options.command_with_category(crates::doc(), "Crates");
+    options.command_with_category(moderation::cleanup(), "Moderation");
+    options.command_with_category(moderation::ban(), "Moderation");
+    options.command_with_category(misc::go(), "Miscellaneous");
+    options.command_with_category(misc::source(), "Miscellaneous");
+    options.command_with_category(misc::help(), "Miscellaneous");
+    options.command_with_category(misc::register(), "Miscellaneous");
+    options.command_with_category(misc::uptime(), "Miscellaneous");
+
+    // Use different implementations for prefix and slash version of rustify
+    let prefix_impl = moderation::prefix_rustify().0;
+    let slash_impl = moderation::slash_rustify().1;
+    options.command_with_category((prefix_impl, slash_impl), "Moderation");
 
     if reports_channel.is_some() {
-        options.command_with_category(moderation::report, "Moderation");
+        options.command_with_category(moderation::report(), "Moderation");
     }
 
     let framework = poise::Framework::new(
