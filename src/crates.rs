@@ -58,14 +58,14 @@ fn get_documentation(crate_: &Crate) -> String {
     }
 }
 
-// 1234567 -> "1 234 567"
+/// 6051423 -> "6 051 423"
 fn format_number(mut n: u64) -> String {
     let mut output = String::new();
-    while n > 0 {
-        output.insert_str(0, &format!("{} ", n % 1000));
+    while n >= 1000 {
+        output.insert_str(0, &format!(" {:03}", n % 1000));
         n /= 1000;
     }
-    output.pop();
+    output.insert_str(0, &format!("{}", n));
     output
 }
 
