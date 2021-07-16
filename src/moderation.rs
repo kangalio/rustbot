@@ -109,6 +109,7 @@ pub async fn prefix_rustify(
 #[poise::command(
     on_error = "crate::acknowledge_fail",
     slash_command,
+    ephemeral,
     rename = "rustify"
 )]
 pub async fn slash_rustify(
