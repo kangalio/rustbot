@@ -57,9 +57,8 @@ pub async fn ban(
     poise::say_reply(
         ctx,
         format!(
-            "Banned user {}#{:0>4}{}  {}",
-            banned_user.user.name,
-            banned_user.user.discriminator,
+            "Banned user {}{}  {}",
+            banned_user.user.tag(),
             match reason {
                 Some(reason) => format!(" {}", reason.trim()),
                 None => String::new(),
@@ -84,9 +83,10 @@ async fn rustify_inner(ctx: Context<'_>, users: &[serenity::Member]) -> Result<(
                 user.guild_id.0,
                 user.user.id.0,
                 ctx.data().rustacean_role.0,
-                ctx.author()
-                    .map(|author| format!("You have been rusted by {}! owo", author.name))
-                    .as_deref(),
+                Some(&format!(
+                    "You have been rusted by {}! owo",
+                    ctx.author().name
+                )),
             )
             .await?;
     }
@@ -166,6 +166,51 @@ pub async fn report(
         slash_ctx,
         "Successfully sent report. Thanks for helping to make this community a better place!"
             .into(),
+    )
+    .await?;
+
+    Ok(())
+}
+
+/// Move a discussion to another channel
+///
+/// Move a discussion to a specified channel, optionally pinging a list of users in the new channel.
+#[poise::command(rename = "move", aliases("migrate"))]
+pub async fn move_(
+    ctx: PrefixContext<'_>,
+    channel: serenity::GuildChannel,
+    users_to_ping: Vec<serenity::Member>,
+) -> Result<(), Error> {
+    use serenity::Mentionable as _;
+
+    if Some(channel.guild_id) != ctx.msg.guild_id {
+        return Err("Can't move discussion across servers".into());
+    }
+
+    let mut comefrom_message = format!(
+        "**Discussion moved here from {}**\n{}",
+        ctx.msg.channel_id.mention(),
+        ctx.msg.link_ensured(ctx.discord).await
+    );
+
+    let mut users_to_ping = users_to_ping.into_iter();
+    if let Some(user_to_ping) = users_to_ping.next() {
+        comefrom_message += &format!("\n{}", user_to_ping.mention());
+        for user_to_ping in users_to_ping {
+            comefrom_message += &format!(", {}", user_to_ping.mention());
+        }
+    }
+
+    let comefrom_message = channel.say(ctx.discord, comefrom_message).await?;
+
+    poise::say_prefix_reply(
+        ctx,
+        format!(
+            "**{} suggested to move this discussion to {}**\n{}",
+            &ctx.msg.author.tag(),
+            channel.mention(),
+            comefrom_message.link_ensured(ctx.discord).await
+        ),
     )
     .await?;
 

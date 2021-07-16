@@ -188,6 +188,7 @@ async fn app() -> Result<(), Error> {
     options.command(crates::doc(), |f| f.category("Crates"));
     options.command(moderation::cleanup(), |f| f.category("Moderation"));
     options.command(moderation::ban(), |f| f.category("Moderation"));
+    options.command(moderation::move_(), |f| f.category("Moderation"));
     options.command(misc::go(), |f| f.category("Miscellaneous"));
     options.command(misc::source(), |f| f.category("Miscellaneous"));
     options.command(misc::help(), |f| f.category("Miscellaneous"));
