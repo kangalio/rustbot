@@ -141,10 +141,7 @@ async fn app() -> Result<(), Error> {
                     .name(&ctx.discord())
                     .await
                     .unwrap_or_else(|| "<unknown>".to_owned());
-                let author = match ctx.author() {
-                    Some(author) => format!("{}#{:0>4}", author.name, author.discriminator),
-                    None => String::from("<unknown>"),
-                };
+                let author = ctx.author().tag();
 
                 match ctx {
                     poise::Context::Prefix(ctx) => {
@@ -154,10 +151,7 @@ async fn app() -> Result<(), Error> {
                         );
                     }
                     poise::Context::Slash(ctx) => {
-                        let command_name = match &ctx.interaction.data {
-                            Some(data) => &data.name,
-                            None => "<unknown>",
-                        };
+                        let command_name = &ctx.interaction.data.name;
 
                         println!(
                             "[{}] {} in {} used slash command '{}'",
@@ -194,7 +188,6 @@ async fn app() -> Result<(), Error> {
     options.command(misc::help(), |f| f.category("Miscellaneous"));
     options.command(misc::register(), |f| f.category("Miscellaneous"));
     options.command(misc::uptime(), |f| f.category("Miscellaneous"));
-    options.command(misc::prefix_add(), |f| f.category("Miscellaneous"));
 
     // Use different implementations for prefix and slash version of rustify
     let prefix_impl = moderation::prefix_rustify().0;
@@ -281,16 +274,16 @@ pub async fn acknowledge_success(
                 None => fallback.to_string(),
             };
             if let Ok(()) = poise::say_slash_reply(ctx, msg_content.clone()).await {
-                if let Some(channel) = ctx.interaction.channel_id {
-                    let message_we_just_sent = channel
-                        .messages(ctx.discord, |f| f.limit(10))
-                        .await?
-                        .into_iter()
-                        .find(|msg| msg.content == msg_content);
-                    if let Some(message_we_just_sent) = message_we_just_sent {
-                        tokio::time::sleep(std::time::Duration::from_secs(3)).await;
-                        message_we_just_sent.delete(ctx.discord).await?;
-                    }
+                let message_we_just_sent = ctx
+                    .interaction
+                    .channel_id
+                    .messages(ctx.discord, |f| f.limit(10))
+                    .await?
+                    .into_iter()
+                    .find(|msg| msg.content == msg_content);
+                if let Some(message_we_just_sent) = message_we_just_sent {
+                    tokio::time::sleep(std::time::Duration::from_secs(3)).await;
+                    message_we_just_sent.delete(ctx.discord).await?;
                 }
             }
         }
