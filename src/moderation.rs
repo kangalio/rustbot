@@ -153,7 +153,7 @@ pub async fn report(
             ctx.discord(),
             format!(
                 "{} sent a report from channel {}: {}\n> {}",
-                ctx.try_author()?.name,
+                ctx.author().name,
                 naughty_channel.name,
                 naughty_message.link_ensured(ctx.discord()).await,
                 reason
