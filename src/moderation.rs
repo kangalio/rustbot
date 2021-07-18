@@ -178,13 +178,29 @@ pub async fn report(
 #[poise::command(rename = "move", aliases("migrate"))]
 pub async fn move_(
     ctx: PrefixContext<'_>,
-    channel: serenity::GuildChannel,
+    target_channel: serenity::GuildChannel,
     users_to_ping: Vec<serenity::Member>,
 ) -> Result<(), Error> {
     use serenity::Mentionable as _;
 
-    if Some(channel.guild_id) != ctx.msg.guild_id {
+    if Some(target_channel.guild_id) != ctx.msg.guild_id {
         return Err("Can't move discussion across servers".into());
+    }
+
+    // DON'T use GuildChannel::permissions_for_user - it requires member to be cached
+    let guild = ctx
+        .msg
+        .guild(ctx.discord)
+        .await
+        .ok_or("Guild not in cache")?;
+    let permissions_in_target_channel =
+        guild.user_permissions_in(&target_channel, &ctx.msg.member(ctx.discord).await?)?;
+    if !permissions_in_target_channel.send_messages() {
+        return Err(format!(
+            "You don't have permission to post in {}",
+            target_channel.mention(),
+        )
+        .into());
     }
 
     let mut comefrom_message = format!(
@@ -193,22 +209,30 @@ pub async fn move_(
         ctx.msg.link_ensured(ctx.discord).await
     );
 
-    let mut users_to_ping = users_to_ping.into_iter();
-    if let Some(user_to_ping) = users_to_ping.next() {
-        comefrom_message += &format!("\n{}", user_to_ping.mention());
-        for user_to_ping in users_to_ping {
-            comefrom_message += &format!(", {}", user_to_ping.mention());
+    {
+        let mut users_to_ping = users_to_ping.iter();
+        if let Some(user_to_ping) = users_to_ping.next() {
+            comefrom_message += &format!("\n{}", user_to_ping.mention());
+            for user_to_ping in users_to_ping {
+                comefrom_message += &format!(", {}", user_to_ping.mention());
+            }
         }
     }
 
-    let comefrom_message = channel.say(ctx.discord, comefrom_message).await?;
+    // let comefrom_message = target_channel.say(ctx.discord, comefrom_message).await?;
+    let comefrom_message = target_channel
+        .send_message(ctx.discord, |f| {
+            f.content(comefrom_message)
+                .allowed_mentions(|f| f.users(users_to_ping))
+        })
+        .await?;
 
     poise::say_prefix_reply(
         ctx,
         format!(
             "**{} suggested to move this discussion to {}**\n{}",
             &ctx.msg.author.tag(),
-            channel.mention(),
+            target_channel.mention(),
             comefrom_message.link_ensured(ctx.discord).await
         ),
     )
