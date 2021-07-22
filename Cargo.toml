@@ -1,8 +1,10 @@
+cargo-features = ["edition2021"]
+
 [package]
 name = "rustbot"
 version = "0.1.0"
 authors = ["kangalioo", "technetos <mrgould93@gmail.com>", "Ivan Dardi <ivanbdardi@gmail.com>"]
-edition = "2018"
+edition = "2021"
 license = "MIT"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
