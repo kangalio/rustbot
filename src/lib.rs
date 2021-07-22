@@ -200,7 +200,7 @@ async fn app() -> Result<(), Error> {
     }
 
     let framework = poise::Framework::new(
-        "?",
+        "?".into(),
         serenity::ApplicationId(application_id),
         move |ctx, bot, _framework| {
             Box::pin(async move {
