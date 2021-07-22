@@ -47,6 +47,7 @@ async fn acknowledge_prefix_fail(
 }
 
 async fn on_error(error: Error, ctx: poise::ErrorContext<'_, Data, Error>) {
+    println!("Encountered error: {:?}", error);
     if let poise::ErrorContext::Command(ctx) = ctx {
         let reply = if let Some(poise::ArgumentParseError(error)) = error.downcast_ref() {
             if error.is::<poise::CodeBlockError>() {
