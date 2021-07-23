@@ -12,7 +12,7 @@ pub async fn procmacro(
     let macro_code = macro_code.code;
     let usage_code = maybe_wrap(&usage_code.code, ResultHandling::None);
 
-    let (flags, flag_parse_errors) = parse_flags(&flags);
+    let (flags, flag_parse_errors) = parse_flags(flags);
 
     let generated_code = format!(
         "{}{}{}{}{}{}{}",

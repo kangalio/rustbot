@@ -16,7 +16,7 @@ use std::borrow::Cow;
 
 /// Returns the parsed flags and a String of parse errors. The parse error string will have a
 /// trailing newline (except if empty)
-pub fn parse_flags(args: &poise::KeyValueArgs) -> (api::CommandFlags, String) {
+pub fn parse_flags(mut args: poise::KeyValueArgs) -> (api::CommandFlags, String) {
     let mut errors = String::new();
 
     let mut flags = api::CommandFlags {
@@ -26,32 +26,36 @@ pub fn parse_flags(args: &poise::KeyValueArgs) -> (api::CommandFlags, String) {
         warn: false,
     };
 
-    if let Some(channel) = args.get("channel") {
+    if let Some(channel) = args.0.remove("channel") {
         match channel.parse() {
             Ok(x) => flags.channel = x,
             Err(e) => errors += &format!("{}\n", e),
         }
     }
 
-    if let Some(mode) = args.get("mode") {
+    if let Some(mode) = args.0.remove("mode") {
         match mode.parse() {
             Ok(x) => flags.mode = x,
             Err(e) => errors += &format!("{}\n", e),
         }
     }
 
-    if let Some(edition) = args.get("edition") {
+    if let Some(edition) = args.0.remove("edition") {
         match edition.parse() {
             Ok(x) => flags.edition = x,
             Err(e) => errors += &format!("{}\n", e),
         }
     }
 
-    if let Some(warn) = args.get("warn") {
+    if let Some(warn) = args.0.remove("warn") {
         match warn.parse() {
             Ok(x) => flags.warn = x,
             Err(e) => errors += &format!("{}\n", e),
         }
+    }
+
+    for (remaining_flag, _) in args.0 {
+        errors += &format!("unknown flag `{}`\n", remaining_flag);
     }
 
     (flags, errors)

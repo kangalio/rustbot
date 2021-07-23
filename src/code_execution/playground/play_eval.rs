@@ -10,7 +10,7 @@ async fn play_or_eval(
     result_handling: ResultHandling,
 ) -> Result<(), Error> {
     let code = maybe_wrap(&code.code, result_handling);
-    let (mut flags, flag_parse_errors) = parse_flags(&flags);
+    let (mut flags, flag_parse_errors) = parse_flags(flags);
 
     if force_warnings {
         flags.warn = true;

@@ -11,7 +11,7 @@ pub async fn miri(
     code: poise::CodeBlock,
 ) -> Result<(), Error> {
     let code = &maybe_wrap(&code.code, ResultHandling::Discard);
-    let (flags, flag_parse_errors) = parse_flags(&flags);
+    let (flags, flag_parse_errors) = parse_flags(flags);
 
     let mut result: PlayResult = ctx
         .data
@@ -58,7 +58,7 @@ pub async fn expand(
 ) -> Result<(), Error> {
     let code = maybe_wrap(&code.code, ResultHandling::None);
     let was_fn_main_wrapped = matches!(code, Cow::Owned(_));
-    let (flags, flag_parse_errors) = parse_flags(&flags);
+    let (flags, flag_parse_errors) = parse_flags(flags);
 
     let mut result: PlayResult = ctx
         .data
@@ -112,7 +112,7 @@ pub async fn clippy(
     code: poise::CodeBlock,
 ) -> Result<(), Error> {
     let code = &maybe_wrap(&code.code, ResultHandling::Discard);
-    let (flags, flag_parse_errors) = parse_flags(&flags);
+    let (flags, flag_parse_errors) = parse_flags(flags);
 
     let mut result: PlayResult = ctx
         .data
@@ -166,7 +166,7 @@ pub async fn fmt(
 ) -> Result<(), Error> {
     let code = &maybe_wrap(&code.code, ResultHandling::None);
     let was_fn_main_wrapped = matches!(code, Cow::Owned(_));
-    let (flags, flag_parse_errors) = parse_flags(&flags);
+    let (flags, flag_parse_errors) = parse_flags(flags);
 
     let mut result = match apply_local_rustfmt(&code, flags.edition) {
         Ok(x) => x,

@@ -87,7 +87,7 @@ pub async fn microbench(
     // final assembled code
     let code = hoise_crate_attributes(user_code, after_crate_attrs, &after_code);
 
-    let (flags, mut flag_parse_errors) = parse_flags(&flags);
+    let (flags, mut flag_parse_errors) = parse_flags(flags);
     let mut result: PlayResult = ctx
         .data
         .http
