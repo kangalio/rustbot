@@ -248,7 +248,7 @@ pub async fn send_reply(
             "```",
             &format!(
                 "Output too large. Playground link: <{}>",
-                api::url_from_gist(&flags, &api::post_gist(ctx, code).await?),
+                api::url_from_gist(flags, &api::post_gist(ctx, code).await?),
             ),
         )
         .await?;
@@ -321,7 +321,7 @@ pub fn strip_fn_main_boilerplate_from_formatted(text: &str) -> String {
 /// compiler output (i.e. warnings) is shown only when show_compiler_warnings is true.
 pub fn format_play_eval_stderr(stderr: &str, show_compiler_warnings: bool) -> String {
     let compiler_output = extract_relevant_lines(
-        &stderr,
+        stderr,
         &["Compiling playground"],
         &[
             "warning emitted",
@@ -333,7 +333,7 @@ pub fn format_play_eval_stderr(stderr: &str, show_compiler_warnings: bool) -> St
 
     if stderr.contains("Running `target") {
         // Program successfully compiled, so compiler output will be just warnings
-        let program_stderr = extract_relevant_lines(&stderr, &["Running `target"], &[]);
+        let program_stderr = extract_relevant_lines(stderr, &["Running `target"], &[]);
 
         if show_compiler_warnings {
             // Concatenate compiler output and program stderr with a newline

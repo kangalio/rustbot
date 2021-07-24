@@ -177,7 +177,7 @@ enum GodboltMode {
 }
 
 fn rustc_version_and_flags(params: &poise::KeyValueArgs, mode: GodboltMode) -> (&str, String) {
-    let rustc = params.get("rustc").unwrap_or(&"nightly");
+    let rustc = params.get("rustc").unwrap_or("nightly");
     let mut flags = params
         .get("flags")
         .unwrap_or("-Copt-level=3 --edition=2018")

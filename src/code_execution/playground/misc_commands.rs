@@ -168,11 +168,11 @@ pub async fn fmt(
     let was_fn_main_wrapped = matches!(code, Cow::Owned(_));
     let (flags, flag_parse_errors) = parse_flags(flags);
 
-    let mut result = match apply_local_rustfmt(&code, flags.edition) {
+    let mut result = match apply_local_rustfmt(code, flags.edition) {
         Ok(x) => x,
         Err(e) => {
             log::warn!("Error while executing local rustfmt: {}", e);
-            apply_online_rustfmt(ctx, &code, flags.edition).await?
+            apply_online_rustfmt(ctx, code, flags.edition).await?
         }
     };
 
