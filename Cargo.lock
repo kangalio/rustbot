@@ -738,7 +738,7 @@ checksum = "8b870d8c151b6f2fb93e84a13146138f05d02ed11c7e7c54f8826aaaf7c9f184"
 [[package]]
 name = "poise"
 version = "0.1.0"
-source = "git+https://github.com/kangalioo/poise#8d6a0eebc6947493ba9b64a092652ac9cd5d3745"
+source = "git+https://github.com/kangalioo/poise#2063b8623fd2198f7abf33fcbdafbe2c5c9fcfc6"
 dependencies = [
  "async-trait",
  "chrono",
@@ -754,7 +754,7 @@ dependencies = [
 [[package]]
 name = "poise_macros"
 version = "0.1.0"
-source = "git+https://github.com/kangalioo/poise#8d6a0eebc6947493ba9b64a092652ac9cd5d3745"
+source = "git+https://github.com/kangalioo/poise#2063b8623fd2198f7abf33fcbdafbe2c5c9fcfc6"
 dependencies = [
  "darling",
  "proc-macro2",
@@ -1018,7 +1018,7 @@ dependencies = [
 [[package]]
 name = "serenity"
 version = "0.10.8"
-source = "git+https://github.com/kangalioo/serenity?branch=poise-tailored#752687918666c53cffdc178f4ecce89a5efc38d3"
+source = "git+https://github.com/kangalioo/serenity?branch=poise-tailored#3e2b5e1646678a61c0d46def6e13644f2bfd6cb2"
 dependencies = [
  "async-trait",
  "async-tungstenite",
@@ -1127,18 +1127,18 @@ dependencies = [
 
 [[package]]
 name = "thiserror"
-version = "1.0.25"
+version = "1.0.26"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "fa6f76457f59514c7eeb4e59d891395fab0b2fd1d40723ae737d64153392e9c6"
+checksum = "93119e4feac1cbe6c798c34d3a53ea0026b0b1de6a120deef895137c0529bfe2"
 dependencies = [
  "thiserror-impl",
 ]
 
 [[package]]
 name = "thiserror-impl"
-version = "1.0.25"
+version = "1.0.26"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8a36768c0fbf1bb15eca10defa29526bda730a2376c2ab4393ccfa16fb1a318d"
+checksum = "060d69a0afe7796bf42e9e2ff91f5ee691fb15c53d38b4b62a9a53eb23164745"
 dependencies = [
  "proc-macro2",
  "quote",
