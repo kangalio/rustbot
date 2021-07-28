@@ -142,12 +142,7 @@ pub async fn report(
         .guild()
         .ok_or("This command can only be used in a guild")?;
 
-    let naughty_message = naughty_channel
-        .messages(ctx.discord(), |f| f.limit(1))
-        .await?
-        .into_iter()
-        .next()
-        .ok_or("Couldn't retrieve latest message in channel")?;
+    let naughty_message = naughty_channel.last_message_id.ok_or("Couldn't retrieve latest message in channel")?;
 
     reports_channel
         .say(
@@ -156,7 +151,13 @@ pub async fn report(
                 "{} sent a report from channel {}: {}\n> {}",
                 ctx.author().name,
                 naughty_channel.name,
-                naughty_message.link_ensured(ctx.discord()).await,
+                naughty_message
+                    .link_ensured(
+                        ctx.discord(),
+                        naughty_channel.id,
+                        Some(naughty_channel.guild_id)
+                    )
+                    .await,
                 reason
             ),
         )
