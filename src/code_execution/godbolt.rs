@@ -200,7 +200,8 @@ async fn generic_godbolt(
 
     let (rustc, flags) = rustc_version_and_flags(&params, mode);
 
-    let (lang, text, note);
+    let (lang, text);
+    let mut note = String::new();
     let godbolt_result =
         compile_rust_source(&ctx.data.http, &code.code, rustc, &flags, run_llvm_mca).await?;
     match godbolt_result {
@@ -221,22 +222,18 @@ async fn generic_godbolt(
                 }
                 GodboltMode::Asm | GodboltMode::LlvmIr => asm,
             };
-            note = if stderr.is_empty() {
-                ""
-            } else {
-                "Note: compilation produced warnings\n"
-            };
+            if !stderr.is_empty() {
+                note += "Note: compilation produced warnings\n";
+            }
         }
         Compilation::Error { stderr } => {
             lang = "rust";
             text = stderr;
-            note = "";
         }
     };
 
-    let mut note = note.to_owned();
     if !code.code.contains("pub fn") {
-        note += "Note: only public functions (`pub fn`) are shown";
+        note += "Note: only public functions (`pub fn`) are shown\n";
     }
 
     if text.trim().is_empty() {
