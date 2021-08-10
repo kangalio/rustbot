@@ -1,7 +1,7 @@
 use crate::{Error, PrefixContext};
 
 use reqwest::header;
-use serde::{Deserialize, Serialize};
+use serde::{Deserialize, Deserializer, Serialize};
 use std::collections::HashMap;
 use std::str::FromStr;
 
@@ -124,11 +124,48 @@ impl FromStr for Mode {
     }
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug)]
 pub struct PlayResult {
     pub success: bool,
     pub stdout: String,
     pub stderr: String,
+}
+
+impl<'de> Deserialize<'de> for PlayResult {
+    fn deserialize<D: Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
+        // The playground occasionally sends just a single "error" field, for example with
+        // `loop{println!("a")}`. We put the error into the stderr field
+
+        #[serde(untagged)]
+        #[derive(Deserialize)]
+        pub enum RawPlayResponse {
+            Err {
+                error: String,
+            },
+            Ok {
+                success: bool,
+                stdout: String,
+                stderr: String,
+            },
+        }
+
+        Ok(match RawPlayResponse::deserialize(deserializer)? {
+            RawPlayResponse::Ok {
+                success,
+                stdout,
+                stderr,
+            } => PlayResult {
+                success,
+                stdout,
+                stderr,
+            },
+            RawPlayResponse::Err { error } => PlayResult {
+                success: false,
+                stdout: String::new(),
+                stderr: error,
+            },
+        })
+    }
 }
 
 /// Returns a gist ID
