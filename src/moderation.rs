@@ -142,7 +142,9 @@ pub async fn report(
         .guild()
         .ok_or("This command can only be used in a guild")?;
 
-    let naughty_message = naughty_channel.last_message_id.ok_or("Couldn't retrieve latest message in channel")?;
+    let naughty_message = naughty_channel
+        .last_message_id
+        .ok_or("Couldn't retrieve latest message in channel")?;
 
     reports_channel
         .say(
@@ -175,12 +177,14 @@ pub async fn report(
 
 /// Move a discussion to another channel
 ///
-/// Move a discussion to a specified channel, optionally pinging a list of users in the new channel.
+/// Move a discussion to a specified channel. You can add a discussion topic to the command.
 #[poise::command(rename = "move", aliases("migrate"))]
 pub async fn move_(
     ctx: PrefixContext<'_>,
-    target_channel: serenity::GuildChannel,
-    users_to_ping: Vec<serenity::Member>,
+    #[description = "Where to move the discussion"] target_channel: serenity::GuildChannel,
+    #[rest]
+    #[description = "Topic of the discussion"]
+    topic: Option<String>,
 ) -> Result<(), Error> {
     use serenity::Mentionable as _;
 
@@ -210,21 +214,14 @@ pub async fn move_(
         ctx.msg.link_ensured(ctx.discord).await
     );
 
-    {
-        let mut users_to_ping = users_to_ping.iter();
-        if let Some(user_to_ping) = users_to_ping.next() {
-            comefrom_message += &format!("\n{}", user_to_ping.mention());
-            for user_to_ping in users_to_ping {
-                comefrom_message += &format!(", {}", user_to_ping.mention());
-            }
-        }
+    if let Some(topic) = topic {
+        comefrom_message += "\nTopic: ";
+        comefrom_message += &topic;
     }
 
-    // let comefrom_message = target_channel.say(ctx.discord, comefrom_message).await?;
     let comefrom_message = target_channel
         .send_message(ctx.discord, |f| {
-            f.content(comefrom_message)
-                .allowed_mentions(|f| f.users(users_to_ping))
+            f.content(comefrom_message).allowed_mentions(|f| f)
         })
         .await?;
 
