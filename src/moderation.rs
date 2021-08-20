@@ -193,11 +193,7 @@ pub async fn move_(
     }
 
     // DON'T use GuildChannel::permissions_for_user - it requires member to be cached
-    let guild = ctx
-        .msg
-        .guild(ctx.discord)
-        .await
-        .ok_or("Guild not in cache")?;
+    let guild = ctx.msg.guild(ctx.discord).ok_or("Guild not in cache")?;
     let permissions_in_target_channel =
         guild.user_permissions_in(&target_channel, &ctx.msg.member(ctx.discord).await?)?;
     if !permissions_in_target_channel.send_messages() {

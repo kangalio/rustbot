@@ -234,8 +234,7 @@ async fn app() -> Result<(), Error> {
 
 pub async fn find_custom_emoji(ctx: Context<'_>, emoji_name: &str) -> Option<serenity::Emoji> {
     ctx.guild_id()?
-        .to_guild_cached(ctx.discord())
-        .await?
+        .to_guild_cached(ctx.discord())?
         .emojis
         .values()
         .find(|emoji| emoji.name.eq_ignore_ascii_case(emoji_name))
