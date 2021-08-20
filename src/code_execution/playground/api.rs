@@ -136,8 +136,8 @@ impl<'de> Deserialize<'de> for PlayResult {
         // The playground occasionally sends just a single "error" field, for example with
         // `loop{println!("a")}`. We put the error into the stderr field
 
-        #[serde(untagged)]
         #[derive(Deserialize)]
+        #[serde(untagged)]
         pub enum RawPlayResponse {
             Err {
                 error: String,
