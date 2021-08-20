@@ -177,6 +177,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "dashmap"
+version = "4.0.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e77a43b28d0668df09411cb0bc9a8c2adc40f9a048afe863e05fd43251e8e39c"
+dependencies = [
+ "cfg-if",
+ "num_cpus",
+ "serde",
+]
+
+[[package]]
 name = "digest"
 version = "0.9.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -738,7 +749,7 @@ checksum = "8b870d8c151b6f2fb93e84a13146138f05d02ed11c7e7c54f8826aaaf7c9f184"
 [[package]]
 name = "poise"
 version = "0.1.0"
-source = "git+https://github.com/kangalioo/poise#05a9fefe672153a48fc800433f21d6fbe7d9ee3f"
+source = "git+https://github.com/kangalioo/poise#fda375168cf161993e7857a677ba44824ba3b31c"
 dependencies = [
  "async-trait",
  "chrono",
@@ -754,7 +765,7 @@ dependencies = [
 [[package]]
 name = "poise_macros"
 version = "0.1.0"
-source = "git+https://github.com/kangalioo/poise#05a9fefe672153a48fc800433f21d6fbe7d9ee3f"
+source = "git+https://github.com/kangalioo/poise#fda375168cf161993e7857a677ba44824ba3b31c"
 dependencies = [
  "darling",
  "proc-macro2",
@@ -933,6 +944,7 @@ dependencies = [
  "reqwest",
  "serde",
  "serde_json",
+ "serenity",
  "strip-ansi-escapes",
  "tokio",
 ]
@@ -1018,7 +1030,7 @@ dependencies = [
 [[package]]
 name = "serenity"
 version = "0.10.8"
-source = "git+https://github.com/kangalioo/serenity?branch=poise-tailored#097a2a91d5f0e68a19f425b6571d75ab4a154c9f"
+source = "git+https://github.com/serenity-rs/serenity?branch=next#8b327ddb3057f6f672c303d1e5d1806b8f024f71"
 dependencies = [
  "async-trait",
  "async-tungstenite",
@@ -1026,10 +1038,12 @@ dependencies = [
  "bitflags",
  "bytes",
  "chrono",
+ "dashmap",
  "flate2",
  "futures",
  "mime",
  "mime_guess",
+ "parking_lot",
  "percent-encoding",
  "reqwest",
  "serde",

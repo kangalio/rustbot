@@ -90,6 +90,7 @@ pub struct Data {
     mod_role_id: serenity::RoleId,
     rustacean_role: serenity::RoleId,
     reports_channel: Option<serenity::ChannelId>,
+    showcase_channel: serenity::ChannelId,
     bot_start_time: std::time::Instant,
     http: reqwest::Client,
 }
@@ -109,6 +110,7 @@ async fn app() -> Result<(), Error> {
     let mod_role_id = env_var("MOD_ROLE_ID")?;
     let rustacean_role = env_var("RUSTACEAN_ROLE_ID")?;
     let reports_channel = env_var("REPORTS_CHANNEL_ID").ok();
+    let showcase_channel = env_var("SHOWCASE_CHANNEL_ID")?;
     let application_id = env_var("APPLICATION_ID")?;
 
     let mut options = poise::FrameworkOptions {
@@ -184,6 +186,7 @@ async fn app() -> Result<(), Error> {
     options.command(moderation::cleanup(), |f| f.category("Moderation"));
     options.command(moderation::ban(), |f| f.category("Moderation"));
     options.command(moderation::move_(), |f| f.category("Moderation"));
+    options.command(moderation::showcase(), |f| f.category("Moderation"));
     options.command(misc::go(), |f| f.category("Miscellaneous"));
     options.command(misc::source(), |f| f.category("Miscellaneous"));
     options.command(misc::help(), |f| f.category("Miscellaneous"));
@@ -211,6 +214,7 @@ async fn app() -> Result<(), Error> {
                     mod_role_id,
                     rustacean_role,
                     reports_channel,
+                    showcase_channel,
                     bot_start_time: std::time::Instant::now(),
                     http: reqwest::Client::new(),
                 })

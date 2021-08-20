@@ -234,3 +234,91 @@ pub async fn move_(
 
     Ok(())
 }
+
+/// Post your project in the #showcase channel
+///
+/// Post your project in the #showcase channel. You will be asked to fill out some information \
+/// about the project.
+#[poise::command(slash_command)]
+pub async fn showcase(ctx: Context<'_>) -> Result<(), Error> {
+    let ask_the_user = |query| async move {
+        poise::say_reply(ctx, format!("Please enter {}:", query)).await?;
+        let user_input = ctx
+            .author()
+            .await_reply(ctx.discord())
+            .channel_id(ctx.channel_id())
+            .timeout(std::time::Duration::from_secs(10 * 60))
+            .await;
+
+        let user_input = user_input.ok_or_else(|| {
+            Error::from(format!(
+                "You didn't enter {}. Please run the command again to restart",
+                query
+            ))
+        })?;
+
+        match user_input.content.to_ascii_lowercase().trim() {
+            "abort" | "stop" | "cancel" | "break" | "terminate" | "exit" | "quit" => {
+                return Err(Error::from("Canceled the operation"))
+            }
+            _ => {}
+        }
+
+        Ok(user_input)
+    };
+
+    let name = ask_the_user("the name of your project").await?;
+    let description = ask_the_user("a description of what the project is about").await?;
+    let links =
+        ask_the_user("URLs related to your project, like a crates.io or repository link").await?;
+
+    let showcase_msg = ctx
+        .data()
+        .showcase_channel
+        .send_message(ctx.discord(), |f| {
+            f.allowed_mentions(|f| f).embed(|f| {
+                f.title(&name.content)
+                    .description(&description.content)
+                    .field("Links", &links.content, false)
+                    .author(|f| {
+                        if let Some(avatar_url) = ctx.author().avatar_url() {
+                            f.icon_url(avatar_url);
+                        }
+                        f.name(&ctx.author().name)
+                    })
+                    .color(crate::EMBED_COLOR)
+            })
+        })
+        .await?;
+
+    // TODO: Use ChannelId::create_public_thread once that's available
+    if let Err(e) = ctx
+        .discord()
+        .http
+        .create_public_thread(
+            showcase_msg.channel_id.0,
+            showcase_msg.id.0,
+            &std::iter::FromIterator::from_iter([(
+                String::from("name"),
+                serde_json::Value::String(name.content.clone()),
+            )]),
+        )
+        .await
+    {
+        println!(
+            "Couldn't create associated thread for showcase entry: {}",
+            e
+        )
+    }
+
+    poise::say_reply(
+        ctx,
+        format!(
+            "Your project was successfully posted in <#{}>",
+            ctx.data().showcase_channel.0
+        ),
+    )
+    .await?;
+
+    Ok(())
+}
