@@ -326,6 +326,8 @@ pub fn format_play_eval_stderr(stderr: &str, show_compiler_warnings: bool) -> St
         &[
             "warning emitted",
             "warnings emitted",
+            "warning: `playground` (bin \"playground\") generated",
+            "error: could not compile",
             "error: aborting",
             "Finished ",
         ],
