@@ -115,21 +115,16 @@ async fn app() -> Result<(), Error> {
 
     let mut options = poise::FrameworkOptions {
         prefix_options: poise::PrefixFrameworkOptions {
-            additional_prefixes: &[
-                "🦀 ",
-                "🦀",
-                "<:ferris:358652670585733120> ",
-                "<:ferris:358652670585733120>",
-                "hey ferris can you please ",
-                "hey ferris, can you please ",
-                "hey fewwis can you please ",
-                "hey fewwis, can you please ",
-                "hey ferris can you ",
-                "hey ferris, can you ",
-                "hey fewwis can you ",
-                "hey fewwis, can you ",
-                "yo crab can you ",
-                "yo crab, can you ",
+            additional_prefixes: vec![
+                poise::Prefix::Literal("🦀 "),
+                poise::Prefix::Literal("🦀"),
+                poise::Prefix::Literal("<:ferris:358652670585733120> "),
+                poise::Prefix::Literal("<:ferris:358652670585733120>"),
+                poise::Prefix::Regex(
+                    "(yo|hey) (crab|ferris|fewwis),? can you (please )?"
+                        .parse()
+                        .unwrap(),
+                ),
             ],
             edit_tracker: Some(poise::EditTracker::for_timespan(
                 std::time::Duration::from_secs(3600 * 24 * 2),
