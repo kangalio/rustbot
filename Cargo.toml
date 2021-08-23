@@ -25,3 +25,7 @@ default-features = false
 features = ["builder", "cache", "client", "gateway", "model", "utils", "rustls_backend", "collector", "unstable_discord_api"]
 git = "https://github.com/serenity-rs/serenity"
 branch = "next"
+
+[patch.'https://github.com/serenity-rs/serenity'.serenity]
+git = "https://github.com/kangalioo/serenity"
+branch = "poise-tailored"
