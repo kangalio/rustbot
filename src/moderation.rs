@@ -298,10 +298,10 @@ pub async fn showcase(ctx: Context<'_>) -> Result<(), Error> {
         .create_public_thread(
             showcase_msg.channel_id.0,
             showcase_msg.id.0,
-            &std::iter::FromIterator::from_iter([(
+            &std::iter::FromIterator::from_iter(std::iter::once((
                 String::from("name"),
                 serde_json::Value::String(name.content.clone()),
-            )]),
+            ))),
         )
         .await
     {
