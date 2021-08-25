@@ -4,7 +4,7 @@ name: Continuous integration
 
 jobs:
   test:
-    name: Test Suite
+    name: Check Suite
     runs-on: ${{ matrix.os || 'ubuntu-latest' }}
     strategy:
       fail-fast: false
@@ -39,7 +39,7 @@ jobs:
           profile: minimal
           toolchain: ${{ matrix.toolchain || 'stable' }}
           override: true
-      - run: cargo test ${{ matrix.feature_flags || '--all-features' }}
+      - run: cargo check ${{ matrix.feature_flags || '--all-features' }}
 
   fmt:
     name: Rustfmt
