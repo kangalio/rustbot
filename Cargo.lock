@@ -749,7 +749,7 @@ checksum = "8b870d8c151b6f2fb93e84a13146138f05d02ed11c7e7c54f8826aaaf7c9f184"
 [[package]]
 name = "poise"
 version = "0.1.0"
-source = "git+https://github.com/kangalioo/poise#747f46eb150de738738ed8c29bcb6b5199e19d0a"
+source = "git+https://github.com/kangalioo/poise#41a60a410b1a83d79002d4382412e9c181192653"
 dependencies = [
  "async-trait",
  "chrono",
@@ -766,7 +766,7 @@ dependencies = [
 [[package]]
 name = "poise_macros"
 version = "0.1.0"
-source = "git+https://github.com/kangalioo/poise#747f46eb150de738738ed8c29bcb6b5199e19d0a"
+source = "git+https://github.com/kangalioo/poise#41a60a410b1a83d79002d4382412e9c181192653"
 dependencies = [
  "darling",
  "proc-macro2",
@@ -1031,7 +1031,7 @@ dependencies = [
 [[package]]
 name = "serenity"
 version = "0.10.9"
-source = "git+https://github.com/kangalioo/serenity?branch=poise-tailored#330d8fb846f735b6bf0bedf2960e7eda469ca6b7"
+source = "git+https://github.com/kangalioo/serenity?branch=poise-tailored#73edb6624eb8a1a60aa1765b860fe873c556a4f6"
 dependencies = [
  "async-trait",
  "async-tungstenite",

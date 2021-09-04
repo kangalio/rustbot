@@ -46,7 +46,12 @@ fn bench(functions: &[(&str, fn())]) {
 }"#;
 
 /// Benchmark small snippets of code
-#[poise::command(broadcast_typing, track_edits, explanation_fn = "microbench_help")]
+#[poise::command(
+    prefix_command,
+    broadcast_typing,
+    track_edits,
+    explanation_fn = "microbench_help"
+)]
 pub async fn microbench(
     ctx: PrefixContext<'_>,
     flags: poise::KeyValueArgs,
@@ -63,7 +68,7 @@ pub async fn microbench(
     if pub_fn_indices.clone().count() == 0 {
         poise::say_reply(
             poise::Context::Prefix(ctx),
-            "No public functions (`pub fn`) found for benchmarking :thinking:".into(),
+            "No public functions (`pub fn`) found for benchmarking :thinking:",
         )
         .await?;
         return Ok(());

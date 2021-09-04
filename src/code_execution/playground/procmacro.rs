@@ -2,7 +2,12 @@ use super::{api::*, util::*};
 use crate::{Error, PrefixContext};
 
 /// Compile and use a procedural macro
-#[poise::command(track_edits, broadcast_typing, explanation_fn = "procmacro_help")]
+#[poise::command(
+    prefix_command,
+    track_edits,
+    broadcast_typing,
+    explanation_fn = "procmacro_help"
+)]
 pub async fn procmacro(
     ctx: PrefixContext<'_>,
     flags: poise::KeyValueArgs,

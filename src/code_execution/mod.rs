@@ -70,6 +70,6 @@ async fn reply_potentially_long_text(
         format!("{}{}", text_body, text_end)
     };
 
-    poise::say_prefix_reply(ctx, msg).await?;
+    poise::say_reply(ctx.into(), msg).await?;
     Ok(())
 }

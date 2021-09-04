@@ -48,7 +48,7 @@ async fn play_or_eval(
 }
 
 /// Compile and run Rust code in a playground
-#[poise::command(track_edits, broadcast_typing, explanation_fn = "play_help")]
+#[poise::command(prefix_command, track_edits, broadcast_typing, explanation_fn = "play_help")]
 pub async fn play(
     ctx: PrefixContext<'_>,
     flags: poise::KeyValueArgs,
@@ -68,7 +68,7 @@ pub fn play_help() -> String {
 }
 
 /// Compile and run Rust code with warnings
-#[poise::command(
+#[poise::command(prefix_command, 
     track_edits,
     broadcast_typing,
     hide_in_help, // don't clutter help menu with something that ?play can do too
@@ -93,7 +93,7 @@ pub fn playwarn_help() -> String {
 }
 
 /// Evaluate a single Rust expression
-#[poise::command(track_edits, broadcast_typing, explanation_fn = "eval_help")]
+#[poise::command(prefix_command, track_edits, broadcast_typing, explanation_fn = "eval_help")]
 pub async fn eval(
     ctx: PrefixContext<'_>,
     flags: poise::KeyValueArgs,

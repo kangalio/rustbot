@@ -6,7 +6,7 @@ use crate::{serenity, Context, Error, PrefixContext};
 ///
 /// Deletes the bot's messages for cleanup.
 /// You can specify how many messages to look for. Only messages from the last 24 hours can be deleted.
-#[poise::command(on_error = "crate::acknowledge_fail", slash_command)]
+#[poise::command(prefix_command, on_error = "crate::acknowledge_fail", slash_command)]
 pub async fn cleanup(
     ctx: Context<'_>,
     #[description = "Number of messages to delete"] num_messages: Option<usize>,
@@ -42,6 +42,7 @@ pub async fn cleanup(
 ///
 /// Bans another person
 #[poise::command(
+    prefix_command,
     on_error = "crate::acknowledge_fail",
     aliases("banne"),
     slash_command,
@@ -97,36 +98,45 @@ async fn rustify_inner(ctx: Context<'_>, users: &[serenity::Member]) -> Result<(
 // a single argument while the normal (prefix) version supports variadic arguments
 
 /// Adds the Rustacean role to members
-#[poise::command(on_error = "crate::acknowledge_prefix_fail", rename = "rustify")]
-pub async fn prefix_rustify(
-    ctx: PrefixContext<'_>,
-    users: Vec<serenity::Member>,
-) -> Result<(), Error> {
-    rustify_inner(Context::Prefix(ctx), &users).await
+#[poise::command(
+    prefix_command,
+    on_error = "crate::acknowledge_prefix_fail",
+    rename = "rustify"
+)]
+pub async fn prefix_rustify(ctx: Context<'_>, users: Vec<serenity::Member>) -> Result<(), Error> {
+    rustify_inner(ctx, &users).await
 }
 
 /// Adds the Rustacean role to a member
 #[poise::command(
-    on_error = "crate::acknowledge_fail",
+    prefix_command,
     slash_command,
+    on_error = "crate::acknowledge_fail",
     ephemeral,
     rename = "rustify"
 )]
 pub async fn slash_rustify(
     ctx: Context<'_>,
-    #[description = "User to rustify"] user: serenity::Member,
+    #[description = "User to rustify"] member: serenity::Member,
 ) -> Result<(), Error> {
-    rustify_inner(ctx, &[user]).await
+    rustify_inner(ctx, &[member]).await
+}
+
+#[poise::command(prefix_command, context_menu_command = "Rustify", ephemeral)]
+pub async fn context_menu_rustify(ctx: Context<'_>, user: serenity::User) -> Result<(), Error> {
+    let guild_id = ctx.guild_id().ok_or("Must use this command in a guild")?;
+    let member = guild_id.member(ctx.discord(), user.id).await?;
+    rustify_inner(ctx, &[member]).await
 }
 
 /// Discreetly report a user for breaking the rules
-#[poise::command(slash_command, ephemeral, hide_in_help)]
+#[poise::command(prefix_command, slash_command, ephemeral, hide_in_help)]
 pub async fn report(
     ctx: Context<'_>,
     #[description = "What did the user do wrong?"] reason: String,
 ) -> Result<(), Error> {
     let slash_ctx = match ctx {
-        poise::Context::Slash(ctx) => ctx,
+        poise::Context::Application(ctx) => ctx,
         _ => return Ok(()),
     };
 
@@ -165,10 +175,9 @@ pub async fn report(
         )
         .await?;
 
-    poise::say_slash_reply(
-        slash_ctx,
-        "Successfully sent report. Thanks for helping to make this community a better place!"
-            .into(),
+    poise::say_reply(
+        slash_ctx.into(),
+        "Successfully sent report. Thanks for helping to make this community a better place!",
     )
     .await?;
 
@@ -178,7 +187,7 @@ pub async fn report(
 /// Move a discussion to another channel
 ///
 /// Move a discussion to a specified channel. You can add a discussion topic to the command.
-#[poise::command(rename = "move", aliases("migrate"))]
+#[poise::command(prefix_command, rename = "move", aliases("migrate"))]
 pub async fn move_(
     ctx: PrefixContext<'_>,
     #[description = "Where to move the discussion"] target_channel: serenity::GuildChannel,
@@ -221,8 +230,8 @@ pub async fn move_(
         })
         .await?;
 
-    poise::say_prefix_reply(
-        ctx,
+    poise::say_reply(
+        ctx.into(),
         format!(
             "**{} suggested to move this discussion to {}**\n{}",
             &ctx.msg.author.tag(),
@@ -239,7 +248,7 @@ pub async fn move_(
 ///
 /// Post your project in the #showcase channel. You will be asked to fill out some information \
 /// about the project.
-#[poise::command(slash_command)]
+#[poise::command(prefix_command, slash_command)]
 pub async fn showcase(ctx: Context<'_>) -> Result<(), Error> {
     let ask_the_user = |query| async move {
         poise::say_reply(ctx, format!("Please enter {}:", query)).await?;

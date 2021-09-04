@@ -4,7 +4,12 @@ use crate::{Error, PrefixContext};
 use std::borrow::Cow;
 
 /// Run code and detect undefined behavior using Miri
-#[poise::command(track_edits, broadcast_typing, explanation_fn = "miri_help")]
+#[poise::command(
+    prefix_command,
+    track_edits,
+    broadcast_typing,
+    explanation_fn = "miri_help"
+)]
 pub async fn miri(
     ctx: PrefixContext<'_>,
     flags: poise::KeyValueArgs,
@@ -50,7 +55,12 @@ pub fn miri_help() -> String {
 }
 
 /// Expand macros to their raw desugared form
-#[poise::command(broadcast_typing, track_edits, explanation_fn = "expand_help")]
+#[poise::command(
+    prefix_command,
+    broadcast_typing,
+    track_edits,
+    explanation_fn = "expand_help"
+)]
 pub async fn expand(
     ctx: PrefixContext<'_>,
     flags: poise::KeyValueArgs,
@@ -105,7 +115,12 @@ pub fn expand_help() -> String {
 }
 
 /// Catch common mistakes using the Clippy linter
-#[poise::command(broadcast_typing, track_edits, explanation_fn = "clippy_help")]
+#[poise::command(
+    prefix_command,
+    broadcast_typing,
+    track_edits,
+    explanation_fn = "clippy_help"
+)]
 pub async fn clippy(
     ctx: PrefixContext<'_>,
     flags: poise::KeyValueArgs,
@@ -158,7 +173,12 @@ pub fn clippy_help() -> String {
 }
 
 /// Format code using rustfmt
-#[poise::command(broadcast_typing, track_edits, explanation_fn = "fmt_help")]
+#[poise::command(
+    prefix_command,
+    broadcast_typing,
+    track_edits,
+    explanation_fn = "fmt_help"
+)]
 pub async fn fmt(
     ctx: PrefixContext<'_>,
     flags: poise::KeyValueArgs,

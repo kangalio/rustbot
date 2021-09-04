@@ -237,7 +237,7 @@ async fn generic_godbolt(
     }
 
     if text.trim().is_empty() {
-        poise::say_prefix_reply(ctx, format!("``` ```{}", note)).await?;
+        poise::say_reply(ctx.into(), format!("``` ```{}", note)).await?;
     } else {
         super::reply_potentially_long_text(
             ctx,
@@ -268,7 +268,7 @@ async fn generic_godbolt(
 /// Optional arguments:
 /// - `flags`: flags to pass to rustc invocation. Defaults to `"-Copt-level=3 --edition=2018"`
 /// - `rustc`: compiler version to invoke. Defaults to `nightly`. Possible values: `nightly`, `beta` or full version like `1.45.2`
-#[poise::command(broadcast_typing, track_edits)]
+#[poise::command(prefix_command, broadcast_typing, track_edits)]
 pub async fn godbolt(
     ctx: PrefixContext<'_>,
     params: poise::KeyValueArgs,
@@ -295,7 +295,7 @@ fn strip_llvm_mca_result(text: &str) -> &str {
 /// Optional arguments:
 /// - `flags`: flags to pass to rustc invocation. Defaults to `"-Copt-level=3 --edition=2018"`
 /// - `rustc`: compiler version to invoke. Defaults to `nightly`. Possible values: `nightly`, `beta` or full version like `1.45.2`
-#[poise::command(broadcast_typing, track_edits)]
+#[poise::command(prefix_command, broadcast_typing, track_edits)]
 pub async fn mca(
     ctx: PrefixContext<'_>,
     params: poise::KeyValueArgs,
@@ -320,7 +320,7 @@ pub async fn mca(
 /// Optional arguments:
 /// - `flags`: flags to pass to rustc invocation. Defaults to `"-Copt-level=3 --edition=2018"`
 /// - `rustc`: compiler version to invoke. Defaults to `nightly`. Possible values: `nightly`, `beta` or full version like `1.45.2`
-#[poise::command(broadcast_typing, track_edits)]
+#[poise::command(prefix_command, broadcast_typing, track_edits)]
 pub async fn llvmir(
     ctx: PrefixContext<'_>,
     params: poise::KeyValueArgs,
@@ -348,7 +348,7 @@ pub async fn llvmir(
 /// Optional arguments:
 /// - `flags`: flags to pass to rustc invocation. Defaults to `"-Copt-level=3 --edition=2018"`
 /// - `rustc`: compiler version to invoke. Defaults to `nightly`. Possible values: `nightly`, `beta` or full version like `1.45.2`
-#[poise::command(broadcast_typing, track_edits, hide_in_help)]
+#[poise::command(prefix_command, broadcast_typing, track_edits, hide_in_help)]
 pub async fn asmdiff(
     ctx: PrefixContext<'_>,
     params: poise::KeyValueArgs,

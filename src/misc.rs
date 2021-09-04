@@ -1,21 +1,21 @@
 use crate::{Context, Error, PrefixContext};
 
 /// Evaluates Go code
-#[poise::command(discard_spare_arguments)]
+#[poise::command(prefix_command, discard_spare_arguments)]
 pub async fn go(ctx: PrefixContext<'_>) -> Result<(), Error> {
-    poise::say_prefix_reply(ctx, "No".into()).await?;
+    poise::say_reply(ctx.into(), "No").await?;
     Ok(())
 }
 
 /// Links to the bot GitHub repo
-#[poise::command(discard_spare_arguments, slash_command)]
+#[poise::command(prefix_command, discard_spare_arguments, slash_command)]
 pub async fn source(ctx: Context<'_>) -> Result<(), Error> {
-    poise::say_reply(ctx, r"https://github.com/kangalioo/rustbot".into()).await?;
+    poise::say_reply(ctx, r"https://github.com/kangalioo/rustbot").await?;
     Ok(())
 }
 
 /// Show this menu
-#[poise::command(track_edits, slash_command)]
+#[poise::command(prefix_command, track_edits, slash_command)]
 pub async fn help(
     ctx: Context<'_>,
     #[description = "Specific command to show help about"] command: Option<String>,
@@ -35,15 +35,15 @@ You can edit your message to the bot and the bot will edit its response.";
 /// Register slash commands in this guild or globally
 ///
 /// Run with no arguments to register in guild, run with argument "global" to register globally.
-#[poise::command(hide_in_help)]
+#[poise::command(prefix_command, hide_in_help)]
 pub async fn register(ctx: PrefixContext<'_>, #[flag] global: bool) -> Result<(), Error> {
-    poise::defaults::register_slash_commands(ctx, global).await?;
+    poise::defaults::register_slash_commands(ctx.into(), global).await?;
 
     Ok(())
 }
 
 /// Tells you how long the bot has been up for
-#[poise::command(slash_command, hide_in_help)]
+#[poise::command(prefix_command, slash_command, hide_in_help)]
 pub async fn uptime(ctx: Context<'_>) -> Result<(), Error> {
     let uptime = std::time::Instant::now() - ctx.data().bot_start_time;
 

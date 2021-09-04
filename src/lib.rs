@@ -8,7 +8,7 @@ use poise::serenity_prelude as serenity;
 pub type Error = Box<dyn std::error::Error + Send + Sync>;
 pub type Context<'a> = poise::Context<'a, Data, Error>;
 pub type PrefixContext<'a> = poise::PrefixContext<'a, Data, Error>;
-pub type SlashContext<'a> = poise::SlashContext<'a, Data, Error>;
+pub type ApplicationContext<'a> = poise::ApplicationContext<'a, Data, Error>;
 
 // pub const EMBED_COLOR: (u8, u8, u8) = (0xf7, 0x4c, 0x00);
 pub const EMBED_COLOR: (u8, u8, u8) = (0xb7, 0x47, 0x00); // slightly less saturated
@@ -28,8 +28,8 @@ async fn acknowledge_fail(error: Error, ctx: poise::CommandErrorContext<'_, Data
                 println!("Failed to react with red cross: {}", e);
             }
         }
-        poise::CommandErrorContext::Slash(ctx) => {
-            if let Err(e) = poise::say_slash_reply(ctx.ctx, format!("❌ {}", error)).await {
+        poise::CommandErrorContext::Application(ctx) => {
+            if let Err(e) = poise::say_reply(ctx.ctx.into(), format!("❌ {}", error)).await {
                 println!(
                     "Failed to send failure acknowledgment slash command response: {}",
                     e
@@ -148,7 +148,7 @@ async fn app() -> Result<(), Error> {
                             datetime, author, channel_name, &ctx.msg.content
                         );
                     }
-                    poise::Context::Slash(ctx) => {
+                    poise::Context::Application(ctx) => {
                         let command_name = &ctx.interaction.data.name;
 
                         println!(
@@ -188,10 +188,15 @@ async fn app() -> Result<(), Error> {
     options.command(misc::register(), |f| f.category("Miscellaneous"));
     options.command(misc::uptime(), |f| f.category("Miscellaneous"));
 
-    // Use different implementations for prefix and slash version of rustify
-    let prefix_impl = moderation::prefix_rustify().0;
-    let slash_impl = moderation::slash_rustify().1;
-    options.command((prefix_impl, slash_impl), |f| f.category("Moderation"));
+    // Use different implementations for rustify because of different feature sets
+    options.command(
+        poise::CommandDefinition {
+            prefix: moderation::prefix_rustify().prefix,
+            slash: moderation::slash_rustify().slash,
+            context_menu: moderation::context_menu_rustify().context_menu,
+        },
+        |f| f.category("Moderation"),
+    );
 
     if reports_channel.is_some() {
         options.command(moderation::report(), |f| f.category("Moderation"));
@@ -265,25 +270,15 @@ pub async fn acknowledge_success(
 
             ctx.msg.react(ctx.discord, reaction).await?;
         }
-        Context::Slash(ctx) => {
-            // this is a bad solution........ it will attempt to acknowledge the user command
-            // but ignore failures because a response might have been sent already
+        Context::Application(ctx) => {
             let msg_content = match emoji {
                 Some(e) => e.to_string(),
                 None => fallback.to_string(),
             };
-            if let Ok(()) = poise::say_slash_reply(ctx, msg_content.clone()).await {
-                let message_we_just_sent = ctx
-                    .interaction
-                    .channel_id
-                    .messages(ctx.discord, |f| f.limit(10))
-                    .await?
-                    .into_iter()
-                    .find(|msg| msg.content == msg_content);
-                if let Some(message_we_just_sent) = message_we_just_sent {
-                    tokio::time::sleep(std::time::Duration::from_secs(3)).await;
-                    message_we_just_sent.delete(ctx.discord).await?;
-                }
+            if let Ok(reply) = poise::say_reply(ctx.into(), msg_content).await {
+                tokio::time::sleep(std::time::Duration::from_secs(3)).await;
+                let msg = reply.message().await?;
+                let _: Result<_, _> = msg.delete(ctx.discord).await; // don't fail if ephemeral
             }
         }
     }
