@@ -41,7 +41,9 @@ async fn reply_potentially_long_text(
         was_truncated = true;
 
         // This is how long the text body may be at max to conform to Discord's limit
-        let available_space = 2000 - text_end.len() - truncation_msg.len();
+        let available_space = 2000_usize
+            .saturating_sub(text_end.len())
+            .saturating_sub(truncation_msg.len());
 
         let mut cut_off_point = available_space;
         while !text_body.is_char_boundary(cut_off_point) {
