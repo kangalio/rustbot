@@ -2,6 +2,7 @@ mod code_execution;
 mod crates;
 mod misc;
 mod moderation;
+mod showcase;
 
 use poise::serenity_prelude as serenity;
 
@@ -84,6 +85,18 @@ code here
     }
 }
 
+async fn listener(
+    ctx: &serenity::Context,
+    event: &poise::Event<'_>,
+    data: &Data,
+) -> Result<(), Error> {
+    if let poise::Event::MessageUpdate { event, .. } = event {
+        showcase::try_update_showcase_message(ctx, data, event.id).await?;
+    }
+
+    Ok(())
+}
+
 pub struct Data {
     bot_user_id: serenity::UserId,
     #[allow(dead_code)] // might add back in
@@ -93,6 +106,7 @@ pub struct Data {
     showcase_channel: serenity::ChannelId,
     bot_start_time: std::time::Instant,
     http: reqwest::Client,
+    database: sqlx::SqlitePool,
 }
 
 fn env_var<T: std::str::FromStr>(name: &str) -> Result<T, Error>
@@ -160,6 +174,7 @@ async fn app() -> Result<(), Error> {
             })
         },
         on_error: |error, ctx| Box::pin(on_error(error, ctx)),
+        listener: |ctx, event, _framework, data| Box::pin(listener(ctx, event, data)),
         ..Default::default()
     };
 
@@ -181,7 +196,7 @@ async fn app() -> Result<(), Error> {
     options.command(moderation::cleanup(), |f| f.category("Moderation"));
     options.command(moderation::ban(), |f| f.category("Moderation"));
     options.command(moderation::move_(), |f| f.category("Moderation"));
-    options.command(moderation::showcase(), |f| f.category("Moderation"));
+    options.command(showcase::showcase(), |f| f.category("Moderation"));
     options.command(misc::go(), |f| f.category("Miscellaneous"));
     options.command(misc::source(), |f| f.category("Miscellaneous"));
     options.command(misc::help(), |f| f.category("Miscellaneous"));
@@ -202,6 +217,19 @@ async fn app() -> Result<(), Error> {
         options.command(moderation::report(), |f| f.category("Moderation"));
     }
 
+    let database = sqlx::sqlite::SqlitePoolOptions::new()
+        .max_connections(5)
+        .connect_with(
+            sqlx::sqlite::SqliteConnectOptions::new()
+                .filename("database.sqlite")
+                .create_if_missing(true),
+        )
+        .await?;
+    sqlx::migrate::Migrator::new(std::path::Path::new("migrations"))
+        .await?
+        .run(&database)
+        .await?;
+
     let framework = poise::Framework::new(
         "?".into(),
         serenity::ApplicationId(application_id),
@@ -217,6 +245,7 @@ async fn app() -> Result<(), Error> {
                     showcase_channel,
                     bot_start_time: std::time::Instant::now(),
                     http: reqwest::Client::new(),
+                    database,
                 })
             })
         },

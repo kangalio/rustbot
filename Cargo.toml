@@ -16,16 +16,6 @@ env_logger = "0.7.1"
 strip-ansi-escapes = "0.1.0" # To remove colors from rustc output from godbolt
 chrono = "0.4.0" # To interact with serenity
 # poise = { path = "../poise" }
-poise = { git = "https://github.com/kangalioo/poise" }
+poise = { git = "https://github.com/kangalioo/poise", features = ["collector"] }
 tokio = { version = "1.4.0", features = ["rt-multi-thread", "process"] }
-
-[dependencies.serenity_]
-package = "serenity"
-default-features = false
-features = ["builder", "cache", "client", "gateway", "model", "utils", "rustls_backend", "collector", "unstable_discord_api"]
-git = "https://github.com/serenity-rs/serenity"
-branch = "next"
-
-[patch.'https://github.com/serenity-rs/serenity'.serenity]
-git = "https://github.com/kangalioo/serenity"
-branch = "poise-tailored"
+sqlx = { version = "0.5.7", features = ["runtime-tokio-rustls", "sqlite"] }
