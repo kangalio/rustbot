@@ -202,6 +202,7 @@ async fn app() -> Result<(), Error> {
     options.command(misc::help(), |f| f.category("Miscellaneous"));
     options.command(misc::register(), |f| f.category("Miscellaneous"));
     options.command(misc::uptime(), |f| f.category("Miscellaneous"));
+    options.command(misc::servers(), |f| f.category("Miscellaneous"));
 
     // Use different implementations for rustify because of different feature sets
     options.command(

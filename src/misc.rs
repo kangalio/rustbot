@@ -62,3 +62,18 @@ pub async fn uptime(ctx: Context<'_>) -> Result<(), Error> {
 
     Ok(())
 }
+
+#[poise::command(prefix_command, track_edits, hide_in_help)]
+pub async fn servers(ctx: Context<'_>) -> Result<(), Error> {
+    let current_user = ctx.discord().http.get_current_user().await?;
+    let guilds = current_user.guilds(ctx.discord()).await?;
+
+    let mut response = format!("I am currently in {} servers!\n", guilds.len());
+    for guild in guilds {
+        response += &format!("- {}\n", guild.name);
+    }
+
+    poise::say_reply(ctx, response).await?;
+
+    Ok(())
+}
