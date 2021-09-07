@@ -21,8 +21,12 @@ Run the bot using `cargo run --release`.
 You will need to provide several environment variables. A convenient way to do this is to copy the
 `.env.example` file to `.env` and fill out the values. Then run the bot with the `.env` file applied.
 
+Also set `SQLX_OFFLINE` to `true` if you're running the bot for the first time. Otherwise, SQLx
+will try to call into the database to check query correctness, which fails if the database hasn't
+been set up yet.
+
 Example command-line for Linux:
-`set -a && source .env && set +a && cargo run --release`
+`set -a && source .env && set +a && SQLX_OFFLINE=true cargo run --release`
 
 ### Docker
 
@@ -33,6 +37,10 @@ For that, rename the `.env.example` file into `.env`, fill out the values, and r
 docker build -t rustbot -f Dockerfile .
 docker run -d --rm --name rustbot --env-file .env rustbot
 ```
+
+Warnings: the Dockerfile may sometimes not work correctly because I don't use it for deployment
+myself and also know very little about creating Dockerfiles. If the file is not working for you and
+you managed to fix it, I would greatly appreciate a pull request! :)
 
 ## Credits
 

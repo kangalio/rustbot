@@ -18,4 +18,4 @@ chrono = "0.4.0" # To interact with serenity
 # poise = { path = "../poise" }
 poise = { git = "https://github.com/kangalioo/poise", features = ["collector"] }
 tokio = { version = "1.4.0", features = ["rt-multi-thread", "process"] }
-sqlx = { version = "0.5.7", features = ["runtime-tokio-rustls", "sqlite"] }
+sqlx = { version = "0.5.7", features = ["runtime-tokio-rustls", "sqlite", "offline"] }

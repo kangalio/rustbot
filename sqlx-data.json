@@ -1,0 +1,61 @@
+{
+  "db": "SQLite",
+  "d29a4508bd6cb335c52a111e2a2e00a712263dadb3e0ca9d3b96fd22253b6a20": {
+    "query": "SELECT\n            output_message,\n            output_channel,\n            input_channel,\n            name_input_message,\n            description_input_message,\n            links_input_message\n        FROM showcase WHERE ? IN (name_input_message, description_input_message, links_input_message)",
+    "describe": {
+      "columns": [
+        {
+          "name": "output_message",
+          "ordinal": 0,
+          "type_info": "Int64"
+        },
+        {
+          "name": "output_channel",
+          "ordinal": 1,
+          "type_info": "Int64"
+        },
+        {
+          "name": "input_channel",
+          "ordinal": 2,
+          "type_info": "Int64"
+        },
+        {
+          "name": "name_input_message",
+          "ordinal": 3,
+          "type_info": "Int64"
+        },
+        {
+          "name": "description_input_message",
+          "ordinal": 4,
+          "type_info": "Int64"
+        },
+        {
+          "name": "links_input_message",
+          "ordinal": 5,
+          "type_info": "Int64"
+        }
+      ],
+      "parameters": {
+        "Right": 1
+      },
+      "nullable": [
+        false,
+        false,
+        false,
+        false,
+        false,
+        false
+      ]
+    }
+  },
+  "e3c389e06a1ef3247913c45d056a3296c96bbc213cbb0522ad2979ac486e4167": {
+    "query": "INSERT INTO showcase (\n            output_message,\n            output_channel,\n            input_channel,\n            name_input_message,\n            description_input_message,\n            links_input_message\n        ) VALUES (?, ?, ?, ?, ?, ?)",
+    "describe": {
+      "columns": [],
+      "parameters": {
+        "Right": 6
+      },
+      "nullable": []
+    }
+  }
+}
