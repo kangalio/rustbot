@@ -8,14 +8,15 @@ RUN USER=root cargo new --bin rustbot
 WORKDIR /rustbot
 
 COPY Cargo.toml .
+COPY Cargo.lock .
 
-RUN cargo build --release \
- && rm src/*.rs
+RUN cargo build --release
+RUN rm src/*.rs
 
 COPY . .
 
-RUN rm ./target/release/deps/rustbot* \
- && cargo build --release
+RUN rm ./target/release/deps/rustbot*
+RUN cargo build --release
 
 
 FROM debian:buster-slim
