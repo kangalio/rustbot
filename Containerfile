@@ -1,4 +1,7 @@
-FROM rust:1.52 as builder
+FROM rust:1.54 as builder
+
+ENV SQLX_OFFLINE=true
+ENV DATABASE_URL=sqlite:database/database.sqlite
 
 RUN USER=root cargo new --bin rustbot
 
