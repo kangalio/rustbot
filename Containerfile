@@ -36,6 +36,7 @@ RUN apt-get update \
 
 COPY --from=builder /rustbot/target/release/rustbot .
 
+RUN mkdir database
 RUN chown -R $APP_USER:$APP_USER .
 
 USER $APP_USER

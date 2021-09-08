@@ -12,6 +12,5 @@ services:
       source: 'rustbot-database'
       target: '/usr/src/app/database'
 
-
 volumes:
   rustbot-database:
