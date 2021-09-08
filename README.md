@@ -30,17 +30,14 @@ Example command-line for Linux:
 
 ### Docker
 
-This project has a Dockerfile, so you can use Docker to run this bot if you wish.
-For that, rename the `.env.example` file into `.env`, fill out the values, and run the commands:
+This project has a Containerfile, so you can use Docker or Podman to run this bot if you wish.
+For that, rename the `.env.example` file into `.env`, fill out the values, and run the command:
 
 ```sh
-docker build -t rustbot -f Dockerfile .
-docker run -d --rm --name rustbot --env-file .env rustbot
+docker-compose -f container-compose.yaml up -d --build
 ```
 
-Warnings: the Dockerfile may sometimes not work correctly because I don't use it for deployment
-myself and also know very little about creating Dockerfiles. If the file is not working for you and
-you managed to fix it, I would greatly appreciate a pull request! :)
+Currently we're using Docker to run it, but eventually we'll make it work with just podman.
 
 ## Credits
 
