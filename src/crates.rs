@@ -75,7 +75,13 @@ fn format_number(mut n: u64) -> String {
 /// ```
 /// ?crate crate_name
 /// ```
-#[poise::command(rename = "crate", broadcast_typing, track_edits, slash_command)]
+#[poise::command(
+    prefix_command,
+    rename = "crate",
+    broadcast_typing,
+    track_edits,
+    slash_command
+)]
 pub async fn crate_(
     ctx: Context<'_>,
     #[description = "Name of the searched crate"] crate_name: String,
@@ -127,7 +133,13 @@ fn rustc_crate_link(crate_name: &str) -> Option<&'static str> {
 /// ```
 /// ?docs crate_name::module::item
 /// ```
-#[poise::command(aliases("docs"), broadcast_typing, track_edits, slash_command)]
+#[poise::command(
+    prefix_command,
+    aliases("docs"),
+    broadcast_typing,
+    track_edits,
+    slash_command
+)]
 pub async fn doc(
     ctx: Context<'_>,
     #[description = "Path of the crate and item to lookup"] query: String,
