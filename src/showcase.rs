@@ -22,8 +22,9 @@ fn create_embed<'a>(
 
 /// Posts your project in the #showcase channel
 ///
-/// Posts your project in the #showcase channel. You will be asked to fill out some information \
-/// about the project.
+/// Starts a prompt where you can enter information about a project you're working on. The bot
+/// will then post your project into the #showcase channel and open a thread to allow for discussion
+/// and feedback.
 ///
 /// If you want to change the text later, edit your message and the bot will propagate the change.
 #[poise::command(prefix_command, slash_command)]
