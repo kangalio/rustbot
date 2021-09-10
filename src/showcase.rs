@@ -20,10 +20,12 @@ fn create_embed<'a>(
         .color(crate::EMBED_COLOR)
 }
 
-/// Post your project in the #showcase channel
+/// Posts your project in the #showcase channel
 ///
-/// Post your project in the #showcase channel. You will be asked to fill out some information \
+/// Posts your project in the #showcase channel. You will be asked to fill out some information \
 /// about the project.
+///
+/// If you want to change the text later, edit your message and the bot will propagate the change.
 #[poise::command(prefix_command, slash_command)]
 pub async fn showcase(ctx: Context<'_>) -> Result<(), Error> {
     let ask_the_user = |query| async move {
@@ -93,32 +95,32 @@ pub async fn showcase(ctx: Context<'_>) -> Result<(), Error> {
         )
     }
 
-    let (a, b, c, d, e, f) = (
-        showcase_msg.id.0 as i64,
-        showcase_msg.channel_id.0 as i64,
-        ctx.channel_id().0 as i64,
-        name.id.0 as i64,
-        description.id.0 as i64,
-        links.id.0 as i64,
-    );
-    sqlx::query!(
-        "INSERT INTO showcase (
+    {
+        let output_message = showcase_msg.id.0 as i64;
+        let output_channel = showcase_msg.channel_id.0 as i64;
+        let input_channel = ctx.channel_id().0 as i64;
+        let name_input_message = name.id.0 as i64;
+        let description_input_message = description.id.0 as i64;
+        let links_input_message = links.id.0 as i64;
+        sqlx::query!(
+            "INSERT INTO showcase (
+                output_message,
+                output_channel,
+                input_channel,
+                name_input_message,
+                description_input_message,
+                links_input_message
+            ) VALUES (?, ?, ?, ?, ?, ?)",
             output_message,
             output_channel,
             input_channel,
             name_input_message,
             description_input_message,
-            links_input_message
-        ) VALUES (?, ?, ?, ?, ?, ?)",
-        a,
-        b,
-        c,
-        d,
-        e,
-        f,
-    )
-    .execute(&ctx.data().database)
-    .await?;
+            links_input_message,
+        )
+        .execute(&ctx.data().database)
+        .await?;
+    }
 
     poise::say_reply(
         ctx,

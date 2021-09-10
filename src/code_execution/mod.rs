@@ -1,10 +1,7 @@
 //! Commands that execute code
 
-mod godbolt;
-pub use godbolt::*;
-
-mod playground;
-pub use playground::*;
+pub mod godbolt;
+pub mod playground;
 
 use crate::{Error, PrefixContext};
 

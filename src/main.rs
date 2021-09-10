@@ -4,6 +4,7 @@ mod misc;
 mod moderation;
 mod showcase;
 
+use code_execution::{godbolt, playground};
 use poise::serenity_prelude as serenity;
 
 pub type Error = Box<dyn std::error::Error + Send + Sync>;
@@ -179,19 +180,19 @@ async fn app() -> Result<(), Error> {
         ..Default::default()
     };
 
-    options.command(code_execution::play(), |f| f.category("Playground"));
-    options.command(code_execution::playwarn(), |f| f.category("Playground"));
-    options.command(code_execution::eval(), |f| f.category("Playground"));
-    options.command(code_execution::miri(), |f| f.category("Playground"));
-    options.command(code_execution::expand(), |f| f.category("Playground"));
-    options.command(code_execution::clippy(), |f| f.category("Playground"));
-    options.command(code_execution::fmt(), |f| f.category("Playground"));
-    options.command(code_execution::microbench(), |f| f.category("Playground"));
-    options.command(code_execution::procmacro(), |f| f.category("Playground"));
-    options.command(code_execution::godbolt(), |f| f.category("Playground"));
-    options.command(code_execution::mca(), |f| f.category("Playground"));
-    options.command(code_execution::llvmir(), |f| f.category("Playground"));
-    options.command(code_execution::asmdiff(), |f| f.category("Playground"));
+    options.command(playground::play(), |f| f.category("Playground"));
+    options.command(playground::playwarn(), |f| f.category("Playground"));
+    options.command(playground::eval(), |f| f.category("Playground"));
+    options.command(playground::miri(), |f| f.category("Playground"));
+    options.command(playground::expand(), |f| f.category("Playground"));
+    options.command(playground::clippy(), |f| f.category("Playground"));
+    options.command(playground::fmt(), |f| f.category("Playground"));
+    options.command(playground::microbench(), |f| f.category("Playground"));
+    options.command(playground::procmacro(), |f| f.category("Playground"));
+    options.command(godbolt::godbolt(), |f| f.category("Godbolt"));
+    options.command(godbolt::mca(), |f| f.category("Godbolt"));
+    options.command(godbolt::llvmir(), |f| f.category("Godbolt"));
+    options.command(godbolt::asmdiff(), |f| f.category("Godbolt"));
     options.command(crates::crate_(), |f| f.category("Crates"));
     options.command(crates::doc(), |f| f.category("Crates"));
     options.command(moderation::cleanup(), |f| f.category("Moderation"));

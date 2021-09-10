@@ -20,7 +20,8 @@ pub async fn help(
     ctx: Context<'_>,
     #[description = "Specific command to show help about"] command: Option<String>,
 ) -> Result<(), Error> {
-    let bottom_text = "Type ?help command for more info on a command.
+    let bottom_text = "You can still use all commands with `?`, even if it says `/` above.
+Type ?help command for more info on a command.
 You can edit your message to the bot and the bot will edit its response.";
     poise::defaults::help(
         ctx,
@@ -37,7 +38,7 @@ You can edit your message to the bot and the bot will edit its response.";
 /// Run with no arguments to register in guild, run with argument "global" to register globally.
 #[poise::command(prefix_command, hide_in_help)]
 pub async fn register(ctx: PrefixContext<'_>, #[flag] global: bool) -> Result<(), Error> {
-    poise::defaults::register_slash_commands(ctx.into(), global).await?;
+    poise::defaults::register_application_commands(ctx.into(), global).await?;
 
     Ok(())
 }

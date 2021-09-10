@@ -1,5 +1,33 @@
 {
   "db": "SQLite",
+  "1b233c1da73a7067cca2640c75f06808943fb707af13a4118976eb6a80baa537": {
+    "query": "SELECT string FROM prefix WHERE user_id = ?",
+    "describe": {
+      "columns": [
+        {
+          "name": "string",
+          "ordinal": 0,
+          "type_info": "Text"
+        }
+      ],
+      "parameters": {
+        "Right": 1
+      },
+      "nullable": [
+        false
+      ]
+    }
+  },
+  "56c9460b27c5abfe68c321199e97acf861e66ad3b448bbea246caeeecbed754a": {
+    "query": "INSERT INTO showcase (\n                output_message,\n                output_channel,\n                input_channel,\n                name_input_message,\n                description_input_message,\n                links_input_message\n            ) VALUES (?, ?, ?, ?, ?, ?)",
+    "describe": {
+      "columns": [],
+      "parameters": {
+        "Right": 6
+      },
+      "nullable": []
+    }
+  },
   "d29a4508bd6cb335c52a111e2a2e00a712263dadb3e0ca9d3b96fd22253b6a20": {
     "query": "SELECT\n            output_message,\n            output_channel,\n            input_channel,\n            name_input_message,\n            description_input_message,\n            links_input_message\n        FROM showcase WHERE ? IN (name_input_message, description_input_message, links_input_message)",
     "describe": {
@@ -48,12 +76,22 @@
       ]
     }
   },
-  "e3c389e06a1ef3247913c45d056a3296c96bbc213cbb0522ad2979ac486e4167": {
-    "query": "INSERT INTO showcase (\n            output_message,\n            output_channel,\n            input_channel,\n            name_input_message,\n            description_input_message,\n            links_input_message\n        ) VALUES (?, ?, ?, ?, ?, ?)",
+  "fbdb849b8c6fcd65e735aeec208933fdf4f3769f6737495aed1c510d85270df4": {
+    "query": "INSERT INTO prefix (string, user_id) VALUES (?, ?)",
     "describe": {
       "columns": [],
       "parameters": {
-        "Right": 6
+        "Right": 2
+      },
+      "nullable": []
+    }
+  },
+  "fbf3fb2a7a039e065d323989bd9ef8a05caac7aaa570a4c4ca34f8c32b51c477": {
+    "query": "DELETE FROM prefix WHERE user_id = ? AND string = ?",
+    "describe": {
+      "columns": [],
+      "parameters": {
+        "Right": 2
       },
       "nullable": []
     }
