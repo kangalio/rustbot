@@ -2,6 +2,7 @@ mod code_execution;
 mod crates;
 mod misc;
 mod moderation;
+mod prefixes;
 mod showcase;
 
 use code_execution::{godbolt, playground};
@@ -145,6 +146,9 @@ async fn app() -> Result<(), Error> {
             edit_tracker: Some(poise::EditTracker::for_timespan(
                 std::time::Duration::from_secs(3600 * 24 * 2),
             )),
+            dynamic_prefix: Some(|ctx, msg, data| {
+                Box::pin(prefixes::try_strip_prefix(ctx, msg, data))
+            }),
             ..Default::default()
         },
         pre_command: |ctx| {
@@ -205,6 +209,12 @@ async fn app() -> Result<(), Error> {
     options.command(misc::register(), |f| f.category("Miscellaneous"));
     options.command(misc::uptime(), |f| f.category("Miscellaneous"));
     options.command(misc::servers(), |f| f.category("Miscellaneous"));
+    options.command(prefixes::prefix(), |f| {
+        f.category("Miscellaneous")
+            .subcommand(prefixes::prefix_add(), |f| f.category("Miscellaneous"))
+            .subcommand(prefixes::prefix_remove(), |f| f.category("Miscellaneous"))
+            .subcommand(prefixes::prefix_list(), |f| f.category("Miscellaneous"))
+    });
 
     // Use different implementations for rustify because of different feature sets
     options.command(
