@@ -125,7 +125,7 @@ pub async fn showcase(ctx: Context<'_>) -> Result<(), Error> {
     poise::say_reply(
         ctx,
         format!(
-            "Your project was successfully posted in <#{}>",
+            "Your project was successfully posted in <#{}>. To change the text later, edit the messages you sent and the bot will propagate the changes.",
             ctx.data().showcase_channel.0
         ),
     )
