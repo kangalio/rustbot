@@ -184,7 +184,7 @@ pub async fn try_update_showcase_message(
         serenity::ChannelId(entry.output_channel as u64).edit_message(
             ctx,
             entry.output_message as u64,
-            |f| f.embed(|f| create_embed(f, &name_msg.author, &name, &description, &links)),
+            |f| f.embed(|f| create_embed(f, &name_msg.author, name, &description, &links)),
         ).await?;
     }
 
