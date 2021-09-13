@@ -92,8 +92,14 @@ async fn listener(
     event: &poise::Event<'_>,
     data: &Data,
 ) -> Result<(), Error> {
-    if let poise::Event::MessageUpdate { event, .. } = event {
-        showcase::try_update_showcase_message(ctx, data, event.id).await?;
+    match event {
+        poise::Event::MessageUpdate { event, .. } => {
+            showcase::try_update_showcase_message(ctx, data, event.id).await?
+        }
+        poise::Event::MessageDelete {
+            deleted_message_id, ..
+        } => showcase::try_delete_showcase_message(ctx, data, *deleted_message_id).await?,
+        _ => {}
     }
 
     Ok(())
