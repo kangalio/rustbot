@@ -20,13 +20,14 @@ fn create_embed<'a>(
         .color(crate::EMBED_COLOR)
 }
 
-/// Posts your project in the #showcase channel
+/// Asks details about your project and then posts it in the #showcase channel
 ///
-/// Starts a prompt where you can enter information about a project you're working on. The bot
-/// will then post your project into the #showcase channel and open a thread to allow for discussion
-/// and feedback.
+/// Starts a prompt where you can enter information about a project you're working on. The bot \
+/// will then post your project into the #showcase channel and open a thread to allow for \
+/// discussion and feedback.
 ///
 /// If you want to change the text later, edit your message and the bot will propagate the change.
+/// You can also delete your message to delete the #showcase entry.
 #[poise::command(prefix_command, slash_command)]
 pub async fn showcase(ctx: Context<'_>) -> Result<(), Error> {
     let ask_the_user = |query| async move {
@@ -54,6 +55,17 @@ pub async fn showcase(ctx: Context<'_>) -> Result<(), Error> {
 
         Ok(user_input)
     };
+
+    poise::say_reply(
+        ctx,
+        format!(
+            "Answer the following prompts to generate a <#{0}> entry. If you change your mind \
+            later, you can edit or delete your messages, and the <#{0}> entry will be edited \
+            or deleted accordingly.",
+            ctx.data().showcase_channel.0
+        ),
+    )
+    .await?;
 
     let name = ask_the_user("the name of your project").await?;
     let description = ask_the_user("a description of what the project is about").await?;
@@ -126,7 +138,7 @@ pub async fn showcase(ctx: Context<'_>) -> Result<(), Error> {
     poise::say_reply(
         ctx,
         format!(
-            "Your project was successfully posted in <#{}>. To change the text later, edit the messages you sent and the bot will propagate the changes.",
+            "Your project was successfully posted in <#{}>",
             ctx.data().showcase_channel.0
         ),
     )
@@ -174,6 +186,28 @@ pub async fn try_update_showcase_message(
             entry.output_message as u64,
             |f| f.embed(|f| create_embed(f, &name_msg.author, &name, &description, &links)),
         ).await?;
+    }
+
+    Ok(())
+}
+
+pub async fn try_delete_showcase_message(
+    ctx: &serenity::Context,
+    data: &crate::Data,
+    deleted_message_id: serenity::MessageId,
+) -> Result<(), Error> {
+    let deleted_message_id = deleted_message_id.0 as i64;
+    if let Some(entry) = sqlx::query!(
+        "SELECT
+            output_message,
+            output_channel
+        FROM showcase WHERE ? IN (name_input_message, description_input_message, links_input_message)",
+        deleted_message_id
+    )
+    .fetch_optional(&data.database)
+    .await?
+    {
+        serenity::ChannelId(entry.output_channel as u64).delete_message(ctx, entry.output_message as u64).await?;
     }
 
     Ok(())
