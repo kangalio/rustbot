@@ -1,18 +1,22 @@
-FROM rust:1.52 as builder
+FROM rust:1.54 as builder
+
+ENV SQLX_OFFLINE=true
+ENV DATABASE_URL=sqlite:database/database.sqlite
 
 RUN USER=root cargo new --bin rustbot
 
 WORKDIR /rustbot
 
 COPY Cargo.toml .
+COPY Cargo.lock .
 
-RUN cargo build --release \
- && rm src/*.rs
+RUN cargo build --release
+RUN rm src/*.rs
 
 COPY . .
 
-RUN rm ./target/release/deps/rustbot* \
- && cargo build --release
+RUN rm ./target/release/deps/rustbot*
+RUN cargo build --release
 
 
 FROM debian:buster-slim
@@ -32,6 +36,7 @@ RUN apt-get update \
 
 COPY --from=builder /rustbot/target/release/rustbot .
 
+RUN mkdir database
 RUN chown -R $APP_USER:$APP_USER .
 
 USER $APP_USER

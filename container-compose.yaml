@@ -1,0 +1,16 @@
+version: '3'
+
+services:
+  rustbot:
+    build:
+      context: '.'
+      dockerfile: 'Containerfile'
+    env_file: '.env'
+    restart: 'unless-stopped'
+    volumes:
+    - type: 'volume'
+      source: 'rustbot-database'
+      target: '/usr/src/app/database'
+
+volumes:
+  rustbot-database:
