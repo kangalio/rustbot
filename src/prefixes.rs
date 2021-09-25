@@ -3,7 +3,7 @@ use poise::serenity_prelude as serenity;
 use serenity::futures::TryStreamExt;
 
 fn prefixes_explanation_text() -> String {
-    "
+    "\
 You don't want to be constrained to `?` or the good old \"hey ferris\"? Whatever cool prefixes \
 you can think of, add them with `?prefix add your prefix here ` and you can use them to call \
 the bot.
@@ -11,10 +11,8 @@ the bot.
 If your idea turns out less funny than you thought it would be, remove it with \
 `?prefix remove your prefix here `.
     
-Forgot all your funny prefixes? Try `?prefix list`.
-    "
-    .trim()
-    .into()
+Forgot all your funny prefixes? Try `?prefix list`."
+        .into()
 }
 
 /// Add custom user-specific prefixes
