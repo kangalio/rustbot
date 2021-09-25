@@ -99,6 +99,28 @@ async fn listener(
         poise::Event::MessageDelete {
             deleted_message_id, ..
         } => showcase::try_delete_showcase_message(ctx, data, *deleted_message_id).await?,
+        poise::Event::GuildMemberAddition {
+            guild_id,
+            new_member,
+        } => {
+            const RUSTIFICATION_DELAY: u64 = 30; // in minutes
+
+            tokio::time::sleep(std::time::Duration::from_secs(RUSTIFICATION_DELAY * 60)).await;
+
+            // Ignore errors because the user may have left already
+            let _: Result<_, _> = ctx
+                .http
+                .add_member_role(
+                    new_member.guild_id.0,
+                    new_member.user.id.0,
+                    data.rustacean_role.0,
+                    Some(&format!(
+                        "Automatically rustified after {} minutes",
+                        RUSTIFICATION_DELAY
+                    )),
+                )
+                .await;
+        }
         _ => {}
     }
 
@@ -128,13 +150,13 @@ where
 }
 
 async fn app() -> Result<(), Error> {
-    let discord_token: String = env_var("DISCORD_TOKEN")?;
+    let discord_token = env_var::<String>("DISCORD_TOKEN")?;
     let mod_role_id = env_var("MOD_ROLE_ID")?;
     let rustacean_role = env_var("RUSTACEAN_ROLE_ID")?;
     let reports_channel = env_var("REPORTS_CHANNEL_ID").ok();
     let showcase_channel = env_var("SHOWCASE_CHANNEL_ID")?;
     let application_id = env_var("APPLICATION_ID")?;
-    let database_url: String = env_var("DATABASE_URL")?;
+    let database_url = env_var::<String>("DATABASE_URL")?;
     let custom_prefixes = env_var("CUSTOM_PREFIXES")?;
 
     let mut options = poise::FrameworkOptions {
