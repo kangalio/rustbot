@@ -273,10 +273,11 @@ async fn app() -> Result<(), Error> {
         .await?;
     sqlx::migrate!("./migrations").run(&database).await?;
 
-    let framework = poise::Framework::new(
-        "?".into(),
-        serenity::ApplicationId(application_id),
-        move |ctx, bot, _framework| {
+    let framework = poise::Framework::build();
+    framework
+        .token(discord_token)
+        .prefix("?")
+        .user_data_setup(move |ctx, bot, _framework| {
             Box::pin(async move {
                 ctx.set_activity(serenity::Activity::listening("?help"))
                     .await;
@@ -291,19 +292,15 @@ async fn app() -> Result<(), Error> {
                     database,
                 })
             })
-        },
-        options,
-    );
-
-    framework
-        .start(
-            serenity::ClientBuilder::new(discord_token)
-                .application_id(application_id)
-                .intents(
-                    serenity::GatewayIntents::non_privileged()
-                        | serenity::GatewayIntents::GUILD_MEMBERS,
-                ),
-        )
+        })
+        .options(options)
+        .client_settings(move |client_builder| {
+            client_builder.application_id(application_id).intents(
+                serenity::GatewayIntents::non_privileged()
+                    | serenity::GatewayIntents::GUILD_MEMBERS,
+            )
+        })
+        .run()
         .await?;
     Ok(())
 }
