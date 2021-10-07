@@ -273,8 +273,7 @@ async fn app() -> Result<(), Error> {
         .await?;
     sqlx::migrate!("./migrations").run(&database).await?;
 
-    let framework = poise::Framework::build();
-    framework
+    poise::Framework::build()
         .token(discord_token)
         .prefix("?")
         .user_data_setup(move |ctx, bot, _framework| {
@@ -295,7 +294,7 @@ async fn app() -> Result<(), Error> {
         })
         .options(options)
         .client_settings(move |client_builder| {
-            client_builder.application_id(application_id).intents(
+            client_builder.intents(
                 serenity::GatewayIntents::non_privileged()
                     | serenity::GatewayIntents::GUILD_MEMBERS,
             )
