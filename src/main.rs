@@ -100,7 +100,7 @@ async fn listener(
             deleted_message_id, ..
         } => showcase::try_delete_showcase_message(ctx, data, *deleted_message_id).await?,
         poise::Event::GuildMemberAddition {
-            guild_id,
+            guild_id: _,
             new_member,
         } => {
             const RUSTIFICATION_DELAY: u64 = 30; // in minutes
@@ -155,7 +155,6 @@ async fn app() -> Result<(), Error> {
     let rustacean_role = env_var("RUSTACEAN_ROLE_ID")?;
     let reports_channel = env_var("REPORTS_CHANNEL_ID").ok();
     let showcase_channel = env_var("SHOWCASE_CHANNEL_ID")?;
-    let application_id = env_var("APPLICATION_ID")?;
     let database_url = env_var::<String>("DATABASE_URL")?;
     let custom_prefixes = env_var("CUSTOM_PREFIXES")?;
 
