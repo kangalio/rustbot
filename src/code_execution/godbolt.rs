@@ -1,6 +1,11 @@
-use crate::{Error, PrefixContext};
+use crate::{Data, Error, PrefixContext};
+use chrono::{TimeZone, Utc};
+use sqlx::{pool::PoolConnection, Connection, Executor, Sqlite};
+use std::{collections::HashMap, env, time::Duration};
 
 const LLVM_MCA_TOOL_ID: &str = "llvm-mcatrunk";
+const GODBOLT_TARGETS_URL: &str = "https://godbolt.org/api/compilers/rust";
+const ACCEPT_JSON: &str = "application/json";
 
 enum Compilation {
     Success {
@@ -51,21 +56,174 @@ struct GodboltTool {
     stderr: GodboltOutput,
 }
 
+#[derive(Debug, serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct GodboltTarget {
+    id: String,
+    name: String,
+    lang: String,
+    compiler_type: String,
+    semver: String,
+    instruction_set: String,
+}
+
+impl GodboltTarget {
+    fn clean_request_data(&mut self) {
+        // Some semvers get weird characters like `()` in them or spaces, we strip that out here
+        self.semver = self
+            .semver
+            .chars()
+            .filter(|char| char.is_alphanumeric() || matches!(char, '.' | '-' | '_'))
+            .map(|char| char.to_ascii_lowercase())
+            .collect();
+    }
+}
+
+async fn update_godbolt_targets(data: &Data) -> Result<PoolConnection<Sqlite>, Error> {
+    let mut conn = data.database.acquire().await?;
+
+    // Fetch the last time we updated the targets list, this will be null/none if we've never
+    // done it before
+    let last_update_time = sqlx::query!("SELECT last_update FROM last_godbolt_update")
+        .fetch_optional(&mut conn)
+        .await?;
+
+    let needs_update = if let Some(last_update_time) = last_update_time {
+        // Convert the stored timestamp into a utc date time
+        let last_update_time = Utc.timestamp_nanos(last_update_time.last_update);
+
+        // Get the time to wait between each update of the godbolt targets list
+        let update_period = chrono::Duration::from_std(
+            env::var("GODBOLT_UPDATE_DURATION")
+                .ok()
+                .and_then(|duration| duration.parse::<u64>().ok())
+                .map(Duration::from_secs)
+                // Currently set to 12 hours
+                .unwrap_or_else(|| Duration::from_secs(60 * 60 * 12)),
+        )?;
+
+        let time_since_update = Utc::now().signed_duration_since(last_update_time);
+        let needs_update = time_since_update >= update_period;
+        if needs_update {
+            log::info!(
+                "godbolt targets were last updated {:#?} ago, updating them",
+                time_since_update,
+            );
+        }
+
+        needs_update
+    } else {
+        log::info!("godbolt targets haven't yet been updated, fetching them");
+
+        true
+    };
+
+    // If we should perform an update then do so
+    if needs_update {
+        let request = data
+            .http
+            .post(GODBOLT_TARGETS_URL)
+            .header(reqwest::header::ACCEPT, ACCEPT_JSON)
+            .build()?;
+
+        let mut targets: Vec<GodboltTarget> = data.http.execute(request).await?.json().await?;
+        log::info!("got {} godbolt targets", targets.len());
+
+        // Clean up the data we've gotten from the request
+        for target in &mut targets {
+            target.clean_request_data();
+        }
+
+        // Run the target updates within a transaction so that if things go wrong we don't
+        // end up with an empty targets list
+        conn.transaction::<_, (), Error>(|conn| {
+            Box::pin(async move {
+                // Remove all old values from the targets list, this is probably overly-cautious
+                // but it at least ensures that we never have incorrect targets within the db
+                sqlx::query!("DELETE FROM godbolt_targets")
+                    .execute(&mut *conn)
+                    .await?;
+
+                // Insert all of our newly fetched targets into the db
+                for target in targets {
+                    sqlx::query!(
+                        "INSERT INTO godbolt_targets (
+                            id,
+                            name,
+                            lang,
+                            compiler_type,
+                            semver,
+                            instruction_set
+                         )
+                         VALUES ($1, $2, $3, $4, $5, $6)",
+                        target.id,
+                        target.name,
+                        target.lang,
+                        target.compiler_type,
+                        target.semver,
+                        target.instruction_set,
+                    )
+                    .execute(&mut *conn)
+                    .await?;
+                }
+
+                // Get the current utc timestamp
+                let current_time = Utc::now().timestamp_nanos();
+
+                // Set the last godbolt update time to now
+                sqlx::query!(
+                    "INSERT INTO last_godbolt_update (last_update)
+                     VALUES ($1)
+                     ON CONFLICT(id) DO UPDATE SET last_update = $1
+                     WHERE id = 0",
+                    current_time,
+                )
+                .execute(&mut *conn)
+                .await?;
+
+                Ok(())
+            })
+        })
+        .await?;
+
+        log::info!("finished updating godbolt targets list");
+    }
+
+    Ok(conn)
+}
+
+async fn fetch_godbolt_targets<'a, C>(conn: C) -> Result<HashMap<String, String>, Error>
+where
+    C: Executor<'a, Database = Sqlite> + 'a,
+{
+    let query = sqlx::query!("SELECT id, semver FROM godbolt_targets")
+        .fetch_all(conn)
+        .await?;
+
+    let targets = query
+        .into_iter()
+        .map(|target| (target.semver, target.id))
+        .collect();
+
+    Ok(targets)
+}
+
 // Transforms human readable rustc version (e.g. "1.34.1") into compiler id on godbolt (e.g. "r1341")
 // Full list of version<->id can be obtained at https://godbolt.org/api/compilers/rust
 // Ideally we'd also check that the version exists, and give a nice error message if not, but eh.
-fn translate_rustc_version(version: &str) -> Result<std::borrow::Cow<'_, str>, Error> {
-    if ["nightly", "beta"].contains(&version) {
-        return Ok(version.into());
-    }
-    // very crude sanity checking
-    if !version.chars().all(|c| c.is_digit(10) || c == '.') {
-        return Err(
-            "the `rustc` argument should be a version specifier. E.g. `nightly` `beta` or `1.45.2`"
+fn translate_rustc_version<'a>(
+    version: &str,
+    targets: &'a HashMap<String, String>,
+) -> Result<&'a str, Error> {
+    if let Some(godbolt_id) = targets.get(version.trim()) {
+        Ok(godbolt_id)
+    } else {
+        Err(
+            "the `rustc` argument should be a version specifier like `nightly` `beta` or `1.45.2`. \
+             Run ?godbolt-targets for a full list"
                 .into(),
-        );
+        )
     }
-    Ok(format!("r{}", version.replace(".", "")).into())
 }
 
 /// Compile a given Rust source code file on Godbolt using the latest nightly compiler with
@@ -73,12 +231,13 @@ fn translate_rustc_version(version: &str) -> Result<std::borrow::Cow<'_, str>, E
 /// Returns a multiline string with the pretty printed assembly
 async fn compile_rust_source(
     http: &reqwest::Client,
+    targets: &HashMap<String, String>,
     source_code: &str,
     rustc: &str,
     flags: &str,
     run_llvm_mca: bool,
 ) -> Result<Compilation, Error> {
-    let rustc = translate_rustc_version(rustc)?;
+    let rustc = translate_rustc_version(rustc, targets)?;
 
     let tools = if run_llvm_mca {
         serde_json::json! {
@@ -95,7 +254,7 @@ async fn compile_rust_source(
             "https://godbolt.org/api/compiler/{}/compile",
             rustc
         ))
-        .header(reqwest::header::ACCEPT, "application/json") // to make godbolt respond in JSON
+        .header(reqwest::header::ACCEPT, ACCEPT_JSON) // to make godbolt respond in JSON
         .json(&serde_json::json! { {
             "source": source_code,
             "options": {
@@ -202,8 +361,26 @@ async fn generic_godbolt(
 
     let (lang, text);
     let mut note = String::new();
-    let godbolt_result =
-        compile_rust_source(&ctx.data.http, &code.code, rustc, &flags, run_llvm_mca).await?;
+
+    let mut conn = match update_godbolt_targets(ctx.data).await {
+        Ok(conn) => conn,
+        Err(error) => {
+            log::error!("failed to update godbolt targets list: {:?}", error);
+            ctx.data.database.acquire().await?
+        }
+    };
+    let targets = fetch_godbolt_targets(&mut conn).await?;
+
+    let godbolt_result = compile_rust_source(
+        &ctx.data.http,
+        &targets,
+        &code.code,
+        rustc,
+        &flags,
+        run_llvm_mca,
+    )
+    .await?;
+
     match godbolt_result {
         Compilation::Success {
             asm,
@@ -279,6 +456,42 @@ pub async fn godbolt(
 
 fn strip_llvm_mca_result(text: &str) -> &str {
     text[..text.find("Instruction Info").unwrap_or_else(|| text.len())].trim()
+}
+
+/// Lists all available godbolt rustc targets
+#[poise::command(prefix_command, broadcast_typing)]
+pub async fn godbolt_targets(ctx: PrefixContext<'_>) -> Result<(), Error> {
+    let mut conn = match update_godbolt_targets(ctx.data).await {
+        Ok(conn) => conn,
+        Err(error) => {
+            log::error!("failed to update godbolt targets list: {:?}", error);
+            ctx.data.database.acquire().await?
+        }
+    };
+
+    let mut targets = sqlx::query!("SELECT name, semver, instruction_set FROM godbolt_targets")
+        .fetch_all(&mut conn)
+        .await?;
+    targets.sort_unstable_by(|lhs, rhs| lhs.semver.cmp(&rhs.semver));
+
+    ctx.msg
+        .channel_id
+        .send_message(&ctx.discord.http, |msg| {
+            msg.embed(|embed| {
+                embed
+                    .title("Godbolt Targets")
+                    .fields(targets.into_iter().map(|target| {
+                        (
+                            target.semver,
+                            format!("{} (runs on {})", target.name, target.instruction_set),
+                            true,
+                        )
+                    }))
+            })
+        })
+        .await?;
+
+    Ok(())
 }
 
 /// Run performance analysis using llvm-mca
@@ -357,9 +570,18 @@ pub async fn asmdiff(
 ) -> Result<(), Error> {
     let (rustc, flags) = rustc_version_and_flags(&params, GodboltMode::Asm);
 
+    let mut conn = match update_godbolt_targets(ctx.data).await {
+        Ok(conn) => conn,
+        Err(error) => {
+            log::error!("failed to update godbolt targets list: {:?}", error);
+            ctx.data.database.acquire().await?
+        }
+    };
+    let targets = fetch_godbolt_targets(&mut conn).await?;
+
     let (asm1, asm2) = tokio::try_join!(
-        compile_rust_source(&ctx.data.http, &code1.code, rustc, &flags, false),
-        compile_rust_source(&ctx.data.http, &code2.code, rustc, &flags, false),
+        compile_rust_source(&ctx.data.http, &targets, &code1.code, rustc, &flags, false),
+        compile_rust_source(&ctx.data.http, &targets, &code2.code, rustc, &flags, false),
     )?;
     let result = match (asm1, asm2) {
         (Compilation::Success { asm: a, .. }, Compilation::Success { asm: b, .. }) => Ok((a, b)),
