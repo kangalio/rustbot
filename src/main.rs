@@ -100,7 +100,7 @@ async fn listener(
             deleted_message_id, ..
         } => showcase::try_delete_showcase_message(ctx, data, *deleted_message_id).await?,
         poise::Event::GuildMemberAddition {
-            guild_id,
+            guild_id: _,
             new_member,
         } => {
             const RUSTIFICATION_DELAY: u64 = 30; // in minutes
@@ -155,7 +155,6 @@ async fn app() -> Result<(), Error> {
     let rustacean_role = env_var("RUSTACEAN_ROLE_ID")?;
     let reports_channel = env_var("REPORTS_CHANNEL_ID").ok();
     let showcase_channel = env_var("SHOWCASE_CHANNEL_ID")?;
-    let application_id = env_var("APPLICATION_ID")?;
     let database_url = env_var::<String>("DATABASE_URL")?;
     let custom_prefixes = env_var("CUSTOM_PREFIXES")?;
 
@@ -273,10 +272,10 @@ async fn app() -> Result<(), Error> {
         .await?;
     sqlx::migrate!("./migrations").run(&database).await?;
 
-    let framework = poise::Framework::new(
-        "?".into(),
-        serenity::ApplicationId(application_id),
-        move |ctx, bot, _framework| {
+    poise::Framework::build()
+        .token(discord_token)
+        .prefix("?")
+        .user_data_setup(move |ctx, bot, _framework| {
             Box::pin(async move {
                 ctx.set_activity(serenity::Activity::listening("?help"))
                     .await;
@@ -291,19 +290,15 @@ async fn app() -> Result<(), Error> {
                     database,
                 })
             })
-        },
-        options,
-    );
-
-    framework
-        .start(
-            serenity::ClientBuilder::new(discord_token)
-                .application_id(application_id)
-                .intents(
-                    serenity::GatewayIntents::non_privileged()
-                        | serenity::GatewayIntents::GUILD_MEMBERS,
-                ),
-        )
+        })
+        .options(options)
+        .client_settings(move |client_builder| {
+            client_builder.intents(
+                serenity::GatewayIntents::non_privileged()
+                    | serenity::GatewayIntents::GUILD_MEMBERS,
+            )
+        })
+        .run()
         .await?;
     Ok(())
 }
