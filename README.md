@@ -16,6 +16,9 @@ Adjust the client_id in the URL for your own hosted instances of the bot.
 
 ## Hosting the bot
 
+The bot requires `Server Members Intent` enabled in the `Applications > $YOUR_BOTS_NAME > Bot`
+settings of Discord's [developer portal](https://discord.com/developers/applications).
+
 Run the bot using `cargo run --release`.
 
 You will need to provide several environment variables. A convenient way to do this is to copy the
