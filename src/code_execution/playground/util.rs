@@ -266,8 +266,7 @@ pub fn apply_local_rustfmt(text: &str, edition: api::Edition) -> Result<api::Pla
             match edition {
                 api::Edition::E2015 => "2015",
                 api::Edition::E2018 => "2018",
-                // Fallback to 2018 edition when 2021 was specified since `rustfmt` does not support it yet
-                api::Edition::E2021 => "2018",
+                api::Edition::E2021 => "2021",
             },
             "--color",
             "never",
