@@ -71,3 +71,11 @@ pub async fn servers(ctx: Context<'_>) -> Result<(), Error> {
 
     Ok(())
 }
+
+/// Displays the SHA-1 git revision the bot was built against
+#[poise::command(prefix_command, hide_in_help, discard_spare_arguments)]
+pub async fn revision(ctx: Context<'_>) -> Result<(), Error> {
+    let rustbot_rev: Option<&'static str> = option_env!("RUSTBOT_REV");
+    poise::say_reply(ctx, format!("`{}`", rustbot_rev.unwrap_or("unknown"))).await?;
+    Ok(())
+}

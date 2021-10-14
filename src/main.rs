@@ -239,6 +239,7 @@ async fn app() -> Result<(), Error> {
     options.command(misc::register(), |f| f.category("Miscellaneous"));
     options.command(misc::uptime(), |f| f.category("Miscellaneous"));
     options.command(misc::servers(), |f| f.category("Miscellaneous"));
+    options.command(misc::revision(), |f| f.category("Miscellaneous"));
     if custom_prefixes {
         options.command(prefixes::prefix(), |f| {
             f.category("Miscellaneous")
