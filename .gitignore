@@ -1,3 +1,4 @@
 /target
 /.env
+/database
 /database.sqlite*
