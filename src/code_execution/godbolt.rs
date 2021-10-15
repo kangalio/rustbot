@@ -1,7 +1,7 @@
 use crate::{Data, Error, PrefixContext};
 use chrono::{TimeZone, Utc};
-use sqlx::{pool::PoolConnection, Connection, Executor, Sqlite};
-use std::{collections::HashMap, env, time::Duration};
+use sqlx::{pool::PoolConnection, Connection, Sqlite};
+use std::{cmp::Reverse, collections::HashMap, env, time::Duration};
 
 const LLVM_MCA_TOOL_ID: &str = "llvm-mcatrunk";
 const GODBOLT_TARGETS_URL: &str = "https://godbolt.org/api/compilers/rust";
@@ -79,13 +79,14 @@ impl GodboltTarget {
     }
 }
 
-async fn update_godbolt_targets(data: &Data) -> Result<PoolConnection<Sqlite>, Error> {
-    let mut conn = data.database.acquire().await?;
-
+async fn update_godbolt_targets(
+    conn: &mut PoolConnection<Sqlite>,
+    data: &Data,
+) -> Result<(), Error> {
     // Fetch the last time we updated the targets list, this will be null/none if we've never
     // done it before
     let last_update_time = sqlx::query!("SELECT last_update FROM last_godbolt_update")
-        .fetch_optional(&mut conn)
+        .fetch_optional(&mut *conn)
         .await?;
 
     let needs_update = if let Some(last_update_time) = last_update_time {
@@ -146,6 +147,13 @@ async fn update_godbolt_targets(data: &Data) -> Result<PoolConnection<Sqlite>, E
 
                 // Insert all of our newly fetched targets into the db
                 for target in targets {
+                    // Some versions have a leading `rustc ` (`rustc beta`, `rustc 1.40.0`, etc.),
+                    // so we strip that here so we only have to do it once
+                    let semver = target
+                        .semver
+                        .strip_prefix("rustc ")
+                        .unwrap_or(&*target.semver);
+
                     sqlx::query!(
                         "INSERT INTO godbolt_targets (
                             id,
@@ -160,7 +168,7 @@ async fn update_godbolt_targets(data: &Data) -> Result<PoolConnection<Sqlite>, E
                         target.name,
                         target.lang,
                         target.compiler_type,
-                        target.semver,
+                        semver,
                         target.instruction_set,
                     )
                     .execute(&mut *conn)
@@ -189,22 +197,28 @@ async fn update_godbolt_targets(data: &Data) -> Result<PoolConnection<Sqlite>, E
         log::info!("finished updating godbolt targets list");
     }
 
-    Ok(conn)
+    Ok(())
 }
 
-async fn fetch_godbolt_targets<'a, C>(conn: C) -> Result<HashMap<String, String>, Error>
-where
-    C: Executor<'a, Database = Sqlite> + 'a,
-{
+async fn fetch_godbolt_targets(data: &Data) -> Result<HashMap<String, String>, Error> {
+    let mut conn = data.database.acquire().await?;
+
+    // If we encounter an error while updating the targets list, just log it
+    if let Err(error) = update_godbolt_targets(&mut conn, data).await {
+        log::error!("failed to update godbolt targets list: {:?}", error);
+    }
+
+    log::info!("fetching godbolt targets");
     let query = sqlx::query!("SELECT id, semver FROM godbolt_targets")
-        .fetch_all(conn)
+        .fetch_all(&mut conn)
         .await?;
 
-    let targets = query
+    let targets: HashMap<_, _> = query
         .into_iter()
         .map(|target| (target.semver, target.id))
         .collect();
 
+    log::debug!("fetched {} godbolt targets", targets.len());
     Ok(targets)
 }
 
@@ -362,15 +376,7 @@ async fn generic_godbolt(
     let (lang, text);
     let mut note = String::new();
 
-    let mut conn = match update_godbolt_targets(ctx.data).await {
-        Ok(conn) => conn,
-        Err(error) => {
-            log::error!("failed to update godbolt targets list: {:?}", error);
-            ctx.data.database.acquire().await?
-        }
-    };
-    let targets = fetch_godbolt_targets(&mut conn).await?;
-
+    let targets = fetch_godbolt_targets(ctx.data).await?;
     let godbolt_result = compile_rust_source(
         &ctx.data.http,
         &targets,
@@ -458,38 +464,86 @@ fn strip_llvm_mca_result(text: &str) -> &str {
     text[..text.find("Instruction Info").unwrap_or_else(|| text.len())].trim()
 }
 
+/// Used to rank godbolt compiler versions for listing them out
+#[derive(PartialEq, Eq, PartialOrd, Ord)]
+enum SemverRanking<'a> {
+    Beta,
+    Nightly,
+    Compiler(&'a str),
+    Semver(Reverse<(u16, u16, u16)>),
+}
+
+impl<'a> From<&'a str> for SemverRanking<'a> {
+    fn from(semver: &'a str) -> Self {
+        match semver {
+            "beta" => Self::Beta,
+            "nightly" => Self::Nightly,
+
+            semver => {
+                // Rustc versions are received in a `X.X.X` form, so we parse out
+                // the major/minor/patch versions and then order them in *reverse*
+                // order based on their version triple, this means that the most
+                // recent (read: higher) versions will be at the top of the list
+                let mut version_triple = semver.splitn(3, '.');
+                let version_triple = version_triple
+                    .next()
+                    .zip(version_triple.next())
+                    .zip(version_triple.next())
+                    .and_then(|((major, minor), patch)| {
+                        Some((
+                            major.parse().ok()?,
+                            minor.parse().ok()?,
+                            patch.parse().ok()?,
+                        ))
+                    });
+
+                // If we successfully parsed out a semver tuple, return it
+                if let Some((major, minor, patch)) = version_triple {
+                    Self::Semver(Reverse((major, minor, patch)))
+
+                // Anything that doesn't fit the `X.X.X` format we treat as an alternative
+                // compiler, we list these after beta & nightly but before the many canonical
+                // rustc versions
+                } else {
+                    Self::Compiler(semver)
+                }
+            }
+        }
+    }
+}
+
 /// Lists all available godbolt rustc targets
 #[poise::command(prefix_command, broadcast_typing)]
 pub async fn godbolt_targets(ctx: PrefixContext<'_>) -> Result<(), Error> {
-    let mut conn = match update_godbolt_targets(ctx.data).await {
-        Ok(conn) => conn,
-        Err(error) => {
-            log::error!("failed to update godbolt targets list: {:?}", error);
-            ctx.data.database.acquire().await?
-        }
-    };
+    let mut conn = ctx.data.database.acquire().await?;
+
+    // Attempt to update the godbolt targets list, logging errors if they occur
+    if let Err(error) = update_godbolt_targets(&mut conn, ctx.data).await {
+        log::error!("failed to update godbolt targets list: {:?}", error);
+    }
 
     let mut targets = sqlx::query!("SELECT name, semver, instruction_set FROM godbolt_targets")
         .fetch_all(&mut conn)
         .await?;
-    targets.sort_unstable_by(|lhs, rhs| lhs.semver.cmp(&rhs.semver));
 
-    ctx.msg
-        .channel_id
-        .send_message(&ctx.discord.http, |msg| {
-            msg.embed(|embed| {
-                embed
-                    .title("Godbolt Targets")
-                    .fields(targets.into_iter().map(|target| {
-                        (
-                            target.semver,
-                            format!("{} (runs on {})", target.name, target.instruction_set),
-                            true,
-                        )
-                    }))
-            })
+    targets.sort_unstable_by(|lhs, rhs| {
+        SemverRanking::from(&*lhs.semver).cmp(&SemverRanking::from(&*rhs.semver))
+    });
+
+    poise::send_reply(ctx.into(), |msg| {
+        msg.embed(|embed| {
+            embed
+                .title("Godbolt Targets")
+                .fields(targets.into_iter().map(|target| {
+                    (
+                        target.semver,
+                        format!("{} (runs on {})", target.name, target.instruction_set),
+                        true,
+                    )
+                }))
         })
-        .await?;
+    })
+    .await?;
 
     Ok(())
 }
@@ -570,15 +624,7 @@ pub async fn asmdiff(
 ) -> Result<(), Error> {
     let (rustc, flags) = rustc_version_and_flags(&params, GodboltMode::Asm);
 
-    let mut conn = match update_godbolt_targets(ctx.data).await {
-        Ok(conn) => conn,
-        Err(error) => {
-            log::error!("failed to update godbolt targets list: {:?}", error);
-            ctx.data.database.acquire().await?
-        }
-    };
-    let targets = fetch_godbolt_targets(&mut conn).await?;
-
+    let targets = fetch_godbolt_targets(ctx.data).await?;
     let (asm1, asm2) = tokio::try_join!(
         compile_rust_source(&ctx.data.http, &targets, &code1.code, rustc, &flags, false),
         compile_rust_source(&ctx.data.http, &targets, &code2.code, rustc, &flags, false),
