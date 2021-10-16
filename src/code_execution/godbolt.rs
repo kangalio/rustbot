@@ -123,7 +123,7 @@ async fn update_godbolt_targets(
     if needs_update {
         let request = data
             .http
-            .post(GODBOLT_TARGETS_URL)
+            .get(GODBOLT_TARGETS_URL)
             .header(reqwest::header::ACCEPT, ACCEPT_JSON)
             .build()?;
 
