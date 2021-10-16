@@ -257,39 +257,6 @@ pub async fn send_reply(
     Ok(())
 }
 
-pub fn apply_local_rustfmt(text: &str, edition: api::Edition) -> Result<api::PlayResult, Error> {
-    use std::io::Write as _;
-
-    let mut child = std::process::Command::new("rustfmt")
-        .args(&[
-            "--edition",
-            match edition {
-                api::Edition::E2015 => "2015",
-                api::Edition::E2018 => "2018",
-                api::Edition::E2021 => "2021",
-            },
-            "--color",
-            "never",
-        ])
-        .stdin(std::process::Stdio::piped())
-        .stdout(std::process::Stdio::piped())
-        .stderr(std::process::Stdio::piped())
-        .spawn()?;
-
-    child
-        .stdin
-        .as_mut()
-        .ok_or("This can't happen, we captured by pipe")?
-        .write_all(text.as_bytes())?;
-
-    let output = child.wait_with_output()?;
-    Ok(api::PlayResult {
-        stdout: String::from_utf8_lossy(&output.stdout).into_owned(),
-        stderr: String::from_utf8_lossy(&output.stderr).into_owned(),
-        success: output.status.success(),
-    })
-}
-
 // This function must not break when provided non-formatted text with messed up formatting: rustfmt
 // may not be installed on the host's computer!
 pub fn strip_fn_main_boilerplate_from_formatted(text: &str) -> String {
