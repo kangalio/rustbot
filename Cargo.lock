@@ -29,6 +29,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "arc-swap"
+version = "1.4.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e6df5aef5c5830360ce5218cecb8f018af3438af5686ae945094affc86fdec63"
+
+[[package]]
 name = "async-trait"
 version = "0.1.48"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -913,8 +919,9 @@ checksum = "3831453b3449ceb48b6d9c7ad7c96d5ea673e9b470a1dc578c2ce6521230884c"
 [[package]]
 name = "poise"
 version = "0.1.0"
-source = "git+https://github.com/kangalioo/poise?branch=develop#f35cedd2735395949f103272f9f875761986333a"
+source = "git+https://github.com/kangalioo/poise?branch=develop#e1eac21e813da0e572307a9f588fc2615a4e7f20"
 dependencies = [
+ "arc-swap",
  "async-trait",
  "chrono",
  "futures",
@@ -930,7 +937,7 @@ dependencies = [
 [[package]]
 name = "poise_macros"
 version = "0.1.0"
-source = "git+https://github.com/kangalioo/poise?branch=develop#f35cedd2735395949f103272f9f875761986333a"
+source = "git+https://github.com/kangalioo/poise?branch=develop#e1eac21e813da0e572307a9f588fc2615a4e7f20"
 dependencies = [
  "darling",
  "proc-macro2",
@@ -1151,18 +1158,18 @@ dependencies = [
 
 [[package]]
 name = "serde"
-version = "1.0.125"
+version = "1.0.130"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "558dc50e1a5a5fa7112ca2ce4effcb321b0300c0d4ccf0776a9f60cd89031171"
+checksum = "f12d06de37cf59146fbdecab66aa99f9fe4f78722e3607577a5375d66bd0c913"
 dependencies = [
  "serde_derive",
 ]
 
 [[package]]
 name = "serde_derive"
-version = "1.0.125"
+version = "1.0.130"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b093b7a2bb58203b5da3056c05b4ec1fed827dcfdb37347a8841695263b3d06d"
+checksum = "d7bc1a1ab1961464eae040d96713baa5a724a8152c1222492465b54322ec508b"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -1196,7 +1203,7 @@ dependencies = [
 [[package]]
 name = "serenity"
 version = "0.10.9"
-source = "git+https://github.com/serenity-rs/serenity?branch=next#7e0b1d3d98956b4f26637645ed43ea9fea65ef43"
+source = "git+https://github.com/serenity-rs/serenity?branch=next#29dd43adeae81861613930e6d6385cd2497018de"
 dependencies = [
  "async-trait",
  "async-tungstenite",

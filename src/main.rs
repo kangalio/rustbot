@@ -160,6 +160,7 @@ async fn app() -> Result<(), Error> {
 
     let mut options = poise::FrameworkOptions {
         prefix_options: poise::PrefixFrameworkOptions {
+            prefix: Some("?".into()),
             additional_prefixes: vec![
                 poise::Prefix::Literal("🦀 "),
                 poise::Prefix::Literal("🦀"),
@@ -174,7 +175,7 @@ async fn app() -> Result<(), Error> {
             edit_tracker: Some(poise::EditTracker::for_timespan(
                 std::time::Duration::from_secs(3600 * 24 * 2),
             )),
-            dynamic_prefix: if custom_prefixes {
+            stripped_dynamic_prefix: if custom_prefixes {
                 Some(|ctx, msg, data| Box::pin(prefixes::try_strip_prefix(ctx, msg, data)))
             } else {
                 None
@@ -274,7 +275,6 @@ async fn app() -> Result<(), Error> {
 
     poise::Framework::build()
         .token(discord_token)
-        .prefix("?")
         .user_data_setup(move |ctx, bot, _framework| {
             Box::pin(async move {
                 ctx.set_activity(serenity::Activity::listening("?help"))
