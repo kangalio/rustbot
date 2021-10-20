@@ -51,9 +51,9 @@ jobs:
           profile: minimal
           toolchain: stable
           override: true
-      - run: cargo install sqlx-cli
-      - run: DATABASE_URL=database.sqlite sqlx database setup
-      - run: DATABASE_URL=database.sqlite cargo sqlx prepare
+      - run: cargo install --debug sqlx-cli # REMEMBER remove --debug
+      - run: DATABASE_URL=sqlite://database.sqlite sqlx database setup
+      - run: DATABASE_URL=sqlite://database.sqlite cargo sqlx prepare
       - uses: stefanzweifel/git-auto-commit-action@v4 # Commit modified sqlx-data.json
 
   fmt:
