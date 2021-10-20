@@ -129,7 +129,18 @@ pub async fn context_menu_rustify(ctx: Context<'_>, user: serenity::User) -> Res
     rustify_inner(ctx, &[member]).await
 }
 
-/// Discreetly report a user for breaking the rules
+/// Discreetly reports a user for breaking the rules
+///
+/// Call this command in a channel when someone might be breaking the rules, for example by being \
+/// very rude, or starting discussions about divisive topics like politics and religion. Nobody \
+/// will see that you invoked this command.
+///
+/// Your report, along with a link to the \
+/// channel and its most recent message, will show up in a dedicated reports channel for \
+/// moderators, and it allows them to deal with it much faster than if you were to DM a \
+/// potentially AFK moderator.
+///
+/// You can still always ping the Moderator role if you're comfortable doing so.
 #[poise::command(prefix_command, slash_command, ephemeral, hide_in_help)]
 pub async fn report(
     ctx: Context<'_>,
