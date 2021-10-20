@@ -1,6 +1,6 @@
 on: [push, pull_request]
 
-name: Continuous integration
+name: CI
 
 jobs:
   test:
@@ -41,6 +41,23 @@ jobs:
           override: true
       - run: cargo check ${{ matrix.feature_flags || '--all-features' }}
 
+  sqlx:
+    name: SQLx prepare
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - uses: actions-rs/toolchain@v1
+        with:
+          profile: minimal
+          toolchain: stable
+          override: true
+      - run: cargo install sqlx-cli
+      - run: DATABASE_URL=sqlite://database.sqlite sqlx database setup
+      - run: DATABASE_URL=sqlite://database.sqlite cargo sqlx prepare
+      - uses: stefanzweifel/git-auto-commit-action@v4
+        with:
+          commit_message: Update sqlx-data.json
+
   fmt:
     name: Rustfmt
     runs-on: ubuntu-latest
@@ -52,10 +69,7 @@ jobs:
           toolchain: stable
           override: true
       - run: rustup component add rustfmt
-      - uses: actions-rs/cargo@v1
-        with:
-          command: fmt
-          args: --all -- --check
+      - run: cargo fmt --all -- --check
 
   clippy:
     name: Clippy
