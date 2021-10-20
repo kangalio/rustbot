@@ -1,11 +1,9 @@
 use crate::{Data, Error, PrefixContext};
 use chrono::{TimeZone, Utc};
 use sqlx::{pool::PoolConnection, Connection, Sqlite};
-use std::{cmp::Reverse, collections::HashMap, env, time::Duration};
+use std::{cmp::Reverse, env, time::Duration};
 
 const LLVM_MCA_TOOL_ID: &str = "llvm-mcatrunk";
-const GODBOLT_TARGETS_URL: &str = "https://godbolt.org/api/compilers/rust";
-const ACCEPT_JSON: &str = "application/json";
 
 enum Compilation {
     Success {
@@ -123,8 +121,8 @@ async fn update_godbolt_targets(
     if needs_update {
         let request = data
             .http
-            .get(GODBOLT_TARGETS_URL)
-            .header(reqwest::header::ACCEPT, ACCEPT_JSON)
+            .get("https://godbolt.org/api/compilers/rust")
+            .header(reqwest::header::ACCEPT, "application/json")
             .build()?;
 
         let mut targets: Vec<GodboltTarget> = data.http.execute(request).await?.json().await?;
@@ -200,7 +198,7 @@ async fn update_godbolt_targets(
     Ok(())
 }
 
-async fn fetch_godbolt_targets(data: &Data) -> Result<HashMap<String, String>, Error> {
+async fn fetch_godbolt_targets(data: &Data) -> Result<Vec<GodboltTarget>, Error> {
     let mut conn = data.database.acquire().await?;
 
     // If we encounter an error while updating the targets list, just log it
@@ -209,35 +207,26 @@ async fn fetch_godbolt_targets(data: &Data) -> Result<HashMap<String, String>, E
     }
 
     log::info!("fetching godbolt targets");
-    let query = sqlx::query!("SELECT id, semver FROM godbolt_targets")
-        .fetch_all(&mut conn)
-        .await?;
+    let query = sqlx::query!(
+        "SELECT id, name, lang, compiler_type, semver, instruction_set FROM godbolt_targets"
+    )
+    .fetch_all(&mut conn)
+    .await?;
 
-    let targets: HashMap<_, _> = query
+    let targets = query
         .into_iter()
-        .map(|target| (target.semver, target.id))
-        .collect();
+        .map(|target| GodboltTarget {
+            id: target.id,
+            name: target.name,
+            lang: target.lang,
+            compiler_type: target.compiler_type,
+            semver: target.semver,
+            instruction_set: target.instruction_set,
+        })
+        .collect::<Vec<_>>();
 
     log::debug!("fetched {} godbolt targets", targets.len());
     Ok(targets)
-}
-
-// Transforms human readable rustc version (e.g. "1.34.1") into compiler id on godbolt (e.g. "r1341")
-// Full list of version<->id can be obtained at https://godbolt.org/api/compilers/rust
-// Ideally we'd also check that the version exists, and give a nice error message if not, but eh.
-fn translate_rustc_version<'a>(
-    version: &str,
-    targets: &'a HashMap<String, String>,
-) -> Result<&'a str, Error> {
-    if let Some(godbolt_id) = targets.get(version.trim()) {
-        Ok(godbolt_id)
-    } else {
-        Err(
-            "the `rustc` argument should be a version specifier like `nightly` `beta` or `1.45.2`. \
-             Run ?targets for a full list"
-                .into(),
-        )
-    }
 }
 
 /// Compile a given Rust source code file on Godbolt using the latest nightly compiler with
@@ -245,14 +234,11 @@ fn translate_rustc_version<'a>(
 /// Returns a multiline string with the pretty printed assembly
 async fn compile_rust_source(
     http: &reqwest::Client,
-    targets: &HashMap<String, String>,
     source_code: &str,
     rustc: &str,
     flags: &str,
     run_llvm_mca: bool,
 ) -> Result<Compilation, Error> {
-    let rustc = translate_rustc_version(rustc, targets)?;
-
     let tools = if run_llvm_mca {
         serde_json::json! {
             [{"id": LLVM_MCA_TOOL_ID}]
@@ -268,7 +254,7 @@ async fn compile_rust_source(
             "https://godbolt.org/api/compiler/{}/compile",
             rustc
         ))
-        .header(reqwest::header::ACCEPT, ACCEPT_JSON) // to make godbolt respond in JSON
+        .header(reqwest::header::ACCEPT, "application/json") // to make godbolt respond in JSON
         .json(&serde_json::json! { {
             "source": source_code,
             "options": {
@@ -349,18 +335,31 @@ enum GodboltMode {
     Mca,
 }
 
-fn rustc_version_and_flags(params: &poise::KeyValueArgs, mode: GodboltMode) -> (&str, String) {
+// Generates godbolt-compatible rustc identifier and flags from command input
+//
+// Transforms human readable rustc version (e.g. "1.34.1") into compiler id on godbolt (e.g. "r1341")
+// Full list of version<->id can be obtained at https://godbolt.org/api/compilers/rust
+async fn rustc_id_and_flags(
+    data: &Data,
+    params: &poise::KeyValueArgs,
+    mode: GodboltMode,
+) -> Result<(String, String), Error> {
     let rustc = params.get("rustc").unwrap_or("nightly");
+    let targets = fetch_godbolt_targets(data).await?;
+    let target = targets.into_iter().find(|target| target.semver == rustc.trim()).ok_or(
+        "the `rustc` argument should be a version specifier like `nightly` `beta` or `1.45.2`. \
+        Run ?targets for a full list",
+    )?;
+
     let mut flags = params
         .get("flags")
         .unwrap_or("-Copt-level=3 --edition=2018")
         .to_owned();
-
     if mode == GodboltMode::LlvmIr {
         flags += " --emit=llvm-ir -Cdebuginfo=0";
     }
 
-    (rustc, flags)
+    Ok((target.id, flags))
 }
 
 async fn generic_godbolt(
@@ -371,21 +370,13 @@ async fn generic_godbolt(
 ) -> Result<(), Error> {
     let run_llvm_mca = mode == GodboltMode::Mca;
 
-    let (rustc, flags) = rustc_version_and_flags(&params, mode);
+    let (rustc, flags) = rustc_id_and_flags(&ctx.data, &params, mode).await?;
 
     let (lang, text);
     let mut note = String::new();
 
-    let targets = fetch_godbolt_targets(ctx.data).await?;
-    let godbolt_result = compile_rust_source(
-        &ctx.data.http,
-        &targets,
-        &code.code,
-        rustc,
-        &flags,
-        run_llvm_mca,
-    )
-    .await?;
+    let godbolt_result =
+        compile_rust_source(&ctx.data.http, &code.code, &rustc, &flags, run_llvm_mca).await?;
 
     match godbolt_result {
         Compilation::Success {
@@ -428,7 +419,7 @@ async fn generic_godbolt(
             &format!("\n```{}", note),
             &format!(
                 "Output too large. Godbolt link: <{}>",
-                save_to_shortlink(&ctx.data.http, &code.code, rustc, &flags, run_llvm_mca).await?,
+                save_to_shortlink(&ctx.data.http, &code.code, &rustc, &flags, run_llvm_mca).await?,
             ),
         )
         .await?;
@@ -515,17 +506,9 @@ impl<'a> From<&'a str> for SemverRanking<'a> {
 /// Lists all available godbolt rustc targets
 #[poise::command(prefix_command, broadcast_typing)]
 pub async fn targets(ctx: PrefixContext<'_>) -> Result<(), Error> {
-    let mut conn = ctx.data.database.acquire().await?;
+    let mut targets = fetch_godbolt_targets(&ctx.data).await?;
 
-    // Attempt to update the godbolt targets list, logging errors if they occur
-    if let Err(error) = update_godbolt_targets(&mut conn, ctx.data).await {
-        log::error!("failed to update godbolt targets list: {:?}", error);
-    }
-
-    let mut targets = sqlx::query!("SELECT name, semver, instruction_set FROM godbolt_targets")
-        .fetch_all(&mut conn)
-        .await?;
-
+    // Can't use sort_by_key because https://github.com/rust-lang/rust/issues/34162
     targets.sort_unstable_by(|lhs, rhs| {
         SemverRanking::from(&*lhs.semver).cmp(&SemverRanking::from(&*rhs.semver))
     });
@@ -622,12 +605,11 @@ pub async fn asmdiff(
     code1: poise::CodeBlock,
     code2: poise::CodeBlock,
 ) -> Result<(), Error> {
-    let (rustc, flags) = rustc_version_and_flags(&params, GodboltMode::Asm);
+    let (rustc, flags) = rustc_id_and_flags(&ctx.data, &params, GodboltMode::Asm).await?;
 
-    let targets = fetch_godbolt_targets(ctx.data).await?;
     let (asm1, asm2) = tokio::try_join!(
-        compile_rust_source(&ctx.data.http, &targets, &code1.code, rustc, &flags, false),
-        compile_rust_source(&ctx.data.http, &targets, &code2.code, rustc, &flags, false),
+        compile_rust_source(&ctx.data.http, &code1.code, &rustc, &flags, false),
+        compile_rust_source(&ctx.data.http, &code2.code, &rustc, &flags, false),
     )?;
     let result = match (asm1, asm2) {
         (Compilation::Success { asm: a, .. }, Compilation::Success { asm: b, .. }) => Ok((a, b)),
