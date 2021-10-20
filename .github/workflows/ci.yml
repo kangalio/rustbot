@@ -51,10 +51,12 @@ jobs:
           profile: minimal
           toolchain: stable
           override: true
-      - run: cargo install --debug sqlx-cli # REMEMBER remove --debug
+      - run: cargo install sqlx-cli
       - run: DATABASE_URL=sqlite://database.sqlite sqlx database setup
       - run: DATABASE_URL=sqlite://database.sqlite cargo sqlx prepare
-      - uses: stefanzweifel/git-auto-commit-action@v4 # Commit modified sqlx-data.json
+      - uses: stefanzweifel/git-auto-commit-action@v4
+        with:
+          commit_message: Update sqlx-data.json
 
   fmt:
     name: Rustfmt
