@@ -216,10 +216,17 @@ async fn generic_godbolt(
             ctx,
             &format!("```{}\n{}", lang, text),
             &format!("\n```{}", note),
-            &format!(
-                "Output too large. Godbolt link: <{}>",
-                save_to_shortlink(&ctx.data.http, &code.code, &rustc, &flags, run_llvm_mca).await?,
-            ),
+            async {
+                format!(
+                    "Output too large. Godbolt link: <{}>",
+                    save_to_shortlink(&ctx.data.http, &code.code, &rustc, &flags, run_llvm_mca)
+                        .await
+                        .unwrap_or_else(|e| {
+                            log::warn!("failed to generate godbolt shortlink: {}", e);
+                            "failed to retrieve".to_owned()
+                        }),
+                )
+            },
         )
         .await?;
     }
@@ -362,7 +369,7 @@ pub async fn asmdiff(
                 ctx,
                 &format!("```diff\n{}", String::from_utf8_lossy(&diff)),
                 "```",
-                "(output was truncated)",
+                async { String::from("(output was truncated)") },
             )
             .await?;
         }
@@ -371,7 +378,7 @@ pub async fn asmdiff(
                 ctx,
                 &format!("```rust\n{}", stderr),
                 "```",
-                "(output was truncated)",
+                async { String::from("(output was truncated)") },
             )
             .await?;
         }

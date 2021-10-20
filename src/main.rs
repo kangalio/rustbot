@@ -376,15 +376,19 @@ async fn reply_potentially_long_text(
     ctx: PrefixContext<'_>,
     mut text_body: &str,
     text_end: &str,
-    truncation_msg: &str,
+    truncation_msg_future: impl std::future::Future<Output = String>,
 ) -> Result<(), Error> {
     const MAX_OUTPUT_LINES: usize = 45;
 
-    let mut was_truncated = false;
+    // Err with the future inside if no truncation occurs
+    let mut truncation_msg_maybe = Err(truncation_msg_future);
 
     // check Discord's 2000 char message limit first
     if text_body.len() + text_end.len() > 2000 {
-        was_truncated = true;
+        let truncation_msg = match truncation_msg_maybe {
+            Ok(msg) => msg,
+            Err(future) => future.await,
+        };
 
         // This is how long the text body may be at max to conform to Discord's limit
         let available_space = 2000_usize
@@ -397,11 +401,15 @@ async fn reply_potentially_long_text(
         }
 
         text_body = &text_body[..cut_off_point];
+        truncation_msg_maybe = Ok(truncation_msg);
     }
 
     // check number of lines
     let text_body = if text_body.lines().count() > MAX_OUTPUT_LINES {
-        was_truncated = true;
+        truncation_msg_maybe = Ok(match truncation_msg_maybe {
+            Ok(msg) => msg,
+            Err(future) => future.await,
+        });
 
         text_body
             .lines()
@@ -412,7 +420,7 @@ async fn reply_potentially_long_text(
         text_body.to_owned()
     };
 
-    let msg = if was_truncated {
+    let msg = if let Ok(truncation_msg) = truncation_msg_maybe {
         format!("{}{}{}", text_body, text_end, truncation_msg)
     } else {
         format!("{}{}", text_body, text_end)

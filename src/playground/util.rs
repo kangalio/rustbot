@@ -246,10 +246,12 @@ pub async fn send_reply(
             ctx,
             &format!("{}```rust\n{}", flag_parse_errors, result),
             "```",
-            &format!(
-                "Output too large. Playground link: <{}>",
-                api::url_from_gist(flags, &api::post_gist(ctx, code).await?),
-            ),
+            async {
+                format!(
+                    "Output too large. Playground link: <{}>",
+                    api::url_from_gist(flags, &api::post_gist(ctx, code).await.unwrap_or_default()),
+                )
+            },
         )
         .await?;
     }
