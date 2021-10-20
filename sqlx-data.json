@@ -18,6 +18,70 @@
       ]
     }
   },
+  "237439f7b23d96dcecea00d7351029be20de1e64989301dd34f7d0430b365b78": {
+    "query": "INSERT INTO last_godbolt_update (id, last_update)\n                     VALUES (0, $1)\n                     ON CONFLICT(id) DO UPDATE SET last_update = $1\n                     WHERE id = 0",
+    "describe": {
+      "columns": [],
+      "parameters": {
+        "Right": 1
+      },
+      "nullable": []
+    }
+  },
+  "4671726e63b9b0bb7c267c49469667fece16e80e7d24e65af0a8af73d1752e3f": {
+    "query": "SELECT id, semver FROM godbolt_targets",
+    "describe": {
+      "columns": [
+        {
+          "name": "id",
+          "ordinal": 0,
+          "type_info": "Text"
+        },
+        {
+          "name": "semver",
+          "ordinal": 1,
+          "type_info": "Text"
+        }
+      ],
+      "parameters": {
+        "Right": 0
+      },
+      "nullable": [
+        false,
+        false
+      ]
+    }
+  },
+  "48fbcdb5a3f087d33e6a4e8e6da1e77c724a62e487b3d29bcb9e648d8cc23765": {
+    "query": "SELECT name, semver, instruction_set FROM godbolt_targets",
+    "describe": {
+      "columns": [
+        {
+          "name": "name",
+          "ordinal": 0,
+          "type_info": "Text"
+        },
+        {
+          "name": "semver",
+          "ordinal": 1,
+          "type_info": "Text"
+        },
+        {
+          "name": "instruction_set",
+          "ordinal": 2,
+          "type_info": "Text"
+        }
+      ],
+      "parameters": {
+        "Right": 0
+      },
+      "nullable": [
+        false,
+        false,
+        false
+      ]
+    }
+  },
   "56c9460b27c5abfe68c321199e97acf861e66ad3b448bbea246caeeecbed754a": {
     "query": "INSERT INTO showcase (\n                output_message,\n                output_channel,\n                input_channel,\n                name_input_message,\n                description_input_message,\n                links_input_message\n            ) VALUES (?, ?, ?, ?, ?, ?)",
     "describe": {
@@ -50,6 +114,44 @@
         false,
         false
       ]
+    }
+  },
+  "aa590f193614bf3dd04542912ac092425104ad65434c6228623ccc72d6961682": {
+    "query": "INSERT INTO godbolt_targets (\n                            id,\n                            name,\n                            lang,\n                            compiler_type,\n                            semver,\n                            instruction_set\n                         )\n                         VALUES ($1, $2, $3, $4, $5, $6)",
+    "describe": {
+      "columns": [],
+      "parameters": {
+        "Right": 6
+      },
+      "nullable": []
+    }
+  },
+  "b57f1360935a20c292892c92ba0aa1f06e8bd40698e23053d3acd1f279319179": {
+    "query": "SELECT last_update FROM last_godbolt_update",
+    "describe": {
+      "columns": [
+        {
+          "name": "last_update",
+          "ordinal": 0,
+          "type_info": "Int64"
+        }
+      ],
+      "parameters": {
+        "Right": 0
+      },
+      "nullable": [
+        false
+      ]
+    }
+  },
+  "ba167103fd2134a69b6902e340e5a05a5504b082385c54dcf65872380890261b": {
+    "query": "DELETE FROM godbolt_targets",
+    "describe": {
+      "columns": [],
+      "parameters": {
+        "Right": 0
+      },
+      "nullable": []
     }
   },
   "d29a4508bd6cb335c52a111e2a2e00a712263dadb3e0ca9d3b96fd22253b6a20": {
