@@ -45,9 +45,9 @@ jobs:
     name: SQLx prepare
     runs-on: ubuntu-latest
     steps:
+      - uses: actions/checkout@v2
       - run: echo $PWD
       - run: ls
-      - uses: actions/checkout@v2
       - uses: actions-rs/toolchain@v1
         with:
           profile: minimal
