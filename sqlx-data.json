@@ -18,6 +18,16 @@
       ]
     }
   },
+  "237439f7b23d96dcecea00d7351029be20de1e64989301dd34f7d0430b365b78": {
+    "query": "INSERT INTO last_godbolt_update (id, last_update)\n                     VALUES (0, $1)\n                     ON CONFLICT(id) DO UPDATE SET last_update = $1\n                     WHERE id = 0",
+    "describe": {
+      "columns": [],
+      "parameters": {
+        "Right": 1
+      },
+      "nullable": []
+    }
+  },
   "4671726e63b9b0bb7c267c49469667fece16e80e7d24e65af0a8af73d1752e3f": {
     "query": "SELECT id, semver FROM godbolt_targets",
     "describe": {
@@ -190,16 +200,6 @@
         false,
         false
       ]
-    }
-  },
-  "d3ed6055e19d032556d99f9d9f72b8b37829d0883db8955fc1c9f42774ef64a9": {
-    "query": "INSERT INTO last_godbolt_update (last_update)\n                     VALUES ($1)\n                     ON CONFLICT(id) DO UPDATE SET last_update = $1\n                     WHERE id = 0",
-    "describe": {
-      "columns": [],
-      "parameters": {
-        "Right": 1
-      },
-      "nullable": []
     }
   },
   "fbdb849b8c6fcd65e735aeec208933fdf4f3769f6737495aed1c510d85270df4": {

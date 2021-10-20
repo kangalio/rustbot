@@ -180,8 +180,8 @@ async fn update_godbolt_targets(
 
                 // Set the last godbolt update time to now
                 sqlx::query!(
-                    "INSERT INTO last_godbolt_update (last_update)
-                     VALUES ($1)
+                    "INSERT INTO last_godbolt_update (id, last_update)
+                     VALUES (0, $1)
                      ON CONFLICT(id) DO UPDATE SET last_update = $1
                      WHERE id = 0",
                     current_time,
