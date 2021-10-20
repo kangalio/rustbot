@@ -1,5 +1,4 @@
 {
-  "poopoo": "hello",
   "db": "SQLite",
   "1b233c1da73a7067cca2640c75f06808943fb707af13a4118976eb6a80baa537": {
     "query": "SELECT string FROM prefix WHERE user_id = ?",
