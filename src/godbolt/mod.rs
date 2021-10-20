@@ -1,6 +1,6 @@
 mod targets;
 use targets::rustc_id_and_flags;
-pub use targets::targets;
+pub use targets::{targets, GodboltTargets};
 
 use crate::{Error, PrefixContext};
 

@@ -137,6 +137,7 @@ pub struct Data {
     bot_start_time: std::time::Instant,
     http: reqwest::Client,
     database: sqlx::SqlitePool,
+    godbolt_targets: std::sync::Mutex<godbolt::GodboltTargets>,
 }
 
 fn env_var<T: std::str::FromStr>(name: &str) -> Result<T, Error>
@@ -290,6 +291,7 @@ async fn app() -> Result<(), Error> {
                     bot_start_time: std::time::Instant::now(),
                     http: reqwest::Client::new(),
                     database,
+                    godbolt_targets: std::sync::Mutex::new(godbolt::GodboltTargets::default()),
                 })
             })
         })
