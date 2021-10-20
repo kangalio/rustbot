@@ -102,7 +102,7 @@ pub async fn showcase(ctx: Context<'_>) -> Result<(), Error> {
         )
         .await
     {
-        println!(
+        log::warn!(
             "Couldn't create associated thread for showcase entry: {}",
             e
         )

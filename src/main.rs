@@ -19,7 +19,7 @@ pub const EMBED_COLOR: (u8, u8, u8) = (0xb7, 0x47, 0x00); // slightly less satur
 /// In prefix commands, react with a red cross emoji. In slash commands, respond with a short
 /// explanation.
 async fn acknowledge_fail(error: Error, ctx: poise::CommandErrorContext<'_, Data, Error>) {
-    println!("Reacting with red cross because of error: {}", error);
+    log::warn!("Reacting with red cross because of error: {}", error);
     match ctx {
         poise::CommandErrorContext::Prefix(ctx) => {
             if let Err(e) = ctx
@@ -28,12 +28,12 @@ async fn acknowledge_fail(error: Error, ctx: poise::CommandErrorContext<'_, Data
                 .react(ctx.ctx.discord, serenity::ReactionType::from('❌'))
                 .await
             {
-                println!("Failed to react with red cross: {}", e);
+                log::warn!("Failed to react with red cross: {}", e);
             }
         }
         poise::CommandErrorContext::Application(ctx) => {
             if let Err(e) = poise::say_reply(ctx.ctx.into(), format!("❌ {}", error)).await {
-                println!(
+                log::warn!(
                     "Failed to send failure acknowledgment slash command response: {}",
                     e
                 );
@@ -50,7 +50,7 @@ async fn acknowledge_prefix_fail(
 }
 
 async fn on_error(error: Error, ctx: poise::ErrorContext<'_, Data, Error>) {
-    println!("Encountered error: {:?}", error);
+    log::warn!("Encountered error: {:?}", error);
     if let poise::ErrorContext::Command(ctx) = ctx {
         let reply = if let Some(poise::ArgumentParseError(error)) = error.downcast_ref() {
             if error.is::<poise::CodeBlockError>() {
@@ -185,7 +185,6 @@ async fn app() -> Result<(), Error> {
         },
         pre_command: |ctx| {
             Box::pin(async move {
-                let datetime = ctx.created_at();
                 let channel_name = ctx
                     .channel_id()
                     .name(&ctx.discord())
@@ -195,17 +194,16 @@ async fn app() -> Result<(), Error> {
 
                 match ctx {
                     poise::Context::Prefix(ctx) => {
-                        println!(
-                            "[{}] {} in {}: {}",
-                            datetime, author, channel_name, &ctx.msg.content
-                        );
+                        log::info!("{} in {}: {}", author, channel_name, &ctx.msg.content);
                     }
                     poise::Context::Application(ctx) => {
                         let command_name = &ctx.interaction.data.name;
 
-                        println!(
-                            "[{}] {} in {} used slash command '{}'",
-                            datetime, author, channel_name, command_name
+                        log::info!(
+                            "{} in {} used slash command '{}'",
+                            author,
+                            channel_name,
+                            command_name
                         );
                     }
                 }
