@@ -46,15 +46,14 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
-      - run: echo $PWD
-      - run: ls
       - uses: actions-rs/toolchain@v1
         with:
           profile: minimal
           toolchain: stable
           override: true
       - run: cargo install sqlx-cli
-      - run: cargo sqlx prepare
+      - run: DATABASE_URL=database.sqlite sqlx database setup
+      - run: DATABASE_URL=database.sqlite cargo sqlx prepare
       - uses: stefanzweifel/git-auto-commit-action@v4 # Commit modified sqlx-data.json
 
   fmt:
