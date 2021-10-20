@@ -1,6 +1,6 @@
 on: [push, pull_request]
 
-name: Continuous integration
+name: CI
 
 jobs:
   test:
@@ -51,7 +51,7 @@ jobs:
           profile: minimal
           toolchain: stable
           override: true
-      - run: cargo install sqlx
+      - run: cargo install sqlx-cli
       - run: cargo sqlx prepare
       - uses: stefanzweifel/git-auto-commit-action@v4 # Commit modified sqlx-data.json
 
