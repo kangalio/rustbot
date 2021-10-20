@@ -228,6 +228,7 @@ async fn app() -> Result<(), Error> {
     options.command(godbolt::mca(), |f| f.category("Godbolt"));
     options.command(godbolt::llvmir(), |f| f.category("Godbolt"));
     options.command(godbolt::asmdiff(), |f| f.category("Godbolt"));
+    options.command(godbolt::targets(), |f| f.category("Godbolt"));
     options.command(crates::crate_(), |f| f.category("Crates"));
     options.command(crates::doc(), |f| f.category("Crates"));
     options.command(moderation::cleanup(), |f| f.category("Moderation"));
