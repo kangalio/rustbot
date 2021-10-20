@@ -234,7 +234,7 @@ fn translate_rustc_version<'a>(
     } else {
         Err(
             "the `rustc` argument should be a version specifier like `nightly` `beta` or `1.45.2`. \
-             Run ?godbolt-targets for a full list"
+             Run ?targets for a full list"
                 .into(),
         )
     }
@@ -514,7 +514,7 @@ impl<'a> From<&'a str> for SemverRanking<'a> {
 
 /// Lists all available godbolt rustc targets
 #[poise::command(prefix_command, broadcast_typing)]
-pub async fn godbolt_targets(ctx: PrefixContext<'_>) -> Result<(), Error> {
+pub async fn targets(ctx: PrefixContext<'_>) -> Result<(), Error> {
     let mut conn = ctx.data.database.acquire().await?;
 
     // Attempt to update the godbolt targets list, logging errors if they occur
