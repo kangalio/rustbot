@@ -2,3 +2,4 @@
 /.env
 /database
 /database.sqlite*
+*~
