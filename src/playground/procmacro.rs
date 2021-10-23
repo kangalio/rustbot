@@ -72,7 +72,7 @@ fn main() -> std::io::Result<()> {
             // These flags only apply to the glue code
             channel: Channel::Stable,
             crate_type: CrateType::Binary,
-            edition: Edition::E2018,
+            edition: Edition::E2021,
             mode: Mode::Debug,
             tests: false,
         })
