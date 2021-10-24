@@ -22,7 +22,7 @@ pub fn parse_flags(mut args: poise::KeyValueArgs) -> (api::CommandFlags, String)
     let mut flags = api::CommandFlags {
         channel: api::Channel::Nightly,
         mode: api::Mode::Debug,
-        edition: api::Edition::E2018,
+        edition: api::Edition::E2021,
         warn: false,
     };
 
@@ -93,7 +93,7 @@ pub fn generic_help(spec: GenericHelp<'_>) -> String {
         reply += "- mode: debug, release (default: debug)\n";
         reply += "- channel: stable, beta, nightly (default: nightly)\n";
     }
-    reply += "- edition: 2015, 2018, 2021 (default: 2018)\n";
+    reply += "- edition: 2015, 2018, 2021 (default: 2021)\n";
     if spec.warn {
         reply += "- warn: true, false (default: false)\n";
     }
