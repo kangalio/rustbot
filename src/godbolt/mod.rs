@@ -169,13 +169,13 @@ async fn generic_godbolt(
 ) -> Result<(), Error> {
     let run_llvm_mca = mode == GodboltMode::Mca;
 
-    let (rustc, flags) = rustc_id_and_flags(&ctx.data, &params, mode).await?;
+    let (rustc, flags) = rustc_id_and_flags(ctx.data, &params, mode).await?;
 
     let (lang, text);
     let mut note = String::new();
 
     let godbolt_result =
-        compile_rust_source(&ctx.data.http, &code.code, &rustc, &flags, run_llvm_mca).await?;
+        compile_rust_source(ctx.data.http, &code.code, &rustc, &flags, run_llvm_mca).await?;
 
     match godbolt_result {
         Compilation::Success {

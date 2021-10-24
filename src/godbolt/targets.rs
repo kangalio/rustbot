@@ -172,7 +172,7 @@ impl<'a> From<&'a str> for SemverRanking<'a> {
 /// Lists all available godbolt rustc targets
 #[poise::command(prefix_command, broadcast_typing)]
 pub async fn targets(ctx: PrefixContext<'_>) -> Result<(), Error> {
-    let mut targets = fetch_godbolt_targets(&ctx.data).await;
+    let mut targets = fetch_godbolt_targets(ctx.data).await;
 
     // Can't use sort_by_key because https://github.com/rust-lang/rust/issues/34162
     targets.sort_unstable_by(|lhs, rhs| {
