@@ -246,7 +246,7 @@ async fn generic_godbolt(
 /// ``​`
 /// ```
 /// Optional arguments:
-/// - `flags`: flags to pass to rustc invocation. Defaults to `"-Copt-level=3 --edition=2018"`
+/// - `flags`: flags to pass to rustc invocation. Defaults to `"-Copt-level=3 --edition=2021"`
 /// - `rustc`: compiler version to invoke. Defaults to `nightly`. Possible values: `nightly`, `beta` or full version like `1.45.2`
 #[poise::command(prefix_command, broadcast_typing, track_edits)]
 pub async fn godbolt(
@@ -273,7 +273,7 @@ fn strip_llvm_mca_result(text: &str) -> &str {
 /// ``​`
 /// ```
 /// Optional arguments:
-/// - `flags`: flags to pass to rustc invocation. Defaults to `"-Copt-level=3 --edition=2018"`
+/// - `flags`: flags to pass to rustc invocation. Defaults to `"-Copt-level=3 --edition=2021"`
 /// - `rustc`: compiler version to invoke. Defaults to `nightly`. Possible values: `nightly`, `beta` or full version like `1.45.2`
 #[poise::command(prefix_command, broadcast_typing, track_edits)]
 pub async fn mca(
@@ -298,7 +298,7 @@ pub async fn mca(
 /// ``​`
 /// ```
 /// Optional arguments:
-/// - `flags`: flags to pass to rustc invocation. Defaults to `"-Copt-level=3 --edition=2018"`
+/// - `flags`: flags to pass to rustc invocation. Defaults to `"-Copt-level=3 --edition=2021"`
 /// - `rustc`: compiler version to invoke. Defaults to `nightly`. Possible values: `nightly`, `beta` or full version like `1.45.2`
 #[poise::command(prefix_command, broadcast_typing, track_edits)]
 pub async fn llvmir(
@@ -326,7 +326,7 @@ pub async fn llvmir(
 /// ``​`
 /// ```
 /// Optional arguments:
-/// - `flags`: flags to pass to rustc invocation. Defaults to `"-Copt-level=3 --edition=2018"`
+/// - `flags`: flags to pass to rustc invocation. Defaults to `"-Copt-level=3 --edition=2021"`
 /// - `rustc`: compiler version to invoke. Defaults to `nightly`. Possible values: `nightly`, `beta` or full version like `1.45.2`
 #[poise::command(prefix_command, broadcast_typing, track_edits, hide_in_help)]
 pub async fn asmdiff(

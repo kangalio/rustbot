@@ -112,7 +112,7 @@ pub(super) async fn rustc_id_and_flags(
 
     let mut flags = params
         .get("flags")
-        .unwrap_or("-Copt-level=3 --edition=2018")
+        .unwrap_or("-Copt-level=3 --edition=2021")
         .to_owned();
     if mode == GodboltMode::LlvmIr {
         flags += " --emit=llvm-ir -Cdebuginfo=0";

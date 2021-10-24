@@ -22,12 +22,7 @@ async fn play_or_eval(
         .post("https://play.rust-lang.org/execute")
         .json(&PlaygroundRequest {
             code: &code,
-            channel: if let Edition::E2021 = flags.edition {
-                // Edition 2021 only makes sense with nightly at the moment
-                Channel::Nightly
-            } else {
-                flags.channel
-            },
+            channel: flags.channel,
             crate_type: if code.contains("fn main") {
                 CrateType::Binary
             } else {
