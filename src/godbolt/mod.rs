@@ -175,7 +175,7 @@ async fn generic_godbolt(
     let mut note = String::new();
 
     let godbolt_result =
-        compile_rust_source(ctx.data.http, &code.code, &rustc, &flags, run_llvm_mca).await?;
+        compile_rust_source(&ctx.data.http, &code.code, &rustc, &flags, run_llvm_mca).await?;
 
     match godbolt_result {
         Compilation::Success {
@@ -335,7 +335,7 @@ pub async fn asmdiff(
     code1: poise::CodeBlock,
     code2: poise::CodeBlock,
 ) -> Result<(), Error> {
-    let (rustc, flags) = rustc_id_and_flags(&ctx.data, &params, GodboltMode::Asm).await?;
+    let (rustc, flags) = rustc_id_and_flags(ctx.data, &params, GodboltMode::Asm).await?;
 
     let (asm1, asm2) = tokio::try_join!(
         compile_rust_source(&ctx.data.http, &code1.code, &rustc, &flags, false),
