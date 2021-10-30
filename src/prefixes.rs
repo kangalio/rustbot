@@ -11,7 +11,7 @@ the bot.
 If your idea turns out less funny than you thought it would be, remove it with \
 `?prefix remove your prefix here `.
     
-Forgot all your funny prefixes? Try `?prefix list`."
+Forgot your prefixes? Try `?prefix list`."
         .into()
 }
 
