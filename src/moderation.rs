@@ -1,4 +1,4 @@
-use crate::{serenity, Context, Error, PrefixContext};
+use crate::{serenity, Context, Error};
 
 /// Deletes the bot's messages for cleanup
 ///
@@ -129,6 +129,19 @@ pub async fn context_menu_rustify(ctx: Context<'_>, user: serenity::User) -> Res
     rustify_inner(ctx, &[member]).await
 }
 
+async fn latest_message_link(ctx: Context<'_>) -> String {
+    let message = ctx
+        .channel_id()
+        .messages(ctx.discord(), |f| f.limit(1))
+        .await
+        .ok()
+        .and_then(|messages| messages.into_iter().next());
+    match message {
+        Some(msg) => msg.link_ensured(ctx.discord()).await,
+        None => "<couldn't retrieve latest message link>".into(),
+    }
+}
+
 /// Discreetly reports a user for breaking the rules
 ///
 /// Call this command in a channel when someone might be breaking the rules, for example by being \
@@ -163,16 +176,6 @@ pub async fn report(
         .guild()
         .ok_or("This command can only be used in a guild")?;
 
-    let naughty_message = naughty_channel
-        .messages(ctx.discord(), |f| f.limit(1))
-        .await?
-        .into_iter()
-        .next();
-    let naughty_message_link = match naughty_message {
-        Some(msg) => msg.link_ensured(ctx.discord()).await,
-        None => "<couldn't retrieve latest message link>".into(),
-    };
-
     reports_channel
         .say(
             ctx.discord(),
@@ -180,7 +183,7 @@ pub async fn report(
                 "{} sent a report from channel {}: {}\n> {}",
                 ctx.author().name,
                 naughty_channel.name,
-                naughty_message_link,
+                latest_message_link(ctx).await,
                 reason
             ),
         )
@@ -198,9 +201,9 @@ pub async fn report(
 /// Move a discussion to another channel
 ///
 /// Move a discussion to a specified channel. You can add a discussion topic to the command.
-#[poise::command(prefix_command, rename = "move", aliases("migrate"))]
+#[poise::command(prefix_command, slash_command, rename = "move", aliases("migrate"))]
 pub async fn move_(
-    ctx: PrefixContext<'_>,
+    ctx: Context<'_>,
     #[description = "Where to move the discussion"] target_channel: serenity::GuildChannel,
     #[rest]
     #[description = "Topic of the discussion"]
@@ -208,14 +211,14 @@ pub async fn move_(
 ) -> Result<(), Error> {
     use serenity::Mentionable as _;
 
-    if Some(target_channel.guild_id) != ctx.msg.guild_id {
+    if Some(target_channel.guild_id) != ctx.guild_id() {
         return Err("Can't move discussion across servers".into());
     }
 
     // DON'T use GuildChannel::permissions_for_user - it requires member to be cached
-    let guild = ctx.msg.guild(ctx.discord).ok_or("Guild not in cache")?;
-    let permissions_in_target_channel =
-        guild.user_permissions_in(&target_channel, &ctx.msg.member(ctx.discord).await?)?;
+    let guild = ctx.guild().ok_or("Guild not in cache")?;
+    let member = guild.member(ctx.discord(), ctx.author().id).await?;
+    let permissions_in_target_channel = guild.user_permissions_in(&target_channel, &member)?;
     if !permissions_in_target_channel.send_messages() {
         return Err(format!(
             "You don't have permission to post in {}",
@@ -224,10 +227,15 @@ pub async fn move_(
         .into());
     }
 
+    let source_msg_link = match ctx {
+        Context::Prefix(ctx) => ctx.msg.link_ensured(ctx.discord).await,
+        _ => latest_message_link(ctx).await,
+    };
+
     let mut comefrom_message = format!(
         "**Discussion moved here from {}**\n{}",
-        ctx.msg.channel_id.mention(),
-        ctx.msg.link_ensured(ctx.discord).await
+        ctx.channel_id().mention(),
+        source_msg_link
     );
 
     if let Some(topic) = topic {
@@ -236,7 +244,7 @@ pub async fn move_(
     }
 
     let comefrom_message = target_channel
-        .send_message(ctx.discord, |f| {
+        .send_message(ctx.discord(), |f| {
             f.content(comefrom_message).allowed_mentions(|f| f)
         })
         .await?;
@@ -245,9 +253,9 @@ pub async fn move_(
         ctx.into(),
         format!(
             "**{} suggested to move this discussion to {}**\n{}",
-            &ctx.msg.author.tag(),
+            &ctx.author().tag(),
             target_channel.mention(),
-            comefrom_message.link_ensured(ctx.discord).await
+            comefrom_message.link_ensured(ctx.discord()).await
         ),
     )
     .await?;
