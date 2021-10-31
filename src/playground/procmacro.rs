@@ -1,5 +1,5 @@
 use super::{api::*, util::*};
-use crate::{Error, PrefixContext};
+use crate::{Context, Error};
 
 /// Compile and use a procedural macro
 #[poise::command(
@@ -9,7 +9,7 @@ use crate::{Error, PrefixContext};
     explanation_fn = "procmacro_help"
 )]
 pub async fn procmacro(
-    ctx: PrefixContext<'_>,
+    ctx: Context<'_>,
     flags: poise::KeyValueArgs,
     macro_code: poise::CodeBlock,
     usage_code: poise::CodeBlock,
@@ -64,7 +64,7 @@ fn main() -> std::io::Result<()> {
     );
 
     let mut result: PlayResult = ctx
-        .data
+        .data()
         .http
         .post("https://play.rust-lang.org/execute")
         .json(&PlaygroundRequest {

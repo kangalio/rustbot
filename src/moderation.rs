@@ -55,18 +55,15 @@ pub async fn ban(
     #[rest]
     reason: Option<String>,
 ) -> Result<(), Error> {
-    poise::say_reply(
-        ctx,
-        format!(
-            "Banned user {}{}  {}",
-            banned_user.user.tag(),
-            match reason {
-                Some(reason) => format!(" {}", reason.trim()),
-                None => String::new(),
-            },
-            crate::custom_emoji_code(ctx, "ferrisBanne", '🔨').await
-        ),
-    )
+    ctx.say(format!(
+        "Banned user {}{}  {}",
+        banned_user.user.tag(),
+        match reason {
+            Some(reason) => format!(" {}", reason.trim()),
+            None => String::new(),
+        },
+        crate::custom_emoji_code(ctx, "ferrisBanne", '🔨').await
+    ))
     .await?;
     Ok(())
 }
@@ -154,16 +151,11 @@ async fn latest_message_link(ctx: Context<'_>) -> String {
 /// potentially AFK moderator.
 ///
 /// You can still always ping the Moderator role if you're comfortable doing so.
-#[poise::command(prefix_command, slash_command, ephemeral, hide_in_help)]
+#[poise::command(slash_command, ephemeral, hide_in_help)]
 pub async fn report(
     ctx: Context<'_>,
     #[description = "What did the user do wrong?"] reason: String,
 ) -> Result<(), Error> {
-    let slash_ctx = match ctx {
-        poise::Context::Application(ctx) => ctx,
-        _ => return Ok(()),
-    };
-
     let reports_channel = ctx
         .data()
         .reports_channel
@@ -189,11 +181,8 @@ pub async fn report(
         )
         .await?;
 
-    poise::say_reply(
-        slash_ctx.into(),
-        "Successfully sent report. Thanks for helping to make this community a better place!",
-    )
-    .await?;
+    ctx.say("Successfully sent report. Thanks for helping to make this community a better place!")
+        .await?;
 
     Ok(())
 }
@@ -249,15 +238,12 @@ pub async fn move_(
         })
         .await?;
 
-    poise::say_reply(
-        ctx.into(),
-        format!(
-            "**{} suggested to move this discussion to {}**\n{}",
-            &ctx.author().tag(),
-            target_channel.mention(),
-            comefrom_message.link_ensured(ctx.discord()).await
-        ),
-    )
+    ctx.say(format!(
+        "**{} suggested to move this discussion to {}**\n{}",
+        &ctx.author().tag(),
+        target_channel.mention(),
+        comefrom_message.link_ensured(ctx.discord()).await
+    ))
     .await?;
 
     Ok(())

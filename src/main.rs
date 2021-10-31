@@ -8,13 +8,11 @@ mod showcase;
 
 use poise::serenity_prelude as serenity;
 
-pub type Error = Box<dyn std::error::Error + Send + Sync>;
-pub type Context<'a> = poise::Context<'a, Data, Error>;
-pub type PrefixContext<'a> = poise::PrefixContext<'a, Data, Error>;
-pub type ApplicationContext<'a> = poise::ApplicationContext<'a, Data, Error>;
+type Error = Box<dyn std::error::Error + Send + Sync>;
+type Context<'a> = poise::Context<'a, Data, Error>;
 
-// pub const EMBED_COLOR: (u8, u8, u8) = (0xf7, 0x4c, 0x00);
-pub const EMBED_COLOR: (u8, u8, u8) = (0xb7, 0x47, 0x00); // slightly less saturated
+// const EMBED_COLOR: (u8, u8, u8) = (0xf7, 0x4c, 0x00);
+const EMBED_COLOR: (u8, u8, u8) = (0xb7, 0x47, 0x00); // slightly less saturated
 
 /// In prefix commands, react with a red cross emoji. In slash commands, respond with a short
 /// explanation.
@@ -31,8 +29,8 @@ async fn acknowledge_fail(error: Error, ctx: poise::CommandErrorContext<'_, Data
                 log::warn!("Failed to react with red cross: {}", e);
             }
         }
-        poise::CommandErrorContext::Application(ctx) => {
-            if let Err(e) = poise::say_reply(ctx.ctx.into(), format!("❌ {}", error)).await {
+        poise::CommandErrorContext::Application(_) => {
+            if let Err(e) = ctx.ctx().say(format!("❌ {}", error)).await {
                 log::warn!(
                     "Failed to send failure acknowledgment slash command response: {}",
                     e
@@ -81,7 +79,7 @@ code here
         } else {
             error.to_string()
         };
-        if let Err(e) = poise::say_reply(ctx.ctx(), reply).await {
+        if let Err(e) = ctx.ctx().say(reply).await {
             log::warn!("{}", e);
         }
     }
@@ -305,7 +303,7 @@ async fn app() -> Result<(), Error> {
     Ok(())
 }
 
-pub async fn find_custom_emoji(ctx: Context<'_>, emoji_name: &str) -> Option<serenity::Emoji> {
+async fn find_custom_emoji(ctx: Context<'_>, emoji_name: &str) -> Option<serenity::Emoji> {
     ctx.guild_id()?
         .to_guild_cached(ctx.discord())?
         .emojis
@@ -314,7 +312,7 @@ pub async fn find_custom_emoji(ctx: Context<'_>, emoji_name: &str) -> Option<ser
         .cloned()
 }
 
-pub async fn custom_emoji_code(ctx: Context<'_>, emoji_name: &str, fallback: char) -> String {
+async fn custom_emoji_code(ctx: Context<'_>, emoji_name: &str, fallback: char) -> String {
     match find_custom_emoji(ctx, emoji_name).await {
         Some(emoji) => emoji.to_string(),
         None => fallback.to_string(),
@@ -325,7 +323,7 @@ pub async fn custom_emoji_code(ctx: Context<'_>, emoji_name: &str, fallback: cha
 /// emoji.
 ///
 /// In slash commands, currently nothing happens.
-pub async fn acknowledge_success(
+async fn acknowledge_success(
     ctx: Context<'_>,
     emoji_name: &str,
     fallback: char,
@@ -339,16 +337,16 @@ pub async fn acknowledge_success(
 
             ctx.msg.react(ctx.discord, reaction).await?;
         }
-        Context::Application(ctx) => {
+        Context::Application(_) => {
             let msg_content = match emoji {
                 Some(e) => e.to_string(),
                 None => fallback.to_string(),
             };
-            if let Ok(Some(reply)) = poise::say_reply(ctx.into(), msg_content).await {
+            if let Ok(Some(reply)) = ctx.say(msg_content).await {
                 tokio::time::sleep(std::time::Duration::from_secs(3)).await;
                 let msg = reply.message().await?;
                 // ignore errors as to not fail if ephemeral
-                let _: Result<_, _> = msg.delete(ctx.discord).await;
+                let _: Result<_, _> = msg.delete(ctx.discord()).await;
             }
         }
     }
@@ -374,7 +372,7 @@ pub async fn acknowledge_success(
 /// );
 /// ```
 async fn reply_potentially_long_text(
-    ctx: PrefixContext<'_>,
+    ctx: Context<'_>,
     mut text_body: &str,
     text_end: &str,
     truncation_msg_future: impl std::future::Future<Output = String>,
@@ -427,12 +425,12 @@ async fn reply_potentially_long_text(
         format!("{}{}", text_body, text_end)
     };
 
-    poise::say_reply(ctx.into(), msg).await?;
+    ctx.say(msg).await?;
     Ok(())
 }
 
 #[tokio::main]
-pub async fn main() {
+async fn main() {
     env_logger::init();
 
     if let Err(e) = app().await {

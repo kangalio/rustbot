@@ -1,16 +1,16 @@
-use crate::{Context, Error, PrefixContext};
+use crate::{Context, Error};
 
 /// Evaluates Go code
 #[poise::command(prefix_command, discard_spare_arguments)]
-pub async fn go(ctx: PrefixContext<'_>) -> Result<(), Error> {
-    poise::say_reply(ctx.into(), "No").await?;
+pub async fn go(ctx: Context<'_>) -> Result<(), Error> {
+    ctx.say("No").await?;
     Ok(())
 }
 
 /// Links to the bot GitHub repo
 #[poise::command(prefix_command, discard_spare_arguments, slash_command)]
 pub async fn source(ctx: Context<'_>) -> Result<(), Error> {
-    poise::say_reply(ctx, r"https://github.com/kangalioo/rustbot").await?;
+    ctx.say("https://github.com/kangalioo/rustbot").await?;
     Ok(())
 }
 
@@ -39,8 +39,8 @@ You can edit your message to the bot and the bot will edit its response.";
 ///
 /// Run with no arguments to register in guild, run with argument "global" to register globally.
 #[poise::command(prefix_command, hide_in_help)]
-pub async fn register(ctx: PrefixContext<'_>, #[flag] global: bool) -> Result<(), Error> {
-    poise::samples::register_application_commands(ctx.into(), global).await?;
+pub async fn register(ctx: Context<'_>, #[flag] global: bool) -> Result<(), Error> {
+    poise::samples::register_application_commands(ctx, global).await?;
 
     Ok(())
 }
@@ -57,10 +57,10 @@ pub async fn uptime(ctx: Context<'_>) -> Result<(), Error> {
     let (hours, minutes) = div_mod(minutes, 60);
     let (days, hours) = div_mod(hours, 24);
 
-    poise::say_reply(
-        ctx,
-        format!("Uptime: {}d {}h {}m {}s", days, hours, minutes, seconds),
-    )
+    ctx.say(format!(
+        "Uptime: {}d {}h {}m {}s",
+        days, hours, minutes, seconds
+    ))
     .await?;
 
     Ok(())
@@ -78,6 +78,7 @@ pub async fn servers(ctx: Context<'_>) -> Result<(), Error> {
 #[poise::command(prefix_command, hide_in_help, discard_spare_arguments)]
 pub async fn revision(ctx: Context<'_>) -> Result<(), Error> {
     let rustbot_rev: Option<&'static str> = option_env!("RUSTBOT_REV");
-    poise::say_reply(ctx, format!("`{}`", rustbot_rev.unwrap_or("unknown"))).await?;
+    ctx.say(format!("`{}`", rustbot_rev.unwrap_or("unknown")))
+        .await?;
     Ok(())
 }

@@ -1,5 +1,5 @@
 use super::{api::*, util::*};
-use crate::{Error, PrefixContext};
+use crate::{Context, Error};
 
 const BENCH_FUNCTION: &str = r#"
 fn bench(functions: &[(&str, fn())]) {
@@ -53,7 +53,7 @@ fn bench(functions: &[(&str, fn())]) {
     explanation_fn = "microbench_help"
 )]
 pub async fn microbench(
-    ctx: PrefixContext<'_>,
+    ctx: Context<'_>,
     flags: poise::KeyValueArgs,
     code: poise::CodeBlock,
 ) -> Result<(), Error> {
@@ -66,11 +66,8 @@ pub async fn microbench(
 
     let pub_fn_indices = user_code.match_indices("pub fn ");
     if pub_fn_indices.clone().count() == 0 {
-        poise::say_reply(
-            poise::Context::Prefix(ctx),
-            "No public functions (`pub fn`) found for benchmarking :thinking:",
-        )
-        .await?;
+        ctx.say("No public functions (`pub fn`) found for benchmarking :thinking:")
+            .await?;
         return Ok(());
     }
 
@@ -94,7 +91,7 @@ pub async fn microbench(
 
     let (flags, mut flag_parse_errors) = parse_flags(flags);
     let mut result: PlayResult = ctx
-        .data
+        .data()
         .http
         .post("https://play.rust-lang.org/execute")
         .json(&PlaygroundRequest {

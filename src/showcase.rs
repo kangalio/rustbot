@@ -31,7 +31,7 @@ fn create_embed<'a>(
 #[poise::command(prefix_command, slash_command)]
 pub async fn showcase(ctx: Context<'_>) -> Result<(), Error> {
     let ask_the_user = |query| async move {
-        poise::say_reply(ctx, format!("Please enter {}:", query)).await?;
+        ctx.say(format!("Please enter {}:", query)).await?;
         let user_input = ctx
             .author()
             .await_reply(ctx.discord())
@@ -56,15 +56,12 @@ pub async fn showcase(ctx: Context<'_>) -> Result<(), Error> {
         Ok(user_input)
     };
 
-    poise::say_reply(
-        ctx,
-        format!(
-            "Answer the following prompts to generate a <#{0}> entry. If you change your mind \
+    ctx.say(format!(
+        "Answer the following prompts to generate a <#{0}> entry. If you change your mind \
             later, you can edit or delete your messages, and the <#{0}> entry will be edited \
             or deleted accordingly.",
-            ctx.data().showcase_channel.0
-        ),
-    )
+        ctx.data().showcase_channel.0
+    ))
     .await?;
 
     let name = ask_the_user("the name of your project").await?;
@@ -135,13 +132,10 @@ pub async fn showcase(ctx: Context<'_>) -> Result<(), Error> {
         .await?;
     }
 
-    poise::say_reply(
-        ctx,
-        format!(
-            "Your project was successfully posted in <#{}>",
-            ctx.data().showcase_channel.0
-        ),
-    )
+    ctx.say(format!(
+        "Your project was successfully posted in <#{}>",
+        ctx.data().showcase_channel.0
+    ))
     .await?;
 
     Ok(())

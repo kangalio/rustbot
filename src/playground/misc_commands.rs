@@ -1,5 +1,5 @@
 use super::{api::*, util::*};
-use crate::{Error, PrefixContext};
+use crate::{Context, Error};
 
 use std::borrow::Cow;
 
@@ -11,7 +11,7 @@ use std::borrow::Cow;
     explanation_fn = "miri_help"
 )]
 pub async fn miri(
-    ctx: PrefixContext<'_>,
+    ctx: Context<'_>,
     flags: poise::KeyValueArgs,
     code: poise::CodeBlock,
 ) -> Result<(), Error> {
@@ -19,7 +19,7 @@ pub async fn miri(
     let (flags, flag_parse_errors) = parse_flags(flags);
 
     let mut result: PlayResult = ctx
-        .data
+        .data()
         .http
         .post("https://play.rust-lang.org/miri")
         .json(&MiriRequest {
@@ -62,7 +62,7 @@ pub fn miri_help() -> String {
     explanation_fn = "expand_help"
 )]
 pub async fn expand(
-    ctx: PrefixContext<'_>,
+    ctx: Context<'_>,
     flags: poise::KeyValueArgs,
     code: poise::CodeBlock,
 ) -> Result<(), Error> {
@@ -71,7 +71,7 @@ pub async fn expand(
     let (flags, flag_parse_errors) = parse_flags(flags);
 
     let mut result: PlayResult = ctx
-        .data
+        .data()
         .http
         .post("https://play.rust-lang.org/macro-expansion")
         .json(&MacroExpansionRequest {
@@ -122,7 +122,7 @@ pub fn expand_help() -> String {
     explanation_fn = "clippy_help"
 )]
 pub async fn clippy(
-    ctx: PrefixContext<'_>,
+    ctx: Context<'_>,
     flags: poise::KeyValueArgs,
     code: poise::CodeBlock,
 ) -> Result<(), Error> {
@@ -130,7 +130,7 @@ pub async fn clippy(
     let (flags, flag_parse_errors) = parse_flags(flags);
 
     let mut result: PlayResult = ctx
-        .data
+        .data()
         .http
         .post("https://play.rust-lang.org/clippy")
         .json(&ClippyRequest {
@@ -180,7 +180,7 @@ pub fn clippy_help() -> String {
     explanation_fn = "fmt_help"
 )]
 pub async fn fmt(
-    ctx: PrefixContext<'_>,
+    ctx: Context<'_>,
     flags: poise::KeyValueArgs,
     code: poise::CodeBlock,
 ) -> Result<(), Error> {

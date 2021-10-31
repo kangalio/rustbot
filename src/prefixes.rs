@@ -22,7 +22,7 @@ Forgot your prefixes? Try `?prefix list`."
     explanation_fn = "prefixes_explanation_text"
 )]
 pub async fn prefix(ctx: Context<'_>) -> Result<(), Error> {
-    poise::say_reply(ctx, prefixes_explanation_text()).await?;
+    ctx.say(prefixes_explanation_text()).await?;
     Ok(())
 }
 
@@ -43,11 +43,8 @@ pub async fn prefix_add(
     .execute(&ctx.data().database)
     .await?;
 
-    poise::say_reply(
-        ctx,
-        format!("You can now use `{}` to speak to me!", new_prefix),
-    )
-    .await?;
+    ctx.say(format!("You can now use `{}` to speak to me!", new_prefix))
+        .await?;
 
     Ok(())
 }
@@ -70,11 +67,12 @@ pub async fn prefix_remove(
     .await?
     .rows_affected();
 
-    if num_deleted_rows == 0 {
-        poise::say_reply(ctx, format!("Cannot find `{}` in your prefixes", prefix)).await?;
+    let msg = if num_deleted_rows == 0 {
+        format!("Cannot find `{}` in your prefixes", prefix)
     } else {
-        poise::say_reply(ctx, format!("Removed `{}` from your prefixes", prefix)).await?;
-    }
+        format!("Removed `{}` from your prefixes", prefix)
+    };
+    ctx.say(msg).await?;
 
     Ok(())
 }
@@ -93,7 +91,7 @@ pub async fn prefix_list(ctx: Context<'_>) -> Result<(), Error> {
         }
     }
 
-    poise::say_reply(ctx, response).await?;
+    ctx.say(response).await?;
 
     Ok(())
 }

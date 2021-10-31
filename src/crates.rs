@@ -110,12 +110,12 @@ pub async fn crate_(
     crate_name: String,
 ) -> Result<(), Error> {
     if let Some(url) = rustc_crate_link(&crate_name) {
-        poise::say_reply(ctx, url.to_owned()).await?;
+        ctx.say(url).await?;
         return Ok(());
     }
 
     let crate_ = get_crate(&ctx.data().http, &crate_name).await?;
-    poise::send_reply(ctx, |m| {
+    ctx.send(|m| {
         m.embed(|e| {
             e.title(&crate_.name)
                 .url(get_documentation(&crate_))
@@ -183,7 +183,7 @@ pub async fn doc(
         doc_url += item_path;
     }
 
-    poise::say_reply(ctx, doc_url).await?;
+    ctx.say(doc_url).await?;
 
     Ok(())
 }

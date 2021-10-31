@@ -1,5 +1,5 @@
 use super::GodboltMode;
-use crate::{Data, Error, PrefixContext};
+use crate::{Context, Data, Error};
 
 #[derive(Debug, Clone, serde::Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -171,15 +171,15 @@ impl<'a> From<&'a str> for SemverRanking<'a> {
 
 /// Lists all available godbolt rustc targets
 #[poise::command(prefix_command, broadcast_typing)]
-pub async fn targets(ctx: PrefixContext<'_>) -> Result<(), Error> {
-    let mut targets = fetch_godbolt_targets(ctx.data).await;
+pub async fn targets(ctx: Context<'_>) -> Result<(), Error> {
+    let mut targets = fetch_godbolt_targets(ctx.data()).await;
 
     // Can't use sort_by_key because https://github.com/rust-lang/rust/issues/34162
     targets.sort_unstable_by(|lhs, rhs| {
         SemverRanking::from(&*lhs.semver).cmp(&SemverRanking::from(&*rhs.semver))
     });
 
-    poise::send_reply(ctx.into(), |msg| {
+    ctx.send(|msg| {
         msg.embed(|embed| {
             embed
                 .title("Godbolt Targets")

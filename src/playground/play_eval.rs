@@ -1,9 +1,9 @@
 use super::{api::*, util::*};
-use crate::{Error, PrefixContext};
+use crate::{Context, Error};
 
 // play and eval work similarly, so this function abstracts over the two
 async fn play_or_eval(
-    ctx: PrefixContext<'_>,
+    ctx: Context<'_>,
     flags: poise::KeyValueArgs,
     force_warnings: bool, // If true, force enable warnings regardless of flags
     code: poise::CodeBlock,
@@ -17,7 +17,7 @@ async fn play_or_eval(
     }
 
     let mut result: PlayResult = ctx
-        .data
+        .data()
         .http
         .post("https://play.rust-lang.org/execute")
         .json(&PlaygroundRequest {
@@ -50,7 +50,7 @@ async fn play_or_eval(
     explanation_fn = "play_help"
 )]
 pub async fn play(
-    ctx: PrefixContext<'_>,
+    ctx: Context<'_>,
     flags: poise::KeyValueArgs,
     code: poise::CodeBlock,
 ) -> Result<(), Error> {
@@ -75,7 +75,7 @@ pub fn play_help() -> String {
     explanation_fn = "playwarn_help"
 )]
 pub async fn playwarn(
-    ctx: PrefixContext<'_>,
+    ctx: Context<'_>,
     flags: poise::KeyValueArgs,
     code: poise::CodeBlock,
 ) -> Result<(), Error> {
@@ -100,7 +100,7 @@ pub fn playwarn_help() -> String {
     explanation_fn = "eval_help"
 )]
 pub async fn eval(
-    ctx: PrefixContext<'_>,
+    ctx: Context<'_>,
     flags: poise::KeyValueArgs,
     code: poise::CodeBlock,
 ) -> Result<(), Error> {

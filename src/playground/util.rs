@@ -1,5 +1,5 @@
 use super::api;
-use crate::{Error, PrefixContext};
+use crate::{Context, Error};
 
 use std::borrow::Cow;
 
@@ -219,7 +219,7 @@ pub fn maybe_wrap(code: &str, result_handling: ResultHandling) -> Cow<'_, str> {
 
 /// Send a Discord reply with the formatted contents of a Playground result
 pub async fn send_reply(
-    ctx: PrefixContext<'_>,
+    ctx: Context<'_>,
     result: api::PlayResult,
     code: &str,
     flags: &api::CommandFlags,
@@ -236,11 +236,7 @@ pub async fn send_reply(
     // Discord displays empty code blocks weirdly if they're not formatted in a specific style,
     // so we special-case empty code blocks
     if result.trim().is_empty() {
-        poise::say_reply(
-            poise::Context::Prefix(ctx),
-            format!("{}``` ```", flag_parse_errors),
-        )
-        .await?;
+        ctx.say(format!("{}``` ```", flag_parse_errors)).await?;
     } else {
         super::reply_potentially_long_text(
             ctx,

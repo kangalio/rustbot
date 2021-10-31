@@ -1,4 +1,4 @@
-use crate::{Error, PrefixContext};
+use crate::{Context, Error};
 
 use reqwest::header;
 use serde::{Deserialize, Deserializer, Serialize};
@@ -169,12 +169,12 @@ impl<'de> Deserialize<'de> for PlayResult {
 }
 
 /// Returns a gist ID
-pub async fn post_gist(ctx: PrefixContext<'_>, code: &str) -> Result<String, Error> {
+pub async fn post_gist(ctx: Context<'_>, code: &str) -> Result<String, Error> {
     let mut payload = HashMap::new();
     payload.insert("code", code);
 
     let resp = ctx
-        .data
+        .data()
         .http
         .post("https://play.rust-lang.org/meta/gist/")
         .header(header::REFERER, "https://discord.gg/rust-lang-community")
@@ -211,12 +211,12 @@ pub fn url_from_gist(flags: &CommandFlags, gist_id: &str) -> String {
 }
 
 pub async fn apply_online_rustfmt(
-    ctx: PrefixContext<'_>,
+    ctx: Context<'_>,
     code: &str,
     edition: Edition,
 ) -> Result<PlayResult, Error> {
     let result = ctx
-        .data
+        .data()
         .http
         .post("https://play.rust-lang.org/format")
         .json(&FormatRequest { code, edition })

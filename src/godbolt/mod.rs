@@ -2,7 +2,7 @@ mod targets;
 use targets::rustc_id_and_flags;
 pub use targets::{targets, GodboltTargets};
 
-use crate::{Error, PrefixContext};
+use crate::{Context, Error};
 
 const LLVM_MCA_TOOL_ID: &str = "llvm-mcatrunk";
 
@@ -162,20 +162,20 @@ enum GodboltMode {
 }
 
 async fn generic_godbolt(
-    ctx: PrefixContext<'_>,
+    ctx: Context<'_>,
     params: poise::KeyValueArgs,
     code: poise::CodeBlock,
     mode: GodboltMode,
 ) -> Result<(), Error> {
     let run_llvm_mca = mode == GodboltMode::Mca;
 
-    let (rustc, flags) = rustc_id_and_flags(ctx.data, &params, mode).await?;
+    let (rustc, flags) = rustc_id_and_flags(ctx.data(), &params, mode).await?;
 
     let (lang, text);
     let mut note = String::new();
 
     let godbolt_result =
-        compile_rust_source(&ctx.data.http, &code.code, &rustc, &flags, run_llvm_mca).await?;
+        compile_rust_source(&ctx.data().http, &code.code, &rustc, &flags, run_llvm_mca).await?;
 
     match godbolt_result {
         Compilation::Success {
@@ -210,7 +210,7 @@ async fn generic_godbolt(
     }
 
     if text.trim().is_empty() {
-        poise::say_reply(ctx.into(), format!("``` ```{}", note)).await?;
+        ctx.say(format!("``` ```{}", note)).await?;
     } else {
         super::reply_potentially_long_text(
             ctx,
@@ -219,7 +219,7 @@ async fn generic_godbolt(
             async {
                 format!(
                     "Output too large. Godbolt link: <{}>",
-                    save_to_shortlink(&ctx.data.http, &code.code, &rustc, &flags, run_llvm_mca)
+                    save_to_shortlink(&ctx.data().http, &code.code, &rustc, &flags, run_llvm_mca)
                         .await
                         .unwrap_or_else(|e| {
                             log::warn!("failed to generate godbolt shortlink: {}", e);
@@ -250,7 +250,7 @@ async fn generic_godbolt(
 /// - `rustc`: compiler version to invoke. Defaults to `nightly`. Possible values: `nightly`, `beta` or full version like `1.45.2`
 #[poise::command(prefix_command, broadcast_typing, track_edits)]
 pub async fn godbolt(
-    ctx: PrefixContext<'_>,
+    ctx: Context<'_>,
     params: poise::KeyValueArgs,
     code: poise::CodeBlock,
 ) -> Result<(), Error> {
@@ -277,7 +277,7 @@ fn strip_llvm_mca_result(text: &str) -> &str {
 /// - `rustc`: compiler version to invoke. Defaults to `nightly`. Possible values: `nightly`, `beta` or full version like `1.45.2`
 #[poise::command(prefix_command, broadcast_typing, track_edits)]
 pub async fn mca(
-    ctx: PrefixContext<'_>,
+    ctx: Context<'_>,
     params: poise::KeyValueArgs,
     code: poise::CodeBlock,
 ) -> Result<(), Error> {
@@ -302,7 +302,7 @@ pub async fn mca(
 /// - `rustc`: compiler version to invoke. Defaults to `nightly`. Possible values: `nightly`, `beta` or full version like `1.45.2`
 #[poise::command(prefix_command, broadcast_typing, track_edits)]
 pub async fn llvmir(
-    ctx: PrefixContext<'_>,
+    ctx: Context<'_>,
     params: poise::KeyValueArgs,
     code: poise::CodeBlock,
 ) -> Result<(), Error> {
@@ -330,16 +330,16 @@ pub async fn llvmir(
 /// - `rustc`: compiler version to invoke. Defaults to `nightly`. Possible values: `nightly`, `beta` or full version like `1.45.2`
 #[poise::command(prefix_command, broadcast_typing, track_edits, hide_in_help)]
 pub async fn asmdiff(
-    ctx: PrefixContext<'_>,
+    ctx: Context<'_>,
     params: poise::KeyValueArgs,
     code1: poise::CodeBlock,
     code2: poise::CodeBlock,
 ) -> Result<(), Error> {
-    let (rustc, flags) = rustc_id_and_flags(ctx.data, &params, GodboltMode::Asm).await?;
+    let (rustc, flags) = rustc_id_and_flags(ctx.data(), &params, GodboltMode::Asm).await?;
 
     let (asm1, asm2) = tokio::try_join!(
-        compile_rust_source(&ctx.data.http, &code1.code, &rustc, &flags, false),
-        compile_rust_source(&ctx.data.http, &code2.code, &rustc, &flags, false),
+        compile_rust_source(&ctx.data().http, &code1.code, &rustc, &flags, false),
+        compile_rust_source(&ctx.data().http, &code2.code, &rustc, &flags, false),
     )?;
     let result = match (asm1, asm2) {
         (Compilation::Success { asm: a, .. }, Compilation::Success { asm: b, .. }) => Ok((a, b)),
