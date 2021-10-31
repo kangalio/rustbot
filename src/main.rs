@@ -197,7 +197,7 @@ async fn app() -> Result<(), Error> {
                         log::info!("{} in {}: {}", author, channel_name, &ctx.msg.content);
                     }
                     poise::Context::Application(ctx) => {
-                        let command_name = &ctx.interaction.data.name;
+                        let command_name = &ctx.interaction.data().name;
 
                         log::info!(
                             "{} in {} used slash command '{}'",
@@ -344,10 +344,11 @@ pub async fn acknowledge_success(
                 Some(e) => e.to_string(),
                 None => fallback.to_string(),
             };
-            if let Ok(reply) = poise::say_reply(ctx.into(), msg_content).await {
+            if let Ok(Some(reply)) = poise::say_reply(ctx.into(), msg_content).await {
                 tokio::time::sleep(std::time::Duration::from_secs(3)).await;
                 let msg = reply.message().await?;
-                let _: Result<_, _> = msg.delete(ctx.discord).await; // don't fail if ephemeral
+                // ignore errors as to not fail if ephemeral
+                let _: Result<_, _> = msg.delete(ctx.discord).await;
             }
         }
     }

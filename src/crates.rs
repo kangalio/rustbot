@@ -69,6 +69,27 @@ fn format_number(mut n: u64) -> String {
     output
 }
 
+async fn autocomplete_crate(ctx: Context<'_>, partial: String) -> impl Iterator<Item = String> {
+    let http = &ctx.data().http;
+
+    let response = http
+        .get("https://crates.io/api/v1/crates")
+        .header(header::USER_AGENT, USER_AGENT)
+        .query(&[("q", &*partial), ("per_page", "25")])
+        .send()
+        .await;
+
+    let crate_list = match response {
+        Ok(response) => response.json::<Crates>().await.ok(),
+        Err(_) => None,
+    };
+
+    crate_list
+        .map_or(Vec::new(), |list| list.crates)
+        .into_iter()
+        .map(|crate_| crate_.name)
+}
+
 /// Lookup crates on crates.io
 ///
 /// Search for a crate on crates.io
@@ -84,7 +105,9 @@ fn format_number(mut n: u64) -> String {
 )]
 pub async fn crate_(
     ctx: Context<'_>,
-    #[description = "Name of the searched crate"] crate_name: String,
+    #[description = "Name of the searched crate"]
+    #[autocomplete = "autocomplete_crate"]
+    crate_name: String,
 ) -> Result<(), Error> {
     if let Some(url) = rustc_crate_link(&crate_name) {
         poise::say_reply(ctx, url.to_owned()).await?;
