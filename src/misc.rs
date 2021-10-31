@@ -18,7 +18,9 @@ pub async fn source(ctx: Context<'_>) -> Result<(), Error> {
 #[poise::command(prefix_command, track_edits, slash_command)]
 pub async fn help(
     ctx: Context<'_>,
-    #[description = "Specific command to show help about"] command: Option<String>,
+    #[description = "Specific command to show help about"]
+    #[autocomplete = "poise::samples::autocomplete_command"]
+    command: Option<String>,
 ) -> Result<(), Error> {
     let bottom_text = "You can still use all commands with `?`, even if it says `/` above.
 Type ?help command for more info on a command.
