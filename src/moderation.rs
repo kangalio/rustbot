@@ -189,14 +189,13 @@ pub async fn report(
 
 /// Move a discussion to another channel
 ///
-/// Move a discussion to a specified channel. You can add a discussion topic to the command.
+/// Move a discussion to a specified channel, optionally pinging a list of users in the new channel.
 #[poise::command(prefix_command, slash_command, rename = "move", aliases("migrate"))]
 pub async fn move_(
     ctx: Context<'_>,
     #[description = "Where to move the discussion"] target_channel: serenity::GuildChannel,
-    #[rest]
-    #[description = "Topic of the discussion"]
-    topic: Option<String>,
+    #[description = "Participants of the discussion who will be pinged in the new channel"]
+    users_to_ping: Vec<serenity::Member>,
 ) -> Result<(), Error> {
     use serenity::Mentionable as _;
 
@@ -227,14 +226,21 @@ pub async fn move_(
         source_msg_link
     );
 
-    if let Some(topic) = topic {
-        comefrom_message += "\nTopic: ";
-        comefrom_message += &topic;
+    {
+        let mut users_to_ping = users_to_ping.iter();
+        if let Some(user_to_ping) = users_to_ping.next() {
+            comefrom_message += &format!("\n{}", user_to_ping.mention());
+            for user_to_ping in users_to_ping {
+                comefrom_message += &format!(", {}", user_to_ping.mention());
+            }
+        }
     }
 
+    // let comefrom_message = target_channel.say(ctx.discord, comefrom_message).await?;
     let comefrom_message = target_channel
         .send_message(ctx.discord(), |f| {
-            f.content(comefrom_message).allowed_mentions(|f| f)
+            f.content(comefrom_message)
+                .allowed_mentions(|f| f.users(users_to_ping))
         })
         .await?;
 
