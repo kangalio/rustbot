@@ -1,6 +1,6 @@
 use crate::{Context, Error};
 use poise::serenity_prelude as serenity;
-use serenity::futures::TryStreamExt;
+use serenity::futures::{StreamExt, TryStreamExt};
 
 fn prefixes_explanation_text() -> String {
     "\
@@ -49,12 +49,27 @@ pub async fn prefix_add(
     Ok(())
 }
 
-/// Add a new user-specific prefix that only you can use to invoke the bot.
+async fn autocomplete_prefix(ctx: Context<'_>, partial: String) -> Vec<String> {
+    let user_id = ctx.author().id.0 as i64;
+    let prefixes = sqlx::query!("SELECT string FROM prefix WHERE user_id = ?", user_id)
+        .fetch_many(&ctx.data().database);
+
+    prefixes
+        .filter_map(|result| async move { result.ok()?.right() })
+        .map(|record| record.string)
+        .filter(move |prefix| std::future::ready(prefix.starts_with(&partial)))
+        .take(25)
+        .collect()
+        .await
+}
+
+/// Removes one of your user-specific prefixes that was added with `/prefix add`
 #[poise::command(rename = "remove", prefix_command, slash_command)]
 pub async fn prefix_remove(
     ctx: Context<'_>,
     #[description = "Prefix string to remove"]
     #[rest]
+    #[autocomplete = "autocomplete_prefix"]
     prefix: String,
 ) -> Result<(), Error> {
     let user_id = ctx.author().id.0 as i64;
