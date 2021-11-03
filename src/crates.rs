@@ -75,7 +75,7 @@ async fn autocomplete_crate(ctx: Context<'_>, partial: String) -> impl Iterator<
     let response = http
         .get("https://crates.io/api/v1/crates")
         .header(header::USER_AGENT, USER_AGENT)
-        .query(&[("q", &*partial), ("per_page", "25")])
+        .query(&[("q", &*partial), ("per_page", "25"), ("sort", "downloads")])
         .send()
         .await;
 
