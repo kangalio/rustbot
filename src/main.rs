@@ -125,6 +125,16 @@ async fn listener(
     Ok(())
 }
 
+#[derive(Clone)]
+pub struct ActiveSlowmode {
+    previous_slowmode_rate: u64,
+    duration: u64,
+    rate: u64,
+    /// The slowmode command verifies this value after the sleep and before the slowdown lift,
+    /// to make sure that no new slowmode command has been invoked since
+    invocation_time: chrono::DateTime<chrono::Utc>,
+}
+
 pub struct Data {
     bot_user_id: serenity::UserId,
     #[allow(dead_code)] // might add back in
@@ -136,6 +146,8 @@ pub struct Data {
     http: reqwest::Client,
     database: sqlx::SqlitePool,
     godbolt_targets: std::sync::Mutex<godbolt::GodboltTargets>,
+    active_slowmodes:
+        std::sync::Mutex<std::collections::HashMap<serenity::ChannelId, ActiveSlowmode>>,
 }
 
 fn env_var<T: std::str::FromStr>(name: &str) -> Result<T, Error>
@@ -231,6 +243,7 @@ async fn app() -> Result<(), Error> {
     options.command(moderation::cleanup(), |f| f.category("Moderation"));
     options.command(moderation::ban(), |f| f.category("Moderation"));
     options.command(moderation::move_(), |f| f.category("Moderation"));
+    options.command(moderation::slowmode(), |f| f.category("Moderation"));
     options.command(showcase::showcase(), |f| f.category("Moderation"));
     options.command(misc::go(), |f| f.category("Miscellaneous"));
     options.command(misc::source(), |f| f.category("Miscellaneous"));
@@ -288,6 +301,7 @@ async fn app() -> Result<(), Error> {
                     http: reqwest::Client::new(),
                     database,
                     godbolt_targets: std::sync::Mutex::new(godbolt::GodboltTargets::default()),
+                    active_slowmodes: std::sync::Mutex::new(std::collections::HashMap::new()),
                 })
             })
         })
@@ -359,7 +373,7 @@ async fn acknowledge_success(
 ///
 /// Only `text_body` is truncated. `text_end` will always be appended at the end. This is useful
 /// for example for large code blocks. You will want to truncate the code block contents, but the
-/// finalizing \`\`\` should always stay - that's what `text_end` is for.
+/// finalizing triple backticks (` ` `) should always stay - that's what `text_end` is for.
 ///
 /// ```rust,no_run
 /// # let args = todo!(); use rustbot::reply_potentially_long_text;

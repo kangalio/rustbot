@@ -1,3 +1,6 @@
+mod slowmode;
+pub use slowmode::slowmode;
+
 use crate::{serenity, Context, Error};
 
 /// Deletes the bot's messages for cleanup
