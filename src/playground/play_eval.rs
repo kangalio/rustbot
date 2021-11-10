@@ -63,6 +63,7 @@ pub fn play_help() -> String {
         desc: "Compile and run Rust code",
         mode_and_channel: true,
         warn: true,
+        run: false,
         example_code: "code",
     })
 }
@@ -88,6 +89,7 @@ pub fn playwarn_help() -> String {
         desc: "Compile and run Rust code with warnings. Equivalent to `?play warn=true`",
         mode_and_channel: true,
         warn: false,
+        run: false,
         example_code: "code",
     })
 }
@@ -113,6 +115,7 @@ pub fn eval_help() -> String {
         desc: "Compile and run Rust code",
         mode_and_channel: true,
         warn: true,
+        run: false,
         example_code: "code",
     })
 }

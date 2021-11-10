@@ -10,6 +10,7 @@ pub struct CommandFlags {
     pub mode: Mode,
     pub edition: Edition,
     pub warn: bool,
+    pub run: bool,
 }
 
 #[derive(Debug, Serialize)]

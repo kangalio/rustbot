@@ -128,6 +128,7 @@ pub fn microbench_help() -> String {
         passed. Measurements are averaged and standard deviation is calculated for each",
         mode_and_channel: false,
         warn: true,
+        run: false,
         example_code: "
 pub fn snippet_a() { /* code */ }
 pub fn snippet_b() { /* code */ }

@@ -19,16 +19,14 @@ pub async fn procmacro(
 
     let (flags, flag_parse_errors) = parse_flags(flags);
 
-    let generated_code = format!(
-        "{}{}{}{}{}{}{}",
-        r#"const MACRO_CODE: &str = r#####""#,
-        macro_code,
-        "\"",
-        r#"#####;
-const USAGE_CODE: &str = r#####""#,
-        usage_code,
-        "\"",
-        r#"#####;
+    let mut generated_code = format!(
+        stringify!(
+            const MACRO_CODE: &str = r#####"{}"#####;
+            const USAGE_CODE: &str = r#####"{}"#####;
+        ),
+        macro_code, usage_code
+    );
+    generated_code += r#"
 pub fn cmd_run(cmd: &str) {
     let status = std::process::Command::new("/bin/sh")
         .args(&["-c", cmd])
@@ -58,10 +56,11 @@ fn main() -> std::io::Result<()> {
         .append(true)
         .open("Cargo.toml")?
         .write_all(b"[lib]\nproc-macro = true")?;
-    cmd_run("cargo c -q --bin procmacro");
-    Ok(())
-}"#
-    );
+    cmd_run("cargo "#;
+    generated_code += if flags.run { "r" } else { "c" };
+    generated_code += r#" -q --bin procmacro");
+            Ok(())
+        }"#;
 
     let mut result: PlayResult = ctx
         .data()
@@ -93,11 +92,14 @@ fn main() -> std::io::Result<()> {
 pub fn procmacro_help() -> String {
     generic_help(GenericHelp {
         command: "procmacro",
-        desc: "Compile and use a procedural macro by providing two snippets: one for the \
-        proc-macro code, and one for the usage code which can refer to the proc-macro crate as \
-        `procmacro`",
+        desc: "\
+Compiles a procedural macro by providing two snippets: one for the \
+proc-macro code, and one for the usage code which can refer to the proc-macro crate as \
+`procmacro`. By default, the code is only compiled, _not run_! To run the final code too, pass
+`run=true`.",
         mode_and_channel: false,
         warn: true,
+        run: true,
         example_code: "
 #[proc_macro]
 pub fn foo(_: proc_macro::TokenStream) -> proc_macro::TokenStream {

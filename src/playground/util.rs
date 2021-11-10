@@ -24,35 +24,25 @@ pub fn parse_flags(mut args: poise::KeyValueArgs) -> (api::CommandFlags, String)
         mode: api::Mode::Debug,
         edition: api::Edition::E2021,
         warn: false,
+        run: false,
     };
 
-    if let Some(channel) = args.0.remove("channel") {
-        match channel.parse() {
-            Ok(x) => flags.channel = x,
-            Err(e) => errors += &format!("{}\n", e),
-        }
+    macro_rules! pop_flag {
+        ($flag_name:literal, $flag_field:expr) => {
+            if let Some(flag) = args.0.remove($flag_name) {
+                match flag.parse() {
+                    Ok(x) => $flag_field = x,
+                    Err(e) => errors += &format!("{}\n", e),
+                }
+            }
+        };
     }
 
-    if let Some(mode) = args.0.remove("mode") {
-        match mode.parse() {
-            Ok(x) => flags.mode = x,
-            Err(e) => errors += &format!("{}\n", e),
-        }
-    }
-
-    if let Some(edition) = args.0.remove("edition") {
-        match edition.parse() {
-            Ok(x) => flags.edition = x,
-            Err(e) => errors += &format!("{}\n", e),
-        }
-    }
-
-    if let Some(warn) = args.0.remove("warn") {
-        match warn.parse() {
-            Ok(x) => flags.warn = x,
-            Err(e) => errors += &format!("{}\n", e),
-        }
-    }
+    pop_flag!("channel", flags.channel);
+    pop_flag!("mode", flags.mode);
+    pop_flag!("edition", flags.edition);
+    pop_flag!("warn", flags.warn);
+    pop_flag!("run", flags.run);
 
     for (remaining_flag, _) in args.0 {
         errors += &format!("unknown flag `{}`\n", remaining_flag);
@@ -66,6 +56,7 @@ pub struct GenericHelp<'a> {
     pub desc: &'a str,
     pub mode_and_channel: bool,
     pub warn: bool,
+    pub run: bool,
     pub example_code: &'a str,
 }
 
@@ -84,6 +75,9 @@ pub fn generic_help(spec: GenericHelp<'_>) -> String {
     if spec.warn {
         reply += " warn={}";
     }
+    if spec.run {
+        reply += " run={}";
+    }
     reply += " ``\u{200B}`";
     reply += spec.example_code;
     reply += "``\u{200B}`\n```\n";
@@ -96,6 +90,9 @@ pub fn generic_help(spec: GenericHelp<'_>) -> String {
     reply += "- edition: 2015, 2018, 2021 (default: 2021)\n";
     if spec.warn {
         reply += "- warn: true, false (default: false)\n";
+    }
+    if spec.run {
+        reply += "- run: true, false (default: false)\n";
     }
 
     reply
