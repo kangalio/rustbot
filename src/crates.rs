@@ -13,7 +13,8 @@ struct Crates {
 struct Crate {
     id: String,
     name: String,
-    newest_version: String,
+    // newest_version: String, // https://github.com/kangalioo/rustbot/issues/23
+    max_stable_version: String,
     updated_at: String,
     downloads: u64,
     description: Option<String>,
@@ -125,7 +126,7 @@ pub async fn crate_(
                         .as_deref()
                         .unwrap_or("_<no description available>_"),
                 )
-                .field("Version", &crate_.newest_version, true)
+                .field("Version", &crate_.max_stable_version, true)
                 .field("Downloads", format_number(crate_.downloads), true)
                 .timestamp(crate_.updated_at.as_str())
                 .color(crate::EMBED_COLOR)
