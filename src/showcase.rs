@@ -58,8 +58,8 @@ pub async fn showcase(ctx: Context<'_>) -> Result<(), Error> {
 
     ctx.say(format!(
         "Answer the following prompts to generate a <#{0}> entry. If you change your mind \
-            later, you can edit or delete your messages, and the <#{0}> entry will be edited \
-            or deleted accordingly.",
+            later, you can edit or delete your messages to edit or delete the <#{0}> entry. To \
+            cancel, type `cancel`",
         ctx.data().showcase_channel.0
     ))
     .await?;
