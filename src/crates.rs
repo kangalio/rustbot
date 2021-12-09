@@ -9,6 +9,7 @@ const USER_AGENT: &str = "kangalioo/rustbot";
 struct Crates {
     crates: Vec<Crate>,
 }
+
 #[derive(Debug, Deserialize)]
 struct Crate {
     id: String,

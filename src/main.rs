@@ -1,3 +1,4 @@
+mod aoc_leaderboard;
 mod crates;
 mod godbolt;
 mod misc;
