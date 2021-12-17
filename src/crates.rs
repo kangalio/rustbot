@@ -102,7 +102,8 @@ async fn autocomplete_crate(ctx: Context<'_>, partial: String) -> impl Iterator<
     rename = "crate",
     broadcast_typing,
     track_edits,
-    slash_command
+    slash_command,
+    category = "Crates"
 )]
 pub async fn crate_(
     ctx: Context<'_>,
@@ -162,7 +163,8 @@ fn rustc_crate_link(crate_name: &str) -> Option<&'static str> {
     aliases("docs"),
     broadcast_typing,
     track_edits,
-    slash_command
+    slash_command,
+    category = "Crates"
 )]
 pub async fn doc(
     ctx: Context<'_>,

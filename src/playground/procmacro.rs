@@ -6,7 +6,8 @@ use crate::{Context, Error};
     prefix_command,
     track_edits,
     broadcast_typing,
-    explanation_fn = "procmacro_help"
+    explanation_fn = "procmacro_help",
+    category = "Playground"
 )]
 pub async fn procmacro(
     ctx: Context<'_>,

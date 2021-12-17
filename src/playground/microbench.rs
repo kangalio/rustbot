@@ -50,7 +50,8 @@ fn bench(functions: &[(&str, fn())]) {
     prefix_command,
     broadcast_typing,
     track_edits,
-    explanation_fn = "microbench_help"
+    explanation_fn = "microbench_help",
+    category = "Playground"
 )]
 pub async fn microbench(
     ctx: Context<'_>,

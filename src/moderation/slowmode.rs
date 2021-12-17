@@ -138,7 +138,7 @@ async fn restore_slowmode_rate(ctx: Context<'_>) -> Result<(), Error> {
 ///
 /// Default duration: 30 minutes
 /// Default rate: 15 seconds
-#[poise::command(slash_command, prefix_command, hide_in_help)]
+#[poise::command(slash_command, prefix_command, hide_in_help, category = "Moderation")]
 pub async fn slowmode(
     ctx: Context<'_>,
     #[description = "How long slowmode should persist for this channel, in minutes"]

@@ -9,7 +9,12 @@ use crate::{serenity, Context, Error};
 ///
 /// Deletes the bot's messages for cleanup.
 /// You can specify how many messages to look for. Only messages from the last 24 hours can be deleted.
-#[poise::command(prefix_command, on_error = "crate::acknowledge_fail", slash_command)]
+#[poise::command(
+    prefix_command,
+    on_error = "crate::acknowledge_fail",
+    slash_command,
+    category = "Moderation"
+)]
 pub async fn cleanup(
     ctx: Context<'_>,
     #[description = "Number of messages to delete"] num_messages: Option<usize>,
@@ -49,7 +54,8 @@ pub async fn cleanup(
     on_error = "crate::acknowledge_fail",
     aliases("banne"),
     slash_command,
-    track_edits
+    track_edits,
+    category = "Moderation"
 )]
 pub async fn ban(
     ctx: Context<'_>,
@@ -100,8 +106,9 @@ async fn rustify_inner(ctx: Context<'_>, users: &[serenity::Member]) -> Result<(
 /// Adds the Rustacean role to members
 #[poise::command(
     prefix_command,
-    on_error = "crate::acknowledge_prefix_fail",
-    rename = "rustify"
+    on_error = "crate::acknowledge_fail",
+    rename = "rustify",
+    category = "Moderation"
 )]
 pub async fn prefix_rustify(ctx: Context<'_>, users: Vec<serenity::Member>) -> Result<(), Error> {
     rustify_inner(ctx, &users).await
@@ -154,7 +161,7 @@ async fn latest_message_link(ctx: Context<'_>) -> String {
 /// potentially AFK moderator.
 ///
 /// You can still always ping the Moderator role if you're comfortable doing so.
-#[poise::command(slash_command, ephemeral, hide_in_help)]
+#[poise::command(slash_command, ephemeral, hide_in_help, category = "Moderation")]
 pub async fn report(
     ctx: Context<'_>,
     #[description = "What did the user do wrong?"] reason: String,
@@ -193,7 +200,13 @@ pub async fn report(
 /// Move a discussion to another channel
 ///
 /// Move a discussion to a specified channel, optionally pinging a list of users in the new channel.
-#[poise::command(prefix_command, slash_command, rename = "move", aliases("migrate"))]
+#[poise::command(
+    prefix_command,
+    slash_command,
+    rename = "move",
+    aliases("migrate"),
+    category = "Moderation"
+)]
 pub async fn move_(
     ctx: Context<'_>,
     #[description = "Where to move the discussion"] target_channel: serenity::GuildChannel,

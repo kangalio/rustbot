@@ -12,7 +12,7 @@ struct GodboltTarget {
     instruction_set: String,
 }
 
-#[derive(Default)]
+#[derive(Default, Debug)]
 pub struct GodboltTargets {
     targets: Vec<GodboltTarget>,
     last_update_time: Option<std::time::Instant>,
@@ -170,7 +170,7 @@ impl<'a> From<&'a str> for SemverRanking<'a> {
 }
 
 /// Lists all available godbolt rustc targets
-#[poise::command(prefix_command, slash_command, broadcast_typing)]
+#[poise::command(prefix_command, slash_command, broadcast_typing, category = "Godbolt")]
 pub async fn targets(ctx: Context<'_>) -> Result<(), Error> {
     let mut targets = fetch_godbolt_targets(ctx.data()).await;
 

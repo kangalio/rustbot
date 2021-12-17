@@ -1,35 +1,45 @@
 use crate::{Context, Error};
 
 /// Evaluates Go code
-#[poise::command(prefix_command, discard_spare_arguments)]
+#[poise::command(prefix_command, discard_spare_arguments, category = "Miscellaneous")]
 pub async fn go(ctx: Context<'_>) -> Result<(), Error> {
     ctx.say("No").await?;
     Ok(())
 }
 
 /// Links to the bot GitHub repo
-#[poise::command(prefix_command, discard_spare_arguments, slash_command)]
+#[poise::command(
+    prefix_command,
+    discard_spare_arguments,
+    slash_command,
+    category = "Miscellaneous"
+)]
 pub async fn source(ctx: Context<'_>) -> Result<(), Error> {
     ctx.say("https://github.com/kangalioo/rustbot").await?;
     Ok(())
 }
 
 /// Show this menu
-#[poise::command(prefix_command, track_edits, slash_command)]
+#[poise::command(prefix_command, track_edits, slash_command, category = "Miscellaneous")]
 pub async fn help(
     ctx: Context<'_>,
     #[description = "Specific command to show help about"]
-    #[autocomplete = "poise::samples::autocomplete_command"]
+    #[autocomplete = "poise::builtins::autocomplete_command"]
     command: Option<String>,
 ) -> Result<(), Error> {
-    let bottom_text = "You can still use all commands with `?`, even if it says `/` above.
+    let extra_text_at_bottom = "\
+You can still use all commands with `?`, even if it says `/` above.
 Type ?help command for more info on a command.
 You can edit your message to the bot and the bot will edit its response.";
-    poise::samples::help(
+
+    poise::builtins::help(
         ctx,
         command.as_deref(),
-        bottom_text,
-        poise::samples::HelpResponseMode::Ephemeral,
+        poise::builtins::HelpConfiguration {
+            extra_text_at_bottom,
+            ephemeral: true,
+            ..Default::default()
+        },
     )
     .await?;
     Ok(())
@@ -38,15 +48,20 @@ You can edit your message to the bot and the bot will edit its response.";
 /// Register slash commands in this guild or globally
 ///
 /// Run with no arguments to register in guild, run with argument "global" to register globally.
-#[poise::command(prefix_command, hide_in_help)]
+#[poise::command(prefix_command, hide_in_help, category = "Miscellaneous")]
 pub async fn register(ctx: Context<'_>, #[flag] global: bool) -> Result<(), Error> {
-    poise::samples::register_application_commands(ctx, global).await?;
+    poise::builtins::register_application_commands(ctx, global).await?;
 
     Ok(())
 }
 
 /// Tells you how long the bot has been up for
-#[poise::command(prefix_command, slash_command, hide_in_help)]
+#[poise::command(
+    prefix_command,
+    slash_command,
+    hide_in_help,
+    category = "Miscellaneous"
+)]
 pub async fn uptime(ctx: Context<'_>) -> Result<(), Error> {
     let uptime = std::time::Instant::now() - ctx.data().bot_start_time;
 
@@ -67,15 +82,26 @@ pub async fn uptime(ctx: Context<'_>) -> Result<(), Error> {
 }
 
 /// List servers of which the bot is a member of
-#[poise::command(slash_command, prefix_command, track_edits, hide_in_help)]
+#[poise::command(
+    slash_command,
+    prefix_command,
+    track_edits,
+    hide_in_help,
+    category = "Miscellaneous"
+)]
 pub async fn servers(ctx: Context<'_>) -> Result<(), Error> {
-    poise::samples::servers(ctx).await?;
+    poise::builtins::servers(ctx).await?;
 
     Ok(())
 }
 
 /// Displays the SHA-1 git revision the bot was built against
-#[poise::command(prefix_command, hide_in_help, discard_spare_arguments)]
+#[poise::command(
+    prefix_command,
+    hide_in_help,
+    discard_spare_arguments,
+    category = "Miscellaneous"
+)]
 pub async fn revision(ctx: Context<'_>) -> Result<(), Error> {
     let rustbot_rev: Option<&'static str> = option_env!("RUSTBOT_REV");
     ctx.say(format!("`{}`", rustbot_rev.unwrap_or("unknown")))

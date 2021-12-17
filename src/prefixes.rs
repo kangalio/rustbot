@@ -19,7 +19,8 @@ Forgot your prefixes? Try `?prefix list`."
 #[poise::command(
     prefix_command,
     slash_command,
-    explanation_fn = "prefixes_explanation_text"
+    explanation_fn = "prefixes_explanation_text",
+    category = "Miscellaneous"
 )]
 pub async fn prefix(ctx: Context<'_>) -> Result<(), Error> {
     ctx.say(prefixes_explanation_text()).await?;
@@ -115,15 +116,15 @@ pub async fn try_strip_prefix<'a>(
     _: &'a serenity::Context,
     msg: &'a serenity::Message,
     data: &'a crate::Data,
-) -> Option<&'a str> {
+) -> Option<(&'a str, &'a str)> {
     let user_id = msg.author.id.0 as i64;
     let mut prefixes = sqlx::query!("SELECT string FROM prefix WHERE user_id = ?", user_id)
         .fetch_many(&data.database);
 
     while let Ok(Some(database_result)) = prefixes.try_next().await {
         if let Some(prefix) = database_result.right() {
-            if let Some(content) = msg.content.strip_prefix(&prefix.string) {
-                return Some(content);
+            if msg.content.starts_with(&prefix.string) {
+                return Some(msg.content.split_at(prefix.string.len()));
             }
         }
     }

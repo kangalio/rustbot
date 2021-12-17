@@ -47,7 +47,8 @@ async fn play_or_eval(
     prefix_command,
     track_edits,
     broadcast_typing,
-    explanation_fn = "play_help"
+    explanation_fn = "play_help",
+    category = "Playground"
 )]
 pub async fn play(
     ctx: Context<'_>,
@@ -73,7 +74,8 @@ pub fn play_help() -> String {
     track_edits,
     broadcast_typing,
     hide_in_help, // don't clutter help menu with something that ?play can do too
-    explanation_fn = "playwarn_help"
+    explanation_fn = "playwarn_help",
+    category = "Playground"
 )]
 pub async fn playwarn(
     ctx: Context<'_>,
@@ -99,7 +101,8 @@ pub fn playwarn_help() -> String {
     prefix_command,
     track_edits,
     broadcast_typing,
-    explanation_fn = "eval_help"
+    explanation_fn = "eval_help",
+    category = "Playground"
 )]
 pub async fn eval(
     ctx: Context<'_>,

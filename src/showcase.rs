@@ -28,7 +28,7 @@ fn create_embed<'a>(
 ///
 /// If you want to change the text later, edit your message and the bot will propagate the change.
 /// You can also delete your message to delete the #showcase entry.
-#[poise::command(prefix_command, slash_command)]
+#[poise::command(prefix_command, slash_command, category = "Moderation")]
 pub async fn showcase(ctx: Context<'_>) -> Result<(), Error> {
     let ask_the_user = |query| async move {
         ctx.say(format!("Please enter {}:", query)).await?;

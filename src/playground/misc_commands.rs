@@ -8,7 +8,8 @@ use std::borrow::Cow;
     prefix_command,
     track_edits,
     broadcast_typing,
-    explanation_fn = "miri_help"
+    explanation_fn = "miri_help",
+    category = "Playground"
 )]
 pub async fn miri(
     ctx: Context<'_>,
@@ -60,7 +61,8 @@ pub fn miri_help() -> String {
     prefix_command,
     broadcast_typing,
     track_edits,
-    explanation_fn = "expand_help"
+    explanation_fn = "expand_help",
+    category = "Playground"
 )]
 pub async fn expand(
     ctx: Context<'_>,
@@ -121,7 +123,8 @@ pub fn expand_help() -> String {
     prefix_command,
     broadcast_typing,
     track_edits,
-    explanation_fn = "clippy_help"
+    explanation_fn = "clippy_help",
+    category = "Playground"
 )]
 pub async fn clippy(
     ctx: Context<'_>,
@@ -180,7 +183,8 @@ pub fn clippy_help() -> String {
     prefix_command,
     broadcast_typing,
     track_edits,
-    explanation_fn = "fmt_help"
+    explanation_fn = "fmt_help",
+    category = "Playground"
 )]
 pub async fn fmt(
     ctx: Context<'_>,

@@ -248,7 +248,7 @@ async fn generic_godbolt(
 /// Optional arguments:
 /// - `flags`: flags to pass to rustc invocation. Defaults to `"-Copt-level=3 --edition=2021"`
 /// - `rustc`: compiler version to invoke. Defaults to `nightly`. Possible values: `nightly`, `beta` or full version like `1.45.2`
-#[poise::command(prefix_command, broadcast_typing, track_edits)]
+#[poise::command(prefix_command, broadcast_typing, track_edits, category = "Godbolt")]
 pub async fn godbolt(
     ctx: Context<'_>,
     params: poise::KeyValueArgs,
@@ -275,7 +275,7 @@ fn strip_llvm_mca_result(text: &str) -> &str {
 /// Optional arguments:
 /// - `flags`: flags to pass to rustc invocation. Defaults to `"-Copt-level=3 --edition=2021"`
 /// - `rustc`: compiler version to invoke. Defaults to `nightly`. Possible values: `nightly`, `beta` or full version like `1.45.2`
-#[poise::command(prefix_command, broadcast_typing, track_edits)]
+#[poise::command(prefix_command, broadcast_typing, track_edits, category = "Godbolt")]
 pub async fn mca(
     ctx: Context<'_>,
     params: poise::KeyValueArgs,
@@ -300,7 +300,7 @@ pub async fn mca(
 /// Optional arguments:
 /// - `flags`: flags to pass to rustc invocation. Defaults to `"-Copt-level=3 --edition=2021"`
 /// - `rustc`: compiler version to invoke. Defaults to `nightly`. Possible values: `nightly`, `beta` or full version like `1.45.2`
-#[poise::command(prefix_command, broadcast_typing, track_edits)]
+#[poise::command(prefix_command, broadcast_typing, track_edits, category = "Godbolt")]
 pub async fn llvmir(
     ctx: Context<'_>,
     params: poise::KeyValueArgs,
@@ -328,7 +328,13 @@ pub async fn llvmir(
 /// Optional arguments:
 /// - `flags`: flags to pass to rustc invocation. Defaults to `"-Copt-level=3 --edition=2021"`
 /// - `rustc`: compiler version to invoke. Defaults to `nightly`. Possible values: `nightly`, `beta` or full version like `1.45.2`
-#[poise::command(prefix_command, broadcast_typing, track_edits, hide_in_help)]
+#[poise::command(
+    prefix_command,
+    broadcast_typing,
+    track_edits,
+    hide_in_help,
+    category = "Godbolt"
+)]
 pub async fn asmdiff(
     ctx: Context<'_>,
     params: poise::KeyValueArgs,

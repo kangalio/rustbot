@@ -40,38 +40,20 @@ async fn acknowledge_fail(error: Error, ctx: poise::CommandErrorContext<'_, Data
     }
 }
 
-async fn acknowledge_prefix_fail(
-    error: Error,
-    ctx: poise::PrefixCommandErrorContext<'_, Data, Error>,
-) {
-    acknowledge_fail(error, poise::CommandErrorContext::Prefix(ctx)).await
-}
-
 async fn on_error(error: Error, ctx: poise::ErrorContext<'_, Data, Error>) {
     log::warn!("Encountered error: {:?}", error);
     if let poise::ErrorContext::Command(ctx) = ctx {
         let reply = if let Some(poise::ArgumentParseError(error)) = error.downcast_ref() {
             if error.is::<poise::CodeBlockError>() {
-                "Missing code block. Please use the following markdown:
+                "\
+Missing code block. Please use the following markdown:
 \\`code here\\`
 or
 \\`\\`\\`rust
 code here
 \\`\\`\\`"
                     .to_owned()
-            } else if let poise::CommandErrorContext::Prefix(poise::PrefixCommandErrorContext {
-                command:
-                    poise::PrefixCommand {
-                        options:
-                            poise::PrefixCommandOptions {
-                                multiline_help: Some(multiline_help),
-                                ..
-                            },
-                        ..
-                    },
-                ..
-            }) = ctx
-            {
+            } else if let Some(multiline_help) = ctx.command().id().multiline_help {
                 format!("**{}**\n{}", error, multiline_help())
             } else {
                 error.to_string()
@@ -97,10 +79,7 @@ async fn listener(
         poise::Event::MessageDelete {
             deleted_message_id, ..
         } => showcase::try_delete_showcase_message(ctx, data, *deleted_message_id).await?,
-        poise::Event::GuildMemberAddition {
-            guild_id: _,
-            new_member,
-        } => {
+        poise::Event::GuildMemberAddition { new_member } => {
             const RUSTIFICATION_DELAY: u64 = 30; // in minutes
 
             tokio::time::sleep(std::time::Duration::from_secs(RUSTIFICATION_DELAY * 60)).await;
@@ -125,7 +104,7 @@ async fn listener(
     Ok(())
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct ActiveSlowmode {
     previous_slowmode_rate: u64,
     duration: u64,
@@ -135,6 +114,7 @@ pub struct ActiveSlowmode {
     invocation_time: chrono::DateTime<chrono::Utc>,
 }
 
+#[derive(Debug)]
 pub struct Data {
     bot_user_id: serenity::UserId,
     #[allow(dead_code)] // might add back in
@@ -224,40 +204,39 @@ async fn app() -> Result<(), Error> {
         ..Default::default()
     };
 
-    options.command(playground::play(), |f| f.category("Playground"));
-    options.command(playground::playwarn(), |f| f.category("Playground"));
-    options.command(playground::eval(), |f| f.category("Playground"));
-    options.command(playground::miri(), |f| f.category("Playground"));
-    options.command(playground::expand(), |f| f.category("Playground"));
-    options.command(playground::clippy(), |f| f.category("Playground"));
-    options.command(playground::fmt(), |f| f.category("Playground"));
-    options.command(playground::microbench(), |f| f.category("Playground"));
-    options.command(playground::procmacro(), |f| f.category("Playground"));
-    options.command(godbolt::godbolt(), |f| f.category("Godbolt"));
-    options.command(godbolt::mca(), |f| f.category("Godbolt"));
-    options.command(godbolt::llvmir(), |f| f.category("Godbolt"));
-    options.command(godbolt::asmdiff(), |f| f.category("Godbolt"));
-    options.command(godbolt::targets(), |f| f.category("Godbolt"));
-    options.command(crates::crate_(), |f| f.category("Crates"));
-    options.command(crates::doc(), |f| f.category("Crates"));
-    options.command(moderation::cleanup(), |f| f.category("Moderation"));
-    options.command(moderation::ban(), |f| f.category("Moderation"));
-    options.command(moderation::move_(), |f| f.category("Moderation"));
-    options.command(moderation::slowmode(), |f| f.category("Moderation"));
-    options.command(showcase::showcase(), |f| f.category("Moderation"));
-    options.command(misc::go(), |f| f.category("Miscellaneous"));
-    options.command(misc::source(), |f| f.category("Miscellaneous"));
-    options.command(misc::help(), |f| f.category("Miscellaneous"));
-    options.command(misc::register(), |f| f.category("Miscellaneous"));
-    options.command(misc::uptime(), |f| f.category("Miscellaneous"));
-    options.command(misc::servers(), |f| f.category("Miscellaneous"));
-    options.command(misc::revision(), |f| f.category("Miscellaneous"));
+    options.command(playground::play(), |f| f);
+    options.command(playground::playwarn(), |f| f);
+    options.command(playground::eval(), |f| f);
+    options.command(playground::miri(), |f| f);
+    options.command(playground::expand(), |f| f);
+    options.command(playground::clippy(), |f| f);
+    options.command(playground::fmt(), |f| f);
+    options.command(playground::microbench(), |f| f);
+    options.command(playground::procmacro(), |f| f);
+    options.command(godbolt::godbolt(), |f| f);
+    options.command(godbolt::mca(), |f| f);
+    options.command(godbolt::llvmir(), |f| f);
+    options.command(godbolt::asmdiff(), |f| f);
+    options.command(godbolt::targets(), |f| f);
+    options.command(crates::crate_(), |f| f);
+    options.command(crates::doc(), |f| f);
+    options.command(moderation::cleanup(), |f| f);
+    options.command(moderation::ban(), |f| f);
+    options.command(moderation::move_(), |f| f);
+    options.command(moderation::slowmode(), |f| f);
+    options.command(showcase::showcase(), |f| f);
+    options.command(misc::go(), |f| f);
+    options.command(misc::source(), |f| f);
+    options.command(misc::help(), |f| f);
+    options.command(misc::register(), |f| f);
+    options.command(misc::uptime(), |f| f);
+    options.command(misc::servers(), |f| f);
+    options.command(misc::revision(), |f| f);
     if custom_prefixes {
         options.command(prefixes::prefix(), |f| {
-            f.category("Miscellaneous")
-                .subcommand(prefixes::prefix_add(), |f| f.category("Miscellaneous"))
-                .subcommand(prefixes::prefix_remove(), |f| f.category("Miscellaneous"))
-                .subcommand(prefixes::prefix_list(), |f| f.category("Miscellaneous"))
+            f.subcommand(prefixes::prefix_add(), |f| f)
+                .subcommand(prefixes::prefix_remove(), |f| f)
+                .subcommand(prefixes::prefix_list(), |f| f)
         });
     }
 
@@ -267,12 +246,13 @@ async fn app() -> Result<(), Error> {
             prefix: moderation::prefix_rustify().prefix,
             slash: moderation::slash_rustify().slash,
             context_menu: moderation::context_menu_rustify().context_menu,
+            id: moderation::prefix_rustify().prefix.unwrap().id,
         },
-        |f| f.category("Moderation"),
+        |f| f,
     );
 
     if reports_channel.is_some() {
-        options.command(moderation::report(), |f| f.category("Moderation"));
+        options.command(moderation::report(), |f| f);
     }
 
     let database = sqlx::sqlite::SqlitePoolOptions::new()
