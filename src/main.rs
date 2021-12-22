@@ -155,6 +155,36 @@ async fn app() -> Result<(), Error> {
     let custom_prefixes = env_var("CUSTOM_PREFIXES")?;
 
     let mut options = poise::FrameworkOptions {
+        commands: vec![
+            playground::play(),
+            playground::playwarn(),
+            playground::eval(),
+            playground::miri(),
+            playground::expand(),
+            playground::clippy(),
+            playground::fmt(),
+            playground::microbench(),
+            playground::procmacro(),
+            godbolt::godbolt(),
+            godbolt::mca(),
+            godbolt::llvmir(),
+            godbolt::asmdiff(),
+            godbolt::targets(),
+            crates::crate_(),
+            crates::doc(),
+            moderation::cleanup(),
+            moderation::ban(),
+            moderation::move_(),
+            moderation::slowmode(),
+            showcase::showcase(),
+            misc::go(),
+            misc::source(),
+            misc::help(),
+            misc::register(),
+            misc::uptime(),
+            misc::servers(),
+            misc::revision(),
+        ],
         prefix_options: poise::PrefixFrameworkOptions {
             prefix: Some("?".into()),
             additional_prefixes: vec![
@@ -209,39 +239,14 @@ async fn app() -> Result<(), Error> {
         ..Default::default()
     };
 
-    options.command(playground::play(), |f| f);
-    options.command(playground::playwarn(), |f| f);
-    options.command(playground::eval(), |f| f);
-    options.command(playground::miri(), |f| f);
-    options.command(playground::expand(), |f| f);
-    options.command(playground::clippy(), |f| f);
-    options.command(playground::fmt(), |f| f);
-    options.command(playground::microbench(), |f| f);
-    options.command(playground::procmacro(), |f| f);
-    options.command(godbolt::godbolt(), |f| f);
-    options.command(godbolt::mca(), |f| f);
-    options.command(godbolt::llvmir(), |f| f);
-    options.command(godbolt::asmdiff(), |f| f);
-    options.command(godbolt::targets(), |f| f);
-    options.command(crates::crate_(), |f| f);
-    options.command(crates::doc(), |f| f);
-    options.command(moderation::cleanup(), |f| f);
-    options.command(moderation::ban(), |f| f);
-    options.command(moderation::move_(), |f| f);
-    options.command(moderation::slowmode(), |f| f);
-    options.command(showcase::showcase(), |f| f);
-    options.command(misc::go(), |f| f);
-    options.command(misc::source(), |f| f);
-    options.command(misc::help(), |f| f);
-    options.command(misc::register(), |f| f);
-    options.command(misc::uptime(), |f| f);
-    options.command(misc::servers(), |f| f);
-    options.command(misc::revision(), |f| f);
     if custom_prefixes {
-        options.command(prefixes::prefix(), |f| {
-            f.subcommand(prefixes::prefix_add(), |f| f)
-                .subcommand(prefixes::prefix_remove(), |f| f)
-                .subcommand(prefixes::prefix_list(), |f| f)
+        options.commands.push(poise::Command {
+            subcommands: vec![
+                prefixes::prefix_add(),
+                prefixes::prefix_remove(),
+                prefixes::prefix_list(),
+            ],
+            ..prefixes::prefix()
         });
     }
 
@@ -256,7 +261,7 @@ async fn app() -> Result<(), Error> {
     });
 
     if reports_channel.is_some() {
-        options.command(moderation::report(), |f| f);
+        options.commands.push(moderation::report());
     }
 
     let database = sqlx::sqlite::SqlitePoolOptions::new()
