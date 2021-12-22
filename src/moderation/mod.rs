@@ -102,35 +102,26 @@ async fn rustify_inner(ctx: Context<'_>, users: &[serenity::Member]) -> Result<(
 
 // We need separate implementations for the rustify command, because the slash command only supports
 // a single argument while the normal (prefix) version supports variadic arguments
+// rustify is the canonical one with all the attributes set correctly
 
 /// Adds the Rustacean role to members
 #[poise::command(
     prefix_command,
     on_error = "crate::acknowledge_fail",
     rename = "rustify",
-    category = "Moderation"
+    category = "Moderation",
+    ephemeral
 )]
-pub async fn prefix_rustify(ctx: Context<'_>, users: Vec<serenity::Member>) -> Result<(), Error> {
+pub async fn rustify(ctx: Context<'_>, users: Vec<serenity::Member>) -> Result<(), Error> {
     rustify_inner(ctx, &users).await
 }
 
 /// Adds the Rustacean role to a member
-#[poise::command(
-    prefix_command,
-    slash_command,
-    on_error = "crate::acknowledge_fail",
-    ephemeral,
-    rename = "rustify"
-)]
-pub async fn slash_rustify(
+#[poise::command(slash_command, context_menu_command = "Rustify")]
+pub async fn application_rustify(
     ctx: Context<'_>,
-    #[description = "User to rustify"] member: serenity::Member,
+    #[description = "User to rustify"] user: serenity::User,
 ) -> Result<(), Error> {
-    rustify_inner(ctx, &[member]).await
-}
-
-#[poise::command(prefix_command, context_menu_command = "Rustify", ephemeral)]
-pub async fn context_menu_rustify(ctx: Context<'_>, user: serenity::User) -> Result<(), Error> {
     let guild_id = ctx.guild_id().ok_or("Must use this command in a guild")?;
     let member = guild_id.member(ctx.discord(), user.id).await?;
     rustify_inner(ctx, &[member]).await

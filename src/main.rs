@@ -16,53 +16,58 @@ const EMBED_COLOR: (u8, u8, u8) = (0xb7, 0x47, 0x00); // slightly less saturated
 
 /// In prefix commands, react with a red cross emoji. In slash commands, respond with a short
 /// explanation.
-async fn acknowledge_fail(error: Error, ctx: poise::CommandErrorContext<'_, Data, Error>) {
-    log::warn!("Reacting with red cross because of error: {}", error);
-    match ctx {
-        poise::CommandErrorContext::Prefix(ctx) => {
-            if let Err(e) = ctx
-                .ctx
-                .msg
-                .react(ctx.ctx.discord, serenity::ReactionType::from('❌'))
-                .await
-            {
-                log::warn!("Failed to react with red cross: {}", e);
+async fn acknowledge_fail(error: poise::FrameworkError<'_, Data, Error>) {
+    if let poise::FrameworkError::Command { error, ctx } = error {
+        log::warn!("Reacting with red cross because of error: {}", error);
+
+        match ctx {
+            poise::Context::Prefix(ctx) => {
+                if let Err(e) = ctx
+                    .msg
+                    .react(ctx.discord, serenity::ReactionType::from('❌'))
+                    .await
+                {
+                    log::warn!("Failed to react with red cross: {}", e);
+                }
+            }
+            poise::Context::Application(_) => {
+                if let Err(e) = ctx.say(format!("❌ {}", error)).await {
+                    log::warn!(
+                        "Failed to send failure acknowledgment slash command response: {}",
+                        e
+                    );
+                }
             }
         }
-        poise::CommandErrorContext::Application(_) => {
-            if let Err(e) = ctx.ctx().say(format!("❌ {}", error)).await {
-                log::warn!(
-                    "Failed to send failure acknowledgment slash command response: {}",
-                    e
-                );
-            }
-        }
+    } else {
+        on_error(error).await;
     }
 }
 
-async fn on_error(error: Error, ctx: poise::ErrorContext<'_, Data, Error>) {
+async fn on_error(error: poise::FrameworkError<'_, Data, Error>) {
     log::warn!("Encountered error: {:?}", error);
-    if let poise::ErrorContext::Command(ctx) = ctx {
-        let reply = if let Some(poise::ArgumentParseError(error)) = error.downcast_ref() {
-            if error.is::<poise::CodeBlockError>() {
-                "\
+    if let poise::FrameworkError::ArgumentParse { error, ctx } = error {
+        let response = if error.is::<poise::CodeBlockError>() {
+            "\
 Missing code block. Please use the following markdown:
 \\`code here\\`
 or
 \\`\\`\\`rust
 code here
 \\`\\`\\`"
-                    .to_owned()
-            } else if let Some(multiline_help) = ctx.command().id().multiline_help {
-                format!("**{}**\n{}", error, multiline_help())
-            } else {
-                error.to_string()
-            }
+                .to_owned()
+        } else if let Some(multiline_help) = ctx.command().multiline_help {
+            format!("**{}**\n{}", error, multiline_help())
         } else {
             error.to_string()
         };
-        if let Err(e) = ctx.ctx().say(reply).await {
-            log::warn!("{}", e);
+
+        if let Err(e) = ctx.say(response).await {
+            log::warn!("{}", e)
+        }
+    } else if let poise::FrameworkError::Command { ctx, error } = error {
+        if let Err(e) = ctx.say(error.to_string()).await {
+            log::warn!("{}", e)
         }
     }
 }
@@ -199,7 +204,7 @@ async fn app() -> Result<(), Error> {
                 }
             })
         },
-        on_error: |error, ctx| Box::pin(on_error(error, ctx)),
+        on_error: |error| Box::pin(on_error(error)),
         listener: |ctx, event, _framework, data| Box::pin(listener(ctx, event, data)),
         ..Default::default()
     };
@@ -241,15 +246,14 @@ async fn app() -> Result<(), Error> {
     }
 
     // Use different implementations for rustify because of different feature sets
-    options.command(
-        poise::CommandDefinition {
-            prefix: moderation::prefix_rustify().prefix,
-            slash: moderation::slash_rustify().slash,
-            context_menu: moderation::context_menu_rustify().context_menu,
-            id: moderation::prefix_rustify().prefix.unwrap().id,
-        },
-        |f| f,
-    );
+    let application_rustify = moderation::application_rustify();
+    options.commands.push(poise::Command {
+        context_menu_action: application_rustify.context_menu_action,
+        slash_action: application_rustify.slash_action,
+        context_menu_name: application_rustify.context_menu_name,
+        parameters: application_rustify.parameters,
+        ..moderation::rustify()
+    });
 
     if reports_channel.is_some() {
         options.command(moderation::report(), |f| f);
