@@ -11,7 +11,6 @@ struct Crates {
 }
 #[derive(Debug, Deserialize)]
 struct Crate {
-    id: String,
     name: String,
     // newest_version: String, // https://github.com/kangalioo/rustbot/issues/23
     max_stable_version: String,

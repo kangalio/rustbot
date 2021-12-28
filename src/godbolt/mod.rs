@@ -41,7 +41,7 @@ impl GodboltOutput {
 #[derive(Debug, serde::Deserialize)]
 struct GodboltResponse {
     code: u8,
-    stdout: GodboltOutput,
+    // stdout: GodboltOutput,
     stderr: GodboltOutput,
     asm: GodboltOutput,
     tools: Vec<GodboltTool>,
@@ -50,9 +50,9 @@ struct GodboltResponse {
 #[derive(Debug, serde::Deserialize)]
 struct GodboltTool {
     id: String,
-    code: u8,
+    // code: u8,
     stdout: GodboltOutput,
-    stderr: GodboltOutput,
+    // stderr: GodboltOutput,
 }
 
 /// Compile a given Rust source code file on Godbolt using the latest nightly compiler with

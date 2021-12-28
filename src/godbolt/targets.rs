@@ -6,8 +6,6 @@ use crate::{Context, Data, Error};
 struct GodboltTarget {
     id: String,
     name: String,
-    lang: String,
-    compiler_type: String,
     semver: String,
     instruction_set: String,
 }
