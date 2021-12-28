@@ -46,7 +46,7 @@ async fn acknowledge_fail(error: poise::FrameworkError<'_, Data, Error>) {
 
 async fn on_error(error: poise::FrameworkError<'_, Data, Error>) {
     log::warn!("Encountered error: {:?}", error);
-    if let poise::FrameworkError::ArgumentParse { error, ctx } = error {
+    if let poise::FrameworkError::ArgumentParse { error, ctx, .. } = error {
         let response = if error.is::<poise::CodeBlockError>() {
             "\
 Missing code block. Please use the following markdown:

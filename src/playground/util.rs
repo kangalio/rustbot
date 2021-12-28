@@ -315,3 +315,13 @@ pub fn format_play_eval_stderr(stderr: &str, show_compiler_warnings: bool) -> St
         compiler_output.to_owned()
     }
 }
+
+pub fn stub_message(ctx: Context<'_>) -> String {
+    let mut existing_response = match ctx {
+        Context::Prefix(ctx) => ctx.existing_response().unwrap_or(String::new()),
+        Context::Application(_) => String::new(),
+    };
+    existing_response.insert_str(0, "_Running code on playground..._\n");
+    existing_response.truncate(2000);
+    existing_response
+}

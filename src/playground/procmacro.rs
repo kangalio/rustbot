@@ -5,7 +5,6 @@ use crate::{Context, Error};
 #[poise::command(
     prefix_command,
     track_edits,
-    broadcast_typing,
     explanation_fn = "procmacro_help",
     category = "Playground"
 )]
@@ -15,6 +14,8 @@ pub async fn procmacro(
     macro_code: poise::CodeBlock,
     usage_code: poise::CodeBlock,
 ) -> Result<(), Error> {
+    ctx.say(stub_message(ctx)).await?;
+
     let macro_code = macro_code.code;
     let usage_code = maybe_wrap(&usage_code.code, ResultHandling::None);
 

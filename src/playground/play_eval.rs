@@ -9,6 +9,8 @@ async fn play_or_eval(
     code: poise::CodeBlock,
     result_handling: ResultHandling,
 ) -> Result<(), Error> {
+    ctx.say(stub_message(ctx)).await?;
+
     let code = maybe_wrap(&code.code, result_handling);
     let (mut flags, flag_parse_errors) = parse_flags(flags);
 
@@ -46,7 +48,6 @@ async fn play_or_eval(
 #[poise::command(
     prefix_command,
     track_edits,
-    broadcast_typing,
     explanation_fn = "play_help",
     category = "Playground"
 )]
@@ -72,7 +73,6 @@ pub fn play_help() -> String {
 /// Compile and run Rust code with warnings
 #[poise::command(prefix_command,
     track_edits,
-    broadcast_typing,
     hide_in_help, // don't clutter help menu with something that ?play can do too
     explanation_fn = "playwarn_help",
     category = "Playground"
@@ -100,7 +100,6 @@ pub fn playwarn_help() -> String {
 #[poise::command(
     prefix_command,
     track_edits,
-    broadcast_typing,
     explanation_fn = "eval_help",
     category = "Playground"
 )]

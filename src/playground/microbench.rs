@@ -48,7 +48,6 @@ fn bench(functions: &[(&str, fn())]) {
 /// Benchmark small snippets of code
 #[poise::command(
     prefix_command,
-    broadcast_typing,
     track_edits,
     explanation_fn = "microbench_help",
     category = "Playground"
@@ -58,6 +57,8 @@ pub async fn microbench(
     flags: poise::KeyValueArgs,
     code: poise::CodeBlock,
 ) -> Result<(), Error> {
+    ctx.say(stub_message(ctx)).await?;
+
     let user_code = &code.code;
     let black_box_hint = !user_code.contains("black_box");
 

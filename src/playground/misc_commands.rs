@@ -7,7 +7,6 @@ use std::borrow::Cow;
 #[poise::command(
     prefix_command,
     track_edits,
-    broadcast_typing,
     explanation_fn = "miri_help",
     category = "Playground"
 )]
@@ -16,6 +15,8 @@ pub async fn miri(
     flags: poise::KeyValueArgs,
     code: poise::CodeBlock,
 ) -> Result<(), Error> {
+    ctx.say(stub_message(ctx)).await?;
+
     let code = &maybe_wrap(&code.code, ResultHandling::Discard);
     let (flags, flag_parse_errors) = parse_flags(flags);
 
@@ -59,7 +60,6 @@ pub fn miri_help() -> String {
 /// Expand macros to their raw desugared form
 #[poise::command(
     prefix_command,
-    broadcast_typing,
     track_edits,
     explanation_fn = "expand_help",
     category = "Playground"
@@ -69,6 +69,8 @@ pub async fn expand(
     flags: poise::KeyValueArgs,
     code: poise::CodeBlock,
 ) -> Result<(), Error> {
+    ctx.say(stub_message(ctx)).await?;
+
     let code = maybe_wrap(&code.code, ResultHandling::None);
     let was_fn_main_wrapped = matches!(code, Cow::Owned(_));
     let (flags, flag_parse_errors) = parse_flags(flags);
@@ -121,7 +123,6 @@ pub fn expand_help() -> String {
 /// Catch common mistakes using the Clippy linter
 #[poise::command(
     prefix_command,
-    broadcast_typing,
     track_edits,
     explanation_fn = "clippy_help",
     category = "Playground"
@@ -131,6 +132,8 @@ pub async fn clippy(
     flags: poise::KeyValueArgs,
     code: poise::CodeBlock,
 ) -> Result<(), Error> {
+    ctx.say(stub_message(ctx)).await?;
+
     let code = &maybe_wrap(&code.code, ResultHandling::Discard);
     let (flags, flag_parse_errors) = parse_flags(flags);
 
@@ -181,7 +184,6 @@ pub fn clippy_help() -> String {
 /// Format code using rustfmt
 #[poise::command(
     prefix_command,
-    broadcast_typing,
     track_edits,
     explanation_fn = "fmt_help",
     category = "Playground"
@@ -191,6 +193,8 @@ pub async fn fmt(
     flags: poise::KeyValueArgs,
     code: poise::CodeBlock,
 ) -> Result<(), Error> {
+    ctx.say(stub_message(ctx)).await?;
+
     let code = &maybe_wrap(&code.code, ResultHandling::None);
     let was_fn_main_wrapped = matches!(code, Cow::Owned(_));
     let (flags, flag_parse_errors) = parse_flags(flags);
