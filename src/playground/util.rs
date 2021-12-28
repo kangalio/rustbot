@@ -317,11 +317,18 @@ pub fn format_play_eval_stderr(stderr: &str, show_compiler_warnings: bool) -> St
 }
 
 pub fn stub_message(ctx: Context<'_>) -> String {
-    let mut existing_response = match ctx {
-        Context::Prefix(ctx) => ctx.existing_response().unwrap_or(String::new()),
-        Context::Application(_) => String::new(),
-    };
-    existing_response.insert_str(0, "_Running code on playground..._\n");
-    existing_response.truncate(2000);
-    existing_response
+    let mut stub_message = String::from("_Running code on playground..._\n");
+
+    if let Context::Prefix(ctx) = ctx {
+        if let Some(edit_tracker) = &ctx.framework.options().prefix_options.edit_tracker {
+            if let Some(existing_response) =
+                edit_tracker.read().unwrap().find_bot_response(ctx.msg.id)
+            {
+                stub_message += &existing_response.content;
+            }
+        }
+    }
+
+    stub_message.truncate(2000);
+    stub_message
 }
