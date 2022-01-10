@@ -193,7 +193,7 @@ async fn app() -> Result<(), Error> {
                 poise::Prefix::Literal("<:ferris:358652670585733120> "),
                 poise::Prefix::Literal("<:ferris:358652670585733120>"),
                 poise::Prefix::Regex(
-                    "(yo|hey) (crab|ferris|fewwis),? can you (please )?"
+                    "(yo|hey) (crab|ferris|fewwis),? can you (please |pwease )?"
                         .parse()
                         .unwrap(),
                 ),
