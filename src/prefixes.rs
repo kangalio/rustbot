@@ -93,6 +93,27 @@ pub async fn prefix_remove(
     Ok(())
 }
 
+/// Delete all of your user-specific prefixes
+#[poise::command(rename = "reset", prefix_command, slash_command)]
+pub async fn prefix_reset(ctx: Context<'_>) -> Result<(), Error> {
+    let user_id = ctx.author().id.0 as i64;
+    let prefixes_deleted = sqlx::query!("DELETE FROM prefix WHERE user_id = ?", user_id)
+        .execute(&ctx.data().database)
+        .await?
+        .rows_affected();
+
+    let msg = if prefixes_deleted == 0 {
+        "You have no prefixes to delete".to_string()
+    } else if prefixes_deleted == 1 {
+        "1 prefix was deleted".to_string()
+    } else {
+        format!("{} prefixes were deleted", prefixes_deleted)
+    };
+    ctx.say(msg).await?;
+
+    Ok(())
+}
+
 /// List all prefixes you configured for yourself
 #[poise::command(rename = "list", prefix_command, slash_command)]
 pub async fn prefix_list(ctx: Context<'_>) -> Result<(), Error> {

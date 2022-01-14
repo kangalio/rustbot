@@ -52,6 +52,16 @@
       ]
     }
   },
+  "b70bf2d0bd14a8a9a66269c28cb0346039f2e5acb1d682b6b6602baab18efe03": {
+    "query": "DELETE FROM prefix WHERE user_id = ?",
+    "describe": {
+      "columns": [],
+      "parameters": {
+        "Right": 1
+      },
+      "nullable": []
+    }
+  },
   "d29a4508bd6cb335c52a111e2a2e00a712263dadb3e0ca9d3b96fd22253b6a20": {
     "query": "SELECT\n            output_message,\n            output_channel,\n            input_channel,\n            name_input_message,\n            description_input_message,\n            links_input_message\n        FROM showcase WHERE ? IN (name_input_message, description_input_message, links_input_message)",
     "describe": {
