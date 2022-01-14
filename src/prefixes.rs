@@ -103,7 +103,7 @@ pub async fn prefix_reset(ctx: Context<'_>) -> Result<(), Error> {
         .rows_affected();
 
     let msg = if prefixes_deleted == 0 {
-        "You have no prefixes to deleted".to_string()
+        "You have no prefixes to delete".to_string()
     } else if prefixes_deleted == 1 {
         "1 prefix was deleted".to_string()
     } else {
