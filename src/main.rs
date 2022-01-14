@@ -245,6 +245,7 @@ async fn app() -> Result<(), Error> {
                 prefixes::prefix_add(),
                 prefixes::prefix_remove(),
                 prefixes::prefix_list(),
+                prefixes::prefix_reset(),
             ],
             ..prefixes::prefix()
         });
