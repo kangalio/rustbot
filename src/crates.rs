@@ -13,7 +13,8 @@ struct Crates {
 struct Crate {
     name: String,
     // newest_version: String, // https://github.com/kangalioo/rustbot/issues/23
-    max_stable_version: String,
+    max_version: Option<String>,
+    max_stable_version: Option<String>, // sometimes null empirically
     updated_at: String,
     downloads: u64,
     description: Option<String>,
@@ -32,7 +33,8 @@ async fn get_crate(http: &reqwest::Client, query: &str) -> Result<Crate, Error> 
         .send()
         .await?
         .json::<Crates>()
-        .await?;
+        .await
+        .map_err(|e| format!("Cannot parse crates.io JSON response (`{}`)", e))?;
 
     let crate_ = crate_list
         .crates
@@ -126,7 +128,14 @@ pub async fn crate_(
                         .as_deref()
                         .unwrap_or("_<no description available>_"),
                 )
-                .field("Version", &crate_.max_stable_version, true)
+                .field(
+                    "Version",
+                    crate_
+                        .max_stable_version
+                        .or(crate_.max_version)
+                        .unwrap_or_else(|| "<unknown version>".into()),
+                    true,
+                )
                 .field("Downloads", format_number(crate_.downloads), true)
                 .timestamp(crate_.updated_at.as_str())
                 .color(crate::EMBED_COLOR)
