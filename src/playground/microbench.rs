@@ -27,13 +27,18 @@ fn bench(functions: &[(&str, fn())]) {
 
     for (chunk_times, (function_name, _)) in functions_chunk_times.iter().zip(functions) {
         let mean_time: f64 = chunk_times.iter().sum::<f64>() / chunk_times.len() as f64;
-        let standard_deviation: f64 = f64::sqrt(
-            chunk_times
-                .iter()
-                .map(|time| (time - mean_time).powi(2))
-                .sum::<f64>()
-                / chunk_times.len() as f64,
-        );
+        
+        let mut sum_of_squared_deviations = 0.0;
+        let mut n = 0;
+        for &time in chunk_times {
+            // Filter out outliers (there are some crazy outliers, I've checked)
+            if time < mean_time * 3.0 {
+                sum_of_squared_deviations += (time - mean_time).powi(2);
+                n += 1;
+            }
+        }
+        let standard_deviation =
+            f64::sqrt(sum_of_squared_deviations / n as f64);
 
         println!(
             "{}: {:.0} iters per second ({:.1}ns±{:.1})",
