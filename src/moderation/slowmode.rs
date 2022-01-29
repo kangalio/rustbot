@@ -37,7 +37,7 @@ async fn immediately_lift_slowmode(ctx: Context<'_>) -> Result<(), Error> {
         Some(active_slowmode) => {
             ctx.channel_id()
                 .edit(ctx.discord(), |b| {
-                    b.slow_mode_rate(active_slowmode.previous_slowmode_rate)
+                    b.rate_limit_per_user(active_slowmode.previous_slowmode_rate)
                 })
                 .await?;
             ctx.say("Restored slowmode to previous level").await?;
@@ -60,7 +60,7 @@ async fn register_slowmode(
         Ok(channel) => channel
             .guild()
             .ok_or("This command only works inside guilds")?
-            .slow_mode_rate
+            .rate_limit_per_user
             .unwrap_or(0),
         Err(e) => {
             log::warn!("Couldn't retrieve channel slowmode settings: {}", e);
@@ -88,7 +88,7 @@ async fn register_slowmode(
             previous_slowmode_rate,
             duration,
             rate,
-            invocation_time: ctx.created_at(),
+            invocation_time: *ctx.created_at(),
         },
     );
 
@@ -107,7 +107,7 @@ async fn restore_slowmode_rate(ctx: Context<'_>) -> Result<(), Error> {
                 return Ok(());
             }
         };
-        if active_slowmode.invocation_time != ctx.created_at() {
+        if active_slowmode.invocation_time != *ctx.created_at() {
             log::info!(
                 "Slowmode entry has a different invocation time; \
                 this slowmode invocation has been overwritten"
@@ -119,7 +119,9 @@ async fn restore_slowmode_rate(ctx: Context<'_>) -> Result<(), Error> {
 
     log::info!("Restoring slowmode rate to {}", previous_slowmode_rate);
     ctx.channel_id()
-        .edit(ctx.discord(), |b| b.slow_mode_rate(previous_slowmode_rate))
+        .edit(ctx.discord(), |b| {
+            b.rate_limit_per_user(previous_slowmode_rate)
+        })
         .await?;
     ctx.data()
         .active_slowmodes
@@ -162,7 +164,7 @@ pub async fn slowmode(
 
     // Apply slowmode
     ctx.channel_id()
-        .edit(ctx.discord(), |b| b.slow_mode_rate(rate))
+        .edit(ctx.discord(), |b| b.rate_limit_per_user(rate))
         .await?;
 
     // Confirmation message
