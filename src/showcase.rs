@@ -85,24 +85,25 @@ pub async fn showcase(ctx: Context<'_>) -> Result<(), Error> {
         })
         .await?;
 
-    // TODO: Use ChannelId::create_public_thread once that's available
-    if let Err(e) = ctx
-        .discord()
-        .http
-        .create_public_thread(
-            showcase_msg.channel_id.0,
-            showcase_msg.id.0,
-            &std::iter::FromIterator::from_iter(std::iter::once((
-                String::from("name"),
-                serde_json::Value::String(name.content.clone()),
-            ))),
-        )
+    match showcase_msg
+        .channel_id
+        .create_public_thread(ctx.discord(), showcase_msg.id, |b| b.name(&name.content))
         .await
     {
-        log::warn!(
+        Ok(thread) => {
+            if let Err(e) = ctx
+                .discord()
+                .http
+                .add_thread_channel_member(thread.id.0, ctx.author().id.0)
+                .await
+            {
+                log::warn!("Couldn't add member to showcase thread: {}", e);
+            }
+        }
+        Err(e) => log::warn!(
             "Couldn't create associated thread for showcase entry: {}",
             e
-        )
+        ),
     }
 
     {
