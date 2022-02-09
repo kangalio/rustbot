@@ -146,6 +146,37 @@ pub async fn crate_(
     Ok(())
 }
 
+/// Returns whether the given type name is the one of a primitive.
+fn is_primitive(name: &str) -> bool {
+    matches!(
+        name,
+        "f32"
+            | "f64"
+            | "i8"
+            | "i16"
+            | "i32"
+            | "i64"
+            | "i128"
+            | "isize"
+            | "u8"
+            | "u16"
+            | "u32"
+            | "u64"
+            | "u128"
+            | "usize"
+            | "pointer"
+            | "reference"
+            | "array"
+            | "bool"
+            | "char"
+            | "fn"
+            | "slice"
+            | "str"
+            | "tuple"
+            | "unit"
+    )
+}
+
 /// Provide the documentation link to an official Rust crate (e.g. std, alloc, nightly)
 fn rustc_crate_link(crate_name: &str) -> Option<&'static str> {
     match crate_name.to_ascii_lowercase().as_str() {
@@ -183,15 +214,20 @@ pub async fn doc(
 
     let mut doc_url = if let Some(rustc_crate) = rustc_crate_link(crate_name) {
         rustc_crate.to_owned()
-    } else if crate_name.is_empty() {
+    } else if crate_name.is_empty() || is_primitive(crate_name) {
         "https://doc.rust-lang.org/stable/std/".to_owned()
     } else {
         get_documentation(&get_crate(&ctx.data().http, crate_name).await?)
     };
 
-    if let Some(item_path) = query_iter.next() {
+    if is_primitive(crate_name) {
         doc_url += "?search=";
-        doc_url += item_path;
+        doc_url += &query;
+    } else {
+        if let Some(item_path) = query_iter.next() {
+            doc_url += "?search=";
+            doc_url += item_path;
+        }
     }
 
     ctx.say(doc_url).await?;
