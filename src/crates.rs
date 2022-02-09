@@ -147,33 +147,16 @@ pub async fn crate_(
 }
 
 /// Returns whether the given type name is the one of a primitive.
+#[rustfmt::skip]
 fn is_primitive(name: &str) -> bool {
     matches!(
         name,
-        "f32"
-            | "f64"
-            | "i8"
-            | "i16"
-            | "i32"
-            | "i64"
-            | "i128"
-            | "isize"
-            | "u8"
-            | "u16"
-            | "u32"
-            | "u64"
-            | "u128"
-            | "usize"
-            | "pointer"
-            | "reference"
-            | "array"
-            | "bool"
-            | "char"
-            | "fn"
-            | "slice"
-            | "str"
-            | "tuple"
-            | "unit"
+        "f32" | "f64"
+            | "i8" | "i16" | "i32" | "i64" | "i128" | "isize"
+            | "u8" | "u16" | "u32" | "u64" | "u128" | "usize"
+            | "char" | "str"
+            | "pointer" | "reference" | "fn"
+            | "bool" | "slice" | "tuple" | "unit" | "array"
     )
 }
 
@@ -223,11 +206,9 @@ pub async fn doc(
     if is_primitive(crate_name) {
         doc_url += "?search=";
         doc_url += &query;
-    } else {
-        if let Some(item_path) = query_iter.next() {
-            doc_url += "?search=";
-            doc_url += item_path;
-        }
+    } else if let Some(item_path) = query_iter.next() {
+        doc_url += "?search=";
+        doc_url += item_path;
     }
 
     ctx.say(doc_url).await?;
