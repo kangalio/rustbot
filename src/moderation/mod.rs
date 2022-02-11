@@ -1,7 +1,9 @@
-mod slowmode;
+use poise::serenity_prelude::Mentionable;
 pub use slowmode::slowmode;
 
 use crate::{serenity, Context, Error};
+
+mod slowmode;
 
 /// Deletes the bot's messages for cleanup
 ///
@@ -62,7 +64,7 @@ pub async fn ban(
     #[description = "Banned user"] banned_user: serenity::Member,
     #[description = "Ban reason"]
     #[rest]
-    reason: Option<String>,
+    _reason: Option<String>,
 ) -> Result<(), Error> {
     ctx.say(format!(
         "Banned user {}  {}",
@@ -165,12 +167,20 @@ pub async fn report(
         .guild()
         .ok_or("This command can only be used in a guild")?;
 
-    reports_channel
+    let report_name = format!("Report {}", (rand::random::<f32>() * 1000.0) as u32);
+
+    let report_thread = reports_channel
+        .create_private_thread(ctx.discord(), |create_thread| {
+            create_thread.name(report_name)
+        })
+        .await?;
+
+    report_thread
         .say(
             ctx.discord(),
             format!(
-                "{} sent a report from channel {}: {}\n> {}",
-                ctx.author().name,
+                "Hey <@&631915156854538260>, {} sent a report from channel {}: {}\n> {}",
+                ctx.author().mention(),
                 naughty_channel.name,
                 latest_message_link(ctx).await,
                 reason
