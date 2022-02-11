@@ -435,7 +435,7 @@ async fn reply_potentially_long_text(
 
 #[tokio::main]
 async fn main() {
-    dotenv::dotenv().expect("Failed to run dotenv initialization.");
+    let _ = dotenv::dotenv();
     env_logger::init();
 
     if let Err(e) = app().await {
