@@ -65,12 +65,8 @@ pub async fn ban(
     reason: Option<String>,
 ) -> Result<(), Error> {
     ctx.say(format!(
-        "Banned user {}{}  {}",
+        "Banned user {}  {}",
         banned_user.user.tag(),
-        match reason {
-            Some(reason) => format!(" {}", reason.trim()),
-            None => String::new(),
-        },
         crate::custom_emoji_code(ctx, "ferrisBanne", '🔨').await
     ))
     .await?;
