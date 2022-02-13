@@ -167,7 +167,7 @@ pub async fn report(
         .guild()
         .ok_or("This command can only be used in a guild")?;
 
-    let report_name = format!("Report {}", (rand::random::<f32>() * 1000.0) as u32);
+    let report_name = format!("Report {}", ctx.id() % 1000);
 
     let report_thread = reports_channel
         .create_private_thread(ctx.discord(), |create_thread| {
