@@ -1,9 +1,7 @@
-use poise::serenity_prelude::Mentionable;
+mod slowmode;
 pub use slowmode::slowmode;
 
 use crate::{serenity, Context, Error};
-
-mod slowmode;
 
 /// Deletes the bot's messages for cleanup
 ///
@@ -166,23 +164,26 @@ pub async fn report(
 
     let report_name = format!("Report {}", ctx.id() % 1000);
 
+    // let msg = reports_channel.say(ctx.discord(), &report_name).await?;
     let report_thread = reports_channel
         .create_private_thread(ctx.discord(), |create_thread| {
             create_thread.name(report_name)
         })
         .await?;
 
+    let thread_message_content = format!(
+        "Hey <@&{}>, <@{}> sent a report from channel {}: {}\n> {}",
+        ctx.data().mod_role_id.0,
+        ctx.author().id.0,
+        naughty_channel.name,
+        latest_message_link(ctx).await,
+        reason
+    );
     report_thread
-        .say(
-            ctx.discord(),
-            format!(
-                "Hey <@&631915156854538260>, {} sent a report from channel {}: {}\n> {}",
-                ctx.author().mention(),
-                naughty_channel.name,
-                latest_message_link(ctx).await,
-                reason
-            ),
-        )
+        .send_message(ctx.discord(), |b| {
+            b.content(thread_message_content)
+                .allowed_mentions(|b| b.users(&[ctx.author().id]).roles(&[ctx.data().mod_role_id]))
+        })
         .await?;
 
     ctx.say("Successfully sent report. Thanks for helping to make this community a better place!")
