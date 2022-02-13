@@ -435,6 +435,7 @@ async fn reply_potentially_long_text(
 
 #[tokio::main]
 async fn main() {
+    let _ = dotenv::dotenv();
     env_logger::init();
 
     if let Err(e) = app().await {

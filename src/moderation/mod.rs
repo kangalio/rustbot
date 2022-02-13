@@ -60,17 +60,10 @@ pub async fn cleanup(
 pub async fn ban(
     ctx: Context<'_>,
     #[description = "Banned user"] banned_user: serenity::Member,
-    #[description = "Ban reason"]
-    #[rest]
-    reason: Option<String>,
 ) -> Result<(), Error> {
     ctx.say(format!(
-        "Banned user {}{}  {}",
+        "Banned user {}  {}",
         banned_user.user.tag(),
-        match reason {
-            Some(reason) => format!(" {}", reason.trim()),
-            None => String::new(),
-        },
         crate::custom_emoji_code(ctx, "ferrisBanne", '🔨').await
     ))
     .await?;
@@ -169,17 +162,28 @@ pub async fn report(
         .guild()
         .ok_or("This command can only be used in a guild")?;
 
-    reports_channel
-        .say(
-            ctx.discord(),
-            format!(
-                "{} sent a report from channel {}: {}\n> {}",
-                ctx.author().name,
-                naughty_channel.name,
-                latest_message_link(ctx).await,
-                reason
-            ),
-        )
+    let report_name = format!("Report {}", ctx.id() % 1000);
+
+    // let msg = reports_channel.say(ctx.discord(), &report_name).await?;
+    let report_thread = reports_channel
+        .create_private_thread(ctx.discord(), |create_thread| {
+            create_thread.name(report_name)
+        })
+        .await?;
+
+    let thread_message_content = format!(
+        "Hey <@&{}>, <@{}> sent a report from channel {}: {}\n> {}",
+        ctx.data().mod_role_id.0,
+        ctx.author().id.0,
+        naughty_channel.name,
+        latest_message_link(ctx).await,
+        reason
+    );
+    report_thread
+        .send_message(ctx.discord(), |b| {
+            b.content(thread_message_content)
+                .allowed_mentions(|b| b.users(&[ctx.author().id]).roles(&[ctx.data().mod_role_id]))
+        })
         .await?;
 
     ctx.say("Successfully sent report. Thanks for helping to make this community a better place!")

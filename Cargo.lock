@@ -1045,6 +1045,7 @@ name = "rustbot"
 version = "0.1.0"
 dependencies = [
  "chrono",
+ "dotenv",
  "env_logger",
  "log",
  "poise",
