@@ -11,5 +11,3 @@ pub use microbench::*;
 pub use misc_commands::*;
 pub use play_eval::*;
 pub use procmacro::*;
-
-use super::reply_potentially_long_text;

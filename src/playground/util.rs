@@ -1,5 +1,6 @@
 use super::api;
 use crate::{Context, Error};
+use poise::serenity_prelude as serenity;
 
 use std::borrow::Cow;
 
@@ -234,19 +235,59 @@ pub async fn send_reply(
     // so we special-case empty code blocks
     if result.trim().is_empty() {
         ctx.say(format!("{}``` ```", flag_parse_errors)).await?;
-    } else {
-        super::reply_potentially_long_text(
-            ctx,
-            &format!("{}```rust\n{}", flag_parse_errors, result),
-            "```",
-            async {
-                format!(
-                    "Output too large. Playground link: <{}>",
-                    api::url_from_gist(flags, &api::post_gist(ctx, code).await.unwrap_or_default()),
-                )
-            },
-        )
+        return Ok(());
+    }
+
+    let timeout = result.contains("timeout --signal=KILL ${timeout}");
+
+    let mut text_end = String::from("```");
+    if timeout {
+        text_end += "Playground timeout detected. Retry?";
+    }
+
+    let text = crate::trim_text(
+        &format!("{}```rust\n{}", flag_parse_errors, result),
+        &text_end,
+        async {
+            format!(
+                "Output too large. Playground link: <{}>",
+                api::url_from_gist(flags, &api::post_gist(ctx, code).await.unwrap_or_default()),
+            )
+        },
+    )
+    .await;
+
+    let response = ctx
+        .send(|b| {
+            if timeout {
+                b.components(|b| {
+                    b.create_action_row(|b| {
+                        b.create_button(|b| {
+                            b.label("Retry")
+                                .style(serenity::ButtonStyle::Primary)
+                                .custom_id(0)
+                        })
+                    })
+                });
+            }
+            b.content(text)
+        })
+        .await?
+        .unwrap()
+        .message()
         .await?;
+    if let Some(retry_pressed) = response
+        .await_component_interaction(&ctx.discord().shard)
+        .timeout(std::time::Duration::from_secs(600))
+        .await
+    {
+        retry_pressed
+            .create_interaction_response(ctx.discord(), |b| {
+                // b.kind(serenity::InteractionResponseType::Pong)
+                b.kind(serenity::InteractionResponseType::DeferredUpdateMessage)
+            })
+            .await?;
+        ctx.rerun().await?;
     }
 
     Ok(())

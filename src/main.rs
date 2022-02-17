@@ -357,30 +357,18 @@ async fn acknowledge_success(
     Ok(())
 }
 
-/// Send a Discord reply message and truncate the message with a given truncation message if the
+/// Truncates the message with a given truncation message if the
 /// text is too long. "Too long" means, it either goes beyond Discord's 2000 char message limit,
 /// or if the text_body has too many lines.
 ///
 /// Only `text_body` is truncated. `text_end` will always be appended at the end. This is useful
 /// for example for large code blocks. You will want to truncate the code block contents, but the
 /// finalizing triple backticks (` ` `) should always stay - that's what `text_end` is for.
-///
-/// ```rust,no_run
-/// # let args = todo!(); use rustbot::reply_potentially_long_text;
-/// // This will send "```\nvery long stringvery long stringver...long stringve\n```"
-/// //                character limit reached, text_end starts ~~~~~~~~~~~~~~~~^
-/// reply_potentially_long_text(
-///     args,
-///     format!("```\n{}", "very long string".repeat(500)),
-///     "\n```"
-/// );
-/// ```
-async fn reply_potentially_long_text(
-    ctx: Context<'_>,
+async fn trim_text(
     mut text_body: &str,
     text_end: &str,
     truncation_msg_future: impl std::future::Future<Output = String>,
-) -> Result<(), Error> {
+) -> String {
     const MAX_OUTPUT_LINES: usize = 45;
 
     // Err with the future inside if no truncation occurs
@@ -429,7 +417,17 @@ async fn reply_potentially_long_text(
         format!("{}{}", text_body, text_end)
     };
 
-    ctx.say(msg).await?;
+    msg
+}
+
+async fn reply_potentially_long_text(
+    ctx: Context<'_>,
+    text_body: &str,
+    text_end: &str,
+    truncation_msg_future: impl std::future::Future<Output = String>,
+) -> Result<(), Error> {
+    ctx.say(trim_text(text_body, text_end, truncation_msg_future).await)
+        .await?;
     Ok(())
 }
 
