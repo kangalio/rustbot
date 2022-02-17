@@ -72,7 +72,7 @@ pub async fn ban(
 
 async fn rustify_inner(ctx: Context<'_>, users: &[serenity::Member]) -> Result<(), Error> {
     if users.is_empty() {
-        // This error message won't be seen
+        // This error text won't be seen (replaced with a cross emoji reaction)
         return Err("Please specify a user to rustify".into());
     }
 
@@ -166,9 +166,7 @@ pub async fn report(
 
     // let msg = reports_channel.say(ctx.discord(), &report_name).await?;
     let report_thread = reports_channel
-        .create_private_thread(ctx.discord(), |create_thread| {
-            create_thread.name(report_name)
-        })
+        .create_private_thread(ctx.discord(), |b| b.name(report_name))
         .await?;
 
     let thread_message_content = format!(
