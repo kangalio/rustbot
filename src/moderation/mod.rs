@@ -166,6 +166,7 @@ pub async fn report(
 
     // let msg = reports_channel.say(ctx.discord(), &report_name).await?;
     let report_thread = reports_channel
+        // .create_public_thread(ctx.discord(), msg, |b| b.name(report_name))
         .create_private_thread(ctx.discord(), |b| b.name(report_name))
         .await?;
 

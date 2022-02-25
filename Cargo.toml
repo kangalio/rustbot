@@ -20,3 +20,6 @@ poise = { git = "https://github.com/kangalioo/poise", branch = "develop", featur
 tokio = { version = "1.4.0", features = ["rt-multi-thread", "process"] }
 sqlx = { version = "0.5.7", features = ["runtime-tokio-rustls", "sqlite", "offline"] }
 dotenv = "0.15.0"
+
+[patch."https://github.com/serenity-rs/serenity"]
+serenity = { git = "https://github.com/kangalioo/serenity", branch = "forum-hack" }
