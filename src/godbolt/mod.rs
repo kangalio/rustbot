@@ -258,7 +258,7 @@ pub async fn godbolt(
 }
 
 fn strip_llvm_mca_result(text: &str) -> &str {
-    text[..text.find("Instruction Info").unwrap_or_else(|| text.len())].trim()
+    text[..text.find("Instruction Info").unwrap_or(text.len())].trim()
 }
 
 /// Run performance analysis using llvm-mca
