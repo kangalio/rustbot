@@ -238,7 +238,7 @@ pub async fn send_reply(
         return Ok(());
     }
 
-    let timeout = result.contains("timeout --signal=KILL ${timeout}");
+    let timeout = result.contains("Killed                  timeout --signal=KILL");
 
     let mut text_end = String::from("```");
     if timeout {
@@ -257,7 +257,7 @@ pub async fn send_reply(
     )
     .await;
 
-    let response = ctx
+    let mut response = ctx
         .send(|b| {
             if timeout {
                 b.components(|b| {
@@ -288,6 +288,11 @@ pub async fn send_reply(
             })
             .await?;
         ctx.rerun().await?;
+    } else {
+        // If timed out, just remove the button
+        response
+            .edit(ctx.discord(), |b| b.components(|b| b))
+            .await?;
     }
 
     Ok(())
