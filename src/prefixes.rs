@@ -137,7 +137,7 @@ pub async fn try_strip_prefix<'a>(
     _: &'a serenity::Context,
     msg: &'a serenity::Message,
     data: &'a crate::Data,
-) -> Option<(&'a str, &'a str)> {
+) -> Result<Option<(&'a str, &'a str)>, Error> {
     let user_id = msg.author.id.0 as i64;
     let mut prefixes = sqlx::query!("SELECT string FROM prefix WHERE user_id = ?", user_id)
         .fetch_many(&data.database);
@@ -145,10 +145,10 @@ pub async fn try_strip_prefix<'a>(
     while let Ok(Some(database_result)) = prefixes.try_next().await {
         if let Some(prefix) = database_result.right() {
             if msg.content.starts_with(&prefix.string) {
-                return Some(msg.content.split_at(prefix.string.len()));
+                return Ok(Some(msg.content.split_at(prefix.string.len())));
             }
         }
     }
 
-    None
+    Ok(None)
 }
