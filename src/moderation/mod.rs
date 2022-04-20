@@ -46,7 +46,7 @@ pub async fn cleanup(
 
 /// Bans another person
 ///
-/// ?ban <member> [reason]
+/// ?ban <member>
 ///
 /// Bans another person
 #[poise::command(
