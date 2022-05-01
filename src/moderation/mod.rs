@@ -74,6 +74,11 @@ pub async fn ban(
 }
 
 async fn rustify_inner(ctx: Context<'_>, users: &[serenity::Member]) -> Result<(), Error> {
+    if let Some(member) = ctx.author_member().await {
+        if !member.roles.contains(&ctx.data().rustacean_role) {
+            return Err("Only Rustaceans can use this command".into());
+        }
+    }
     if users.is_empty() {
         // This error text won't be seen (replaced with a cross emoji reaction)
         return Err("Please specify a user to rustify".into());
