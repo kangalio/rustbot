@@ -152,7 +152,7 @@ pub enum ResultHandling {
     None,
     /// Consume using `let _ = { ... };`
     Discard,
-    /// Print the result with `println!("{:?}")`
+    /// Print the result with `println!("{:#?}")`
     Print,
 }
 
@@ -202,7 +202,7 @@ pub fn maybe_wrap(code: &str, result_handling: ResultHandling) -> Cow<'_, str> {
     let after_crate_attrs = match result_handling {
         ResultHandling::None => "fn main() {\n",
         ResultHandling::Discard => "fn main() { let _ = {\n",
-        ResultHandling::Print => "fn main() { println!(\"{:?}\", {\n",
+        ResultHandling::Print => "fn main() { println!(\"{:#?}\", {\n",
     };
 
     // fn main boilerplate counterpart
