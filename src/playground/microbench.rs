@@ -71,12 +71,20 @@ pub async fn microbench(
     let after_crate_attrs =
         "#![feature(bench_black_box)] #[allow(unused_imports)] use std::hint::black_box;\n";
 
-    let pub_fn_indices = user_code.match_indices("pub fn ");
-    if pub_fn_indices.clone().count() == 0 {
-        ctx.say("No public functions (`pub fn`) found for benchmarking :thinking:")
-            .await?;
-        return Ok(());
-    }
+    let pub_fn_indices = user_code.match_indices("pub fn ").collect::<Vec<_>>();
+    match pub_fn_indices.len() {
+        0 => {
+            ctx.say("No public functions (`pub fn`) found for benchmarking :thinking:")
+                .await?;
+            return Ok(());
+        }
+        1 => {
+            ctx.say("Please include multiple functions. Times are not comparable across runs")
+                .await?;
+            return Ok(());
+        }
+        _ => {}
+    };
 
     // insert this after user code
     let mut after_code = BENCH_FUNCTION.to_owned();
