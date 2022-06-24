@@ -149,11 +149,7 @@ pub async fn clippy(
         .json(&ClippyRequest {
             code,
             edition: flags.edition,
-            crate_type: if code.contains("fn main") {
-                CrateType::Binary
-            } else {
-                CrateType::Library
-            },
+            crate_type: CrateType::Binary,
         })
         .send()
         .await?
