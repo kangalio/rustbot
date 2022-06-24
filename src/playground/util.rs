@@ -194,7 +194,7 @@ pub fn hoise_crate_attributes(code: &str, after_crate_attrs: &str, after_code: &
 /// To check, whether a wrap was done, check if the return type is Cow::Borrowed vs Cow::Owned
 /// If a wrap was done, also hoists crate attributes to the top so they keep working
 pub fn maybe_wrap(code: &str, result_handling: ResultHandling) -> Cow<'_, str> {
-    if code.contains("fn main") {
+    if code.contains("fn main") || code.contains("#![no_main]") {
         return Cow::Borrowed(code);
     }
 

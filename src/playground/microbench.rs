@@ -112,11 +112,7 @@ pub async fn microbench(
         .json(&PlaygroundRequest {
             code: &code,
             channel: Channel::Nightly, // has to be, for black_box
-            crate_type: if code.contains("fn main") {
-                CrateType::Binary
-            } else {
-                CrateType::Library
-            },
+            crate_type: CrateType::Binary,
             edition: flags.edition,
             mode: Mode::Release, // benchmarks on debug don't make sense
             tests: false,

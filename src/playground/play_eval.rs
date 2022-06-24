@@ -25,11 +25,7 @@ async fn play_or_eval(
         .json(&PlaygroundRequest {
             code: &code,
             channel: flags.channel,
-            crate_type: if code.contains("fn main") {
-                CrateType::Binary
-            } else {
-                CrateType::Library
-            },
+            crate_type: CrateType::Binary,
             edition: flags.edition,
             mode: flags.mode,
             tests: false,
