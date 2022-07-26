@@ -184,6 +184,7 @@ async fn app() -> Result<(), Error> {
             misc::uptime(),
             misc::servers(),
             misc::revision(),
+            misc::get(),
         ],
         prefix_options: poise::PrefixFrameworkOptions {
             prefix: Some("?".into()),
