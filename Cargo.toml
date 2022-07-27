@@ -20,9 +20,9 @@ poise = "0.1.0"
 tokio = { version = "1.4.0", features = ["rt-multi-thread", "process"] }
 sqlx = { version = "0.5.7", features = ["runtime-tokio-rustls", "sqlite", "offline"] }
 dotenv = "0.15.0"
-image = "0.24" # get a better computer meme rendering
-imageproc = "0.23" # get a better computer meme rendering
-rusttype = "0.9" # interact with imageproc
+image = { version = "0.24", default-features = false, features = ["png"] } # get a better computer meme rendering
+imageproc = { version = "0.23", default-features = false } # get a better computer meme rendering
+rusttype = { version = "0.9", default-features = false } # interact with imageproc
 once_cell = "1.13"
 
 # [patch.crates-io]
