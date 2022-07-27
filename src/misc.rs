@@ -112,7 +112,7 @@ pub async fn revision(ctx: Context<'_>) -> Result<(), Error> {
 
 /// Use this joke command to have Conrad Ludgate tell you to get something
 ///
-/// Example: `?get a better computer`
+/// Example: `?conradluget a better computer`
 #[poise::command(
     prefix_command,
     slash_command,
@@ -120,7 +120,7 @@ pub async fn revision(ctx: Context<'_>) -> Result<(), Error> {
     track_edits,
     category = "Miscellaneous"
 )]
-pub async fn get(
+pub async fn conradluget(
     ctx: Context<'_>,
     #[description = "Get what?"]
     #[rest]
