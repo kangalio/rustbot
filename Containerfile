@@ -1,4 +1,4 @@
-FROM rust:1.54 as builder
+FROM rust:latest as builder
 
 ENV SQLX_OFFLINE=true
 ENV DATABASE_URL=sqlite:database/database.sqlite
