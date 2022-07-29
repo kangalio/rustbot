@@ -148,16 +148,17 @@ pub async fn crate_(
 
 /// Returns whether the given type name is the one of a primitive.
 #[rustfmt::skip]
-fn is_primitive(name: &str) -> bool {
-    matches!(
-        name,
-        "f32" | "f64"
-            | "i8" | "i16" | "i32" | "i64" | "i128" | "isize"
-            | "u8" | "u16" | "u32" | "u64" | "u128" | "usize"
-            | "char" | "str"
-            | "pointer" | "reference" | "fn"
-            | "bool" | "slice" | "tuple" | "unit" | "array"
-    )
+fn is_in_std(name: &str) -> bool {
+    name.chars().next().map(char::is_uppercase).unwrap_or(false)
+        || matches!(
+            name,
+            "f32" | "f64"
+                | "i8" | "i16" | "i32" | "i64" | "i128" | "isize"
+                | "u8" | "u16" | "u32" | "u64" | "u128" | "usize"
+                | "char" | "str"
+                | "pointer" | "reference" | "fn"
+                | "bool" | "slice" | "tuple" | "unit" | "array"
+        )
 }
 
 /// Provide the documentation link to an official Rust crate (e.g. std, alloc, nightly)
@@ -193,17 +194,17 @@ pub async fn doc(
     #[description = "Path of the crate and item to lookup"] query: String,
 ) -> Result<(), Error> {
     let mut query_iter = query.splitn(2, "::");
-    let crate_name = query_iter.next().unwrap();
+    let first_path_element = query_iter.next().unwrap();
 
-    let mut doc_url = if let Some(rustc_crate) = rustc_crate_link(crate_name) {
+    let mut doc_url = if let Some(rustc_crate) = rustc_crate_link(first_path_element) {
         rustc_crate.to_owned()
-    } else if crate_name.is_empty() || is_primitive(crate_name) {
+    } else if first_path_element.is_empty() || is_in_std(first_path_element) {
         "https://doc.rust-lang.org/stable/std/".to_owned()
     } else {
-        get_documentation(&get_crate(&ctx.data().http, crate_name).await?)
+        get_documentation(&get_crate(&ctx.data().http, first_path_element).await?)
     };
 
-    if is_primitive(crate_name) {
+    if is_in_std(first_path_element) {
         doc_url += "?search=";
         doc_url += &query;
     } else if let Some(item_path) = query_iter.next() {
