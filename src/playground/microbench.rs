@@ -3,7 +3,7 @@ use crate::{Context, Error};
 
 const BENCH_FUNCTION: &str = r#"
 fn bench(functions: &[(&str, fn())]) {
-    const CHUNK_SIZE: usize = 10000;
+    const CHUNK_SIZE: usize = 1000;
 
     // Warm up
     for (_, function) in functions.iter() {
@@ -37,13 +37,11 @@ fn bench(functions: &[(&str, fn())]) {
                 n += 1;
             }
         }
-        let standard_deviation =
-            f64::sqrt(sum_of_squared_deviations / n as f64);
+        let standard_deviation = f64::sqrt(sum_of_squared_deviations / n as f64);
 
         println!(
-            "{}: {:.0} iters per second ({:.1}ns±{:.1})",
+            "{}: {:.1}ns ± {:.1}",
             function_name,
-            1.0 / mean_time,
             mean_time * 1_000_000_000.0,
             standard_deviation * 1_000_000_000.0,
         );
@@ -71,12 +69,20 @@ pub async fn microbench(
     let after_crate_attrs =
         "#![feature(bench_black_box)] #[allow(unused_imports)] use std::hint::black_box;\n";
 
-    let pub_fn_indices = user_code.match_indices("pub fn ");
-    if pub_fn_indices.clone().count() == 0 {
-        ctx.say("No public functions (`pub fn`) found for benchmarking :thinking:")
-            .await?;
-        return Ok(());
-    }
+    let pub_fn_indices = user_code.match_indices("pub fn ").collect::<Vec<_>>();
+    match pub_fn_indices.len() {
+        0 => {
+            ctx.say("No public functions (`pub fn`) found for benchmarking :thinking:")
+                .await?;
+            return Ok(());
+        }
+        1 => {
+            ctx.say("Please include multiple functions. Times are not comparable across runs")
+                .await?;
+            return Ok(());
+        }
+        _ => {}
+    };
 
     // insert this after user code
     let mut after_code = BENCH_FUNCTION.to_owned();
@@ -104,11 +110,7 @@ pub async fn microbench(
         .json(&PlaygroundRequest {
             code: &code,
             channel: Channel::Nightly, // has to be, for black_box
-            crate_type: if code.contains("fn main") {
-                CrateType::Binary
-            } else {
-                CrateType::Library
-            },
+            crate_type: CrateType::Binary,
             edition: flags.edition,
             mode: Mode::Release, // benchmarks on debug don't make sense
             tests: false,
@@ -130,15 +132,25 @@ pub async fn microbench(
 pub fn microbench_help() -> String {
     generic_help(GenericHelp {
         command: "microbench",
-        desc: "Benchmark small snippets of code by running them repeatedly. Public function \
-        snippets are run in blocks of 10000 repetitions in a cycle until a certain time has \
-        passed. Measurements are averaged and standard deviation is calculated for each",
+        desc: "\
+Benchmarks small snippets of code by running them repeatedly. Public functions \
+are run in blocks of 1000 repetitions in a cycle until 5 seconds have \
+passed. Measurements are averaged and standard deviation is calculated for each
+
+Use the `std::hint::black_box` function, which is already imported, to wrap results of \
+computations that shouldn't be optimized out. Also wrap computation inputs in `black_box(...)` \
+that should be opaque to the optimizer: `number * 2` produces optimized integer doubling assembly while \
+`number * black_box(2)` produces a generic integer multiplication instruction",
         mode_and_channel: false,
         warn: true,
         run: false,
         example_code: "
-pub fn snippet_a() { /* code */ }
-pub fn snippet_b() { /* code */ }
+pub fn add() {
+    black_box(black_box(42.0) + black_box(99.0));
+}
+pub fn mul() {
+    black_box(black_box(42.0) * black_box(99.0));
+}
 ",
     })
 }

@@ -1,4 +1,5 @@
 use crate::{Context, Error};
+use poise::serenity_prelude as serenity;
 
 /// Evaluates Go code
 #[poise::command(prefix_command, discard_spare_arguments, category = "Miscellaneous")]
@@ -106,5 +107,62 @@ pub async fn revision(ctx: Context<'_>) -> Result<(), Error> {
     let rustbot_rev: Option<&'static str> = option_env!("RUSTBOT_REV");
     ctx.say(format!("`{}`", rustbot_rev.unwrap_or("unknown")))
         .await?;
+    Ok(())
+}
+
+/// Use this joke command to have Conrad Ludgate tell you to get something
+///
+/// Example: `?conradluget a better computer`
+#[poise::command(
+    prefix_command,
+    slash_command,
+    hide_in_help,
+    track_edits,
+    category = "Miscellaneous"
+)]
+pub async fn conradluget(
+    ctx: Context<'_>,
+    #[description = "Get what?"]
+    #[rest]
+    text: String,
+) -> Result<(), Error> {
+    use once_cell::sync::Lazy;
+    static BASE_IMAGE: Lazy<image::DynamicImage> = Lazy::new(|| {
+        image::io::Reader::with_format(
+            std::io::Cursor::new(&include_bytes!("../assets/conrad.png")[..]),
+            image::ImageFormat::Png,
+        )
+        .decode()
+        .expect("failed to load image")
+    });
+    static FONT: Lazy<rusttype::Font> = Lazy::new(|| {
+        rusttype::Font::try_from_bytes(include_bytes!("../assets/OpenSans.ttf"))
+            .expect("failed to load font")
+    });
+
+    let image = imageproc::drawing::draw_text(
+        &*BASE_IMAGE,
+        image::Rgba([201, 209, 217, 255]),
+        57,
+        286,
+        rusttype::Scale::uniform(65.0),
+        &*FONT,
+        &format!("Get {}", text),
+    );
+
+    let mut img_bytes = Vec::with_capacity(200_000); // preallocate 200kB for the img
+    image::DynamicImage::ImageRgba8(image).write_to(
+        &mut std::io::Cursor::new(&mut img_bytes),
+        image::ImageOutputFormat::Png,
+    )?;
+
+    ctx.send(|b| {
+        b.attachment(serenity::AttachmentType::Bytes {
+            data: img_bytes.into(),
+            filename: "unnamed.png".into(),
+        })
+    })
+    .await?;
+
     Ok(())
 }
