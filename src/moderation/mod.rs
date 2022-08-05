@@ -177,6 +177,10 @@ pub async fn report(
         // .create_public_thread(ctx.discord(), msg, |b| b.name(report_name))
         .create_private_thread(ctx.discord(), |b| b.name(report_name))
         .await?;
+    // Prevent non-mods from unarchiving the thread and accidentally exposing themselves in audit log.
+    report_thread
+        .edit_thread(ctx.discord(), |t| t.locked(true))
+        .await?;
 
     let thread_message_content = format!(
         "Hey <@&{}>, <@{}> sent a report from channel {}: {}\n> {}",
