@@ -7,7 +7,7 @@ use std::borrow::Cow;
 #[poise::command(
     prefix_command,
     track_edits,
-    explanation_fn = "miri_help",
+    help_text_fn = "miri_help",
     category = "Playground"
 )]
 pub async fn miri(
@@ -61,7 +61,7 @@ pub fn miri_help() -> String {
 #[poise::command(
     prefix_command,
     track_edits,
-    explanation_fn = "expand_help",
+    help_text_fn = "expand_help",
     category = "Playground"
 )]
 pub async fn expand(
@@ -124,7 +124,7 @@ pub fn expand_help() -> String {
 #[poise::command(
     prefix_command,
     track_edits,
-    explanation_fn = "clippy_help",
+    help_text_fn = "clippy_help",
     category = "Playground"
 )]
 pub async fn clippy(
@@ -186,7 +186,7 @@ pub fn clippy_help() -> String {
 #[poise::command(
     prefix_command,
     track_edits,
-    explanation_fn = "fmt_help",
+    help_text_fn = "fmt_help",
     category = "Playground"
 )]
 pub async fn fmt(

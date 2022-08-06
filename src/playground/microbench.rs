@@ -52,7 +52,7 @@ fn bench(functions: &[(&str, fn())]) {
 #[poise::command(
     prefix_command,
     track_edits,
-    explanation_fn = "microbench_help",
+    help_text_fn = "microbench_help",
     category = "Playground"
 )]
 pub async fn microbench(

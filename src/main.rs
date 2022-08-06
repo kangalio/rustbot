@@ -56,7 +56,7 @@ or
 code here
 \\`\\`\\`"
                 .to_owned()
-        } else if let Some(multiline_help) = ctx.command().multiline_help {
+        } else if let Some(multiline_help) = ctx.command().help_text {
             format!("**{}**\n{}", error, multiline_help())
         } else {
             error.to_string()
@@ -276,7 +276,7 @@ async fn app() -> Result<(), Error> {
         .await?;
     sqlx::migrate!("./migrations").run(&database).await?;
 
-    poise::Framework::build()
+    poise::Framework::builder()
         .token(discord_token)
         .user_data_setup(move |ctx, bot, _framework| {
             Box::pin(async move {

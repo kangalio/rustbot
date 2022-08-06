@@ -5,7 +5,7 @@ use crate::{Context, Error};
 #[poise::command(
     prefix_command,
     track_edits,
-    explanation_fn = "procmacro_help",
+    help_text_fn = "procmacro_help",
     category = "Playground"
 )]
 pub async fn procmacro(

@@ -71,7 +71,7 @@ fn format_number(mut n: u64) -> String {
     output
 }
 
-async fn autocomplete_crate(ctx: Context<'_>, partial: String) -> impl Iterator<Item = String> {
+async fn autocomplete_crate(ctx: Context<'_>, partial: &str) -> impl Iterator<Item = String> {
     let http = &ctx.data().http;
 
     let response = http
