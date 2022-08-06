@@ -194,7 +194,7 @@ pub fn hoise_crate_attributes(code: &str, after_crate_attrs: &str, after_code: &
 /// To check, whether a wrap was done, check if the return type is Cow::Borrowed vs Cow::Owned
 /// If a wrap was done, also hoists crate attributes to the top so they keep working
 pub fn maybe_wrap(code: &str, result_handling: ResultHandling) -> Cow<'_, str> {
-    if code.contains("fn main") {
+    if code.contains("fn main") || code.contains("#![no_main]") {
         return Cow::Borrowed(code);
     }
 
@@ -258,7 +258,7 @@ pub async fn send_reply(
     .await;
 
     let custom_button_id = ctx.id().to_string();
-    let mut response = ctx
+    let response = ctx
         .send(|b| {
             if timeout {
                 b.components(|b| {
@@ -273,10 +273,10 @@ pub async fn send_reply(
             }
             b.content(text)
         })
-        .await?
-        .message()
         .await?;
     if let Some(retry_pressed) = response
+        .message()
+        .await?
         .await_component_interaction(&ctx.discord().shard)
         .filter(move |x| x.data.custom_id == custom_button_id)
         .timeout(std::time::Duration::from_secs(600))
@@ -291,9 +291,7 @@ pub async fn send_reply(
         ctx.rerun().await?;
     } else {
         // If timed out, just remove the button
-        response
-            .edit(ctx.discord(), |b| b.components(|b| b))
-            .await?;
+        response.edit(ctx, |b| b.components(|b| b)).await?;
     }
 
     Ok(())

@@ -7,7 +7,7 @@ use std::borrow::Cow;
 #[poise::command(
     prefix_command,
     track_edits,
-    explanation_fn = "miri_help",
+    help_text_fn = "miri_help",
     category = "Playground"
 )]
 pub async fn miri(
@@ -61,7 +61,7 @@ pub fn miri_help() -> String {
 #[poise::command(
     prefix_command,
     track_edits,
-    explanation_fn = "expand_help",
+    help_text_fn = "expand_help",
     category = "Playground"
 )]
 pub async fn expand(
@@ -124,7 +124,7 @@ pub fn expand_help() -> String {
 #[poise::command(
     prefix_command,
     track_edits,
-    explanation_fn = "clippy_help",
+    help_text_fn = "clippy_help",
     category = "Playground"
 )]
 pub async fn clippy(
@@ -134,7 +134,12 @@ pub async fn clippy(
 ) -> Result<(), Error> {
     ctx.say(stub_message(ctx)).await?;
 
-    let code = &maybe_wrap(&code.code, ResultHandling::Discard);
+    let code = &format!(
+        // dead_code: https://github.com/kangalioo/rustbot/issues/44
+        // let_unit_value: silence warning about `let _ = { ... }` wrapper that swallows return val
+        "#![allow(dead_code, clippy::let_unit_value)] {}",
+        maybe_wrap(&code.code, ResultHandling::Discard)
+    );
     let (flags, flag_parse_errors) = parse_flags(flags);
 
     let mut result: PlayResult = ctx
@@ -144,11 +149,7 @@ pub async fn clippy(
         .json(&ClippyRequest {
             code,
             edition: flags.edition,
-            crate_type: if code.contains("fn main") {
-                CrateType::Binary
-            } else {
-                CrateType::Library
-            },
+            crate_type: CrateType::Binary,
         })
         .send()
         .await?
@@ -185,7 +186,7 @@ pub fn clippy_help() -> String {
 #[poise::command(
     prefix_command,
     track_edits,
-    explanation_fn = "fmt_help",
+    help_text_fn = "fmt_help",
     category = "Playground"
 )]
 pub async fn fmt(

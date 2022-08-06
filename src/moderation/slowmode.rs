@@ -97,8 +97,9 @@ async fn register_slowmode(
 
 async fn restore_slowmode_rate(ctx: Context<'_>) -> Result<(), Error> {
     let previous_slowmode_rate = {
-        let mut active_slowmodes = ctx.data().active_slowmodes.lock().unwrap();
-        let active_slowmode = match active_slowmodes.remove(&ctx.channel_id()) {
+        let active_slowmodes = &ctx.data().active_slowmodes;
+        let active_slowmode = active_slowmodes.lock().unwrap().remove(&ctx.channel_id());
+        let active_slowmode = match active_slowmode {
             Some(x) => x,
             None => {
                 log::info!(

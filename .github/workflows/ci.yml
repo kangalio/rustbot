@@ -10,7 +10,6 @@ jobs:
       fail-fast: false
       matrix:
         name:
-          - MSRV
           - stable
           - beta
           - nightly
@@ -19,8 +18,6 @@ jobs:
           - no features
 
         include:
-          - name: MSRV
-            toolchain: 1.51.0
           - name: beta
             toolchain: beta
           - name: nightly

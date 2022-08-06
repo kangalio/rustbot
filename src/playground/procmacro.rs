@@ -5,7 +5,7 @@ use crate::{Context, Error};
 #[poise::command(
     prefix_command,
     track_edits,
-    explanation_fn = "procmacro_help",
+    help_text_fn = "procmacro_help",
     category = "Playground"
 )]
 pub async fn procmacro(
@@ -58,11 +58,11 @@ fn main() -> std::io::Result<()> {
         .append(true)
         .open("Cargo.toml")?
         .write_all(b"[lib]\nproc-macro = true")?;
-    cmd_run("cargo "#;
-    generated_code += if flags.run { "r" } else { "c" };
+    cmd_run("cargo"#;
+    generated_code += if flags.run { " r" } else { " c" };
     generated_code += r#" -q --bin procmacro");
-            Ok(())
-        }"#;
+    Ok(())
+}"#;
 
     let mut result: PlayResult = ctx
         .data()
@@ -70,8 +70,8 @@ fn main() -> std::io::Result<()> {
         .post("https://play.rust-lang.org/execute")
         .json(&PlaygroundRequest {
             code: &generated_code,
+            channel: Channel::Nightly, // so that inner proc macro gets nightly too
             // These flags only apply to the glue code
-            channel: Channel::Stable,
             crate_type: CrateType::Binary,
             edition: Edition::E2021,
             mode: Mode::Debug,

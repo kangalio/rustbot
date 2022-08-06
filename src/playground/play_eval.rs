@@ -25,11 +25,7 @@ async fn play_or_eval(
         .json(&PlaygroundRequest {
             code: &code,
             channel: flags.channel,
-            crate_type: if code.contains("fn main") {
-                CrateType::Binary
-            } else {
-                CrateType::Library
-            },
+            crate_type: CrateType::Binary,
             edition: flags.edition,
             mode: flags.mode,
             tests: false,
@@ -48,7 +44,7 @@ async fn play_or_eval(
 #[poise::command(
     prefix_command,
     track_edits,
-    explanation_fn = "play_help",
+    help_text_fn = "play_help",
     category = "Playground"
 )]
 pub async fn play(
@@ -74,7 +70,7 @@ pub fn play_help() -> String {
 #[poise::command(prefix_command,
     track_edits,
     hide_in_help, // don't clutter help menu with something that ?play can do too
-    explanation_fn = "playwarn_help",
+    help_text_fn = "playwarn_help",
     category = "Playground"
 )]
 pub async fn playwarn(
@@ -100,7 +96,7 @@ pub fn playwarn_help() -> String {
 #[poise::command(
     prefix_command,
     track_edits,
-    explanation_fn = "eval_help",
+    help_text_fn = "eval_help",
     category = "Playground"
 )]
 pub async fn eval(

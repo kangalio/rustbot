@@ -19,7 +19,7 @@ Forgot your prefixes? Try `?prefix list`."
 #[poise::command(
     prefix_command,
     slash_command,
-    explanation_fn = "prefixes_explanation_text",
+    help_text_fn = "prefixes_explanation_text",
     category = "Miscellaneous"
 )]
 pub async fn prefix(ctx: Context<'_>) -> Result<(), Error> {
@@ -50,7 +50,7 @@ pub async fn prefix_add(
     Ok(())
 }
 
-async fn autocomplete_prefix(ctx: Context<'_>, partial: String) -> Vec<String> {
+async fn autocomplete_prefix(ctx: Context<'_>, partial: &str) -> Vec<String> {
     let user_id = ctx.author().id.0 as i64;
     let prefixes = sqlx::query!("SELECT string FROM prefix WHERE user_id = ?", user_id)
         .fetch_many(&ctx.data().database);
