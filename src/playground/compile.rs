@@ -44,12 +44,21 @@ pub async fn mir(
         .json()
         .await?;
 
-    let stderr = format_play_eval_stderr(&result.stderr, flags.warn);
+    // Strip boilerplates line and surgically remove the two useless warnings
+    let stderr = format_play_eval_stderr(&result.stderr, flags.warn).replace("\
+warning: due to multiple output types requested, the explicitly specified output file name will be adapted for each output type
 
-    let output = result.code.trim_start_matches(MIR_UNSTABLE_WARNING);
+warning: ignoring --out-dir flag due to -o flag
+", "");
+
+    // Remove two boilerplate lines off the start
+    let stdout = result
+        .code
+        .trim_start_matches(MIR_UNSTABLE_WARNING)
+        .to_owned();
 
     let result = PlayResult {
-        stdout: output.to_owned(),
+        stdout,
         stderr,
         success: result.success,
     };
