@@ -411,13 +411,11 @@ async fn trim_text(
         text_body.to_owned()
     };
 
-    let msg = if let Ok(truncation_msg) = truncation_msg_maybe {
+    if let Ok(truncation_msg) = truncation_msg_maybe {
         format!("{}{}{}", text_body, text_end, truncation_msg)
     } else {
         format!("{}{}", text_body, text_end)
-    };
-
-    msg
+    }
 }
 
 async fn reply_potentially_long_text(

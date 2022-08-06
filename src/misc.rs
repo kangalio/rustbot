@@ -146,7 +146,7 @@ pub async fn conradluget(
         57,
         286,
         rusttype::Scale::uniform(65.0),
-        &*FONT,
+        &FONT,
         &format!("Get {}", text),
     );
 
