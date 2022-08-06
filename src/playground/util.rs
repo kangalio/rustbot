@@ -330,11 +330,16 @@ pub fn strip_fn_main_boilerplate_from_formatted(text: &str) -> String {
 pub fn format_play_eval_stderr(stderr: &str, show_compiler_warnings: bool) -> String {
     let compiler_output = extract_relevant_lines(
         stderr,
-        &["Compiling playground"],
+        &[
+            "Compiling playground",
+            // When using the /compile endpoint for a -Zunpretty option like HIR or MIR, this warning is emitted
+            "warning: ignoring --out-dir flag due to -o flag",
+        ],
         &[
             "warning emitted",
             "warnings emitted",
             "warning: `playground` (bin \"playground\") generated",
+            "warning: `playground` (lib) generated",
             "error: could not compile",
             "error: aborting",
             "Finished ",
