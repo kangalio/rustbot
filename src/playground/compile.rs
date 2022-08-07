@@ -8,7 +8,7 @@ const MIR_UNSTABLE_WARNING: &str = "// WARNING: This output format is intended f
 #[poise::command(
     prefix_command,
     track_edits,
-    explanation_fn = "mir_help",
+    help_text_fn = "mir_help",
     category = "Playground"
 )]
 pub async fn mir(
