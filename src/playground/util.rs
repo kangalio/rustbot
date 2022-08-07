@@ -326,6 +326,7 @@ pub fn strip_fn_main_boilerplate_from_formatted(text: &str) -> String {
 /// If the program doesn't compile, the compiler output is returned. If it did compile and run,
 /// compiler output (i.e. warnings) is shown only when show_compiler_warnings is true.
 pub fn format_play_eval_stderr(stderr: &str, show_compiler_warnings: bool) -> String {
+    // Extract core compiler output and remove boilerplate lines from top and bottom
     let compiler_output = extract_relevant_lines(
         stderr,
         &["Compiling playground"],
@@ -333,15 +334,19 @@ pub fn format_play_eval_stderr(stderr: &str, show_compiler_warnings: bool) -> St
             "warning emitted",
             "warnings emitted",
             "warning: `playground` (bin \"playground\") generated",
+            "warning: `playground` (lib) generated",
             "error: could not compile",
             "error: aborting",
             "Finished ",
         ],
     );
 
-    if stderr.contains("Running `target") {
+    // If the program actually ran, compose compiler output and program stderr
+    // Using "Finished " here instead of "Running `target" because this method is also used by
+    // e.g. -Zunpretty=XXX family commands which don't actually run anything
+    if stderr.contains("Finished ") {
         // Program successfully compiled, so compiler output will be just warnings
-        let program_stderr = extract_relevant_lines(stderr, &["Running `target"], &[]);
+        let program_stderr = extract_relevant_lines(stderr, &["Finished "], &[]);
 
         if show_compiler_warnings {
             // Concatenate compiler output and program stderr with a newline
