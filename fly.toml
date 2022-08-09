@@ -1,0 +1,77 @@
+app = "rustbot"
+kill_signal = "SIGINT"
+kill_timeout = 5
+processes = []
+
+[env]
+  # Enables logging for the bot
+  RUST_LOG="rustbot=info"
+
+  # ID of your Discord bot application
+  APPLICATION_ID=275357149477994498
+
+  # ID of the Moderator role. Potentially used someday for `?cleanup` command
+  MOD_ROLE_ID=631915156854538260
+
+  # ID of the Rustacean role. Used for `?rustify` command
+  RUSTACEAN_ROLE_ID=319953207193501696
+
+  # ID of the showcase channel
+  SHOWCASE_CHANNEL_ID=884562689928605766
+
+  # ID of the channel where reports are sent to. Used for `/report` command. Leave empty to disable
+  # `/report` command
+  REPORTS_CHANNEL_ID=935643214818443265
+
+  # If running the bot for the first time, set to `true`
+  # otherwise, sqlx will error at compile-time if the database hasn't been set-up yet.
+  SQLX_OFFLINE="true"
+
+  # File name of the database
+  DATABASE_URL="sqlite:database/database.sqlite"
+
+  # Whether to enable experimental user-specific custom prefixes
+  # Experimental because I haven't yet tested the performance impact of issuing an SQLite query on
+  # every message
+  CUSTOM_PREFIXES="false"
+
+  # The duration to wait before refreshing the godbolt targets list
+  GODBOLT_UPDATE_DURATION=1
+
+
+[experimental]
+  allowed_public_ports = []
+  auto_rollback = true
+
+[[services]]
+  http_checks = []
+  internal_port = 8080
+  processes = ["app"]
+  protocol = "tcp"
+  script_checks = []
+  [services.concurrency]
+    hard_limit = 25
+    soft_limit = 20
+    type = "connections"
+
+  [[services.ports]]
+    force_https = true
+    handlers = ["http"]
+    port = 80
+
+  [[services.ports]]
+    handlers = ["tls", "http"]
+    port = 443
+
+  [[services.tcp_checks]]
+    grace_period = "1s"
+    interval = "15s"
+    restart_limit = 0
+    timeout = "2s"
+
+[mounts]
+  source="rustbot_data"
+  destination="/usr/src/app/database"
+
+[deploy]
+  strategy = "immediate"

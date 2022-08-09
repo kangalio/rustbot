@@ -5,3 +5,4 @@
 !/src
 !/migrations
 !sqlx-data.json
+!/assets
