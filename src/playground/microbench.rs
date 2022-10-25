@@ -66,8 +66,7 @@ pub async fn microbench(
     let black_box_hint = !user_code.contains("black_box");
 
     // insert convenience import for users
-    let after_crate_attrs =
-        "#![feature(bench_black_box)] #[allow(unused_imports)] use std::hint::black_box;\n";
+    let after_crate_attrs = "#[allow(unused_imports)] use std::hint::black_box;\n";
 
     let pub_fn_indices = user_code.match_indices("pub fn ").collect::<Vec<_>>();
     match pub_fn_indices.len() {
@@ -109,7 +108,7 @@ pub async fn microbench(
         .post("https://play.rust-lang.org/execute")
         .json(&PlaygroundRequest {
             code: &code,
-            channel: Channel::Nightly, // has to be, for black_box
+            channel: flags.channel,
             crate_type: CrateType::Binary,
             edition: flags.edition,
             mode: Mode::Release, // benchmarks on debug don't make sense
