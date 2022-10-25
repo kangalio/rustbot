@@ -256,6 +256,12 @@ pub async fn move_(
         ctx.channel_id().mention(),
         source_msg_link
     );
+    if let Context::Prefix(ctx) = ctx {
+        if let Some(referenced_message) = &ctx.msg.referenced_message {
+            comefrom_message += "\n> ";
+            comefrom_message += &referenced_message.content;
+        }
+    }
 
     {
         let mut users_to_ping = users_to_ping.iter();
