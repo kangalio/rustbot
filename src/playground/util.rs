@@ -345,7 +345,7 @@ pub fn format_play_eval_stderr(stderr: &str, show_compiler_warnings: bool) -> St
     // e.g. -Zunpretty=XXX family commands which don't actually run anything
     if stderr.contains("Finished ") {
         // Program successfully compiled, so compiler output will be just warnings
-        let program_stderr = extract_relevant_lines(stderr, &["Finished "], &[]);
+        let program_stderr = extract_relevant_lines(stderr, &["Finished ", "Running `target"], &[]);
 
         if show_compiler_warnings {
             // Concatenate compiler output and program stderr with a newline
