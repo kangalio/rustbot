@@ -155,6 +155,7 @@ async fn app() -> Result<(), Error> {
             playground::play(),
             playground::playwarn(),
             playground::eval(),
+            playground::mir(),
             playground::miri(),
             playground::expand(),
             playground::clippy(),
