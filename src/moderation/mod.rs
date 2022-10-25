@@ -23,7 +23,7 @@ pub async fn cleanup(
 
     let messages_to_delete = ctx
         .channel_id()
-        .messages(ctx.discord(), |m| m.limit(100))
+        .messages(ctx.discord(), serenity::GetMessages::new().limit(100))
         .await?
         .into_iter()
         .filter(|msg| {
@@ -88,9 +88,9 @@ async fn rustify_inner(ctx: Context<'_>, users: &[serenity::Member]) -> Result<(
         ctx.discord()
             .http
             .add_member_role(
-                user.guild_id.0,
-                user.user.id.0,
-                ctx.data().rustacean_role.0,
+                user.guild_id,
+                user.user.id,
+                ctx.data().rustacean_role,
                 Some(&format!(
                     "You have been rusted by {}! owo",
                     ctx.author().name
@@ -131,7 +131,7 @@ pub async fn application_rustify(
 async fn latest_message_link(ctx: Context<'_>) -> String {
     let message = ctx
         .channel_id()
-        .messages(ctx.discord(), |f| f.limit(1))
+        .messages(ctx.discord(), serenity::GetMessages::new().limit(1))
         .await
         .ok()
         .and_then(|messages| messages.into_iter().next());
@@ -173,28 +173,34 @@ pub async fn report(
     let report_name = format!("Report {}", ctx.id() % 1000);
 
     // let msg = reports_channel.say(ctx.discord(), &report_name).await?;
-    let report_thread = reports_channel
-        // .create_public_thread(ctx.discord(), msg, |b| b.name(report_name))
-        .create_private_thread(ctx.discord(), |b| b.name(report_name))
+    let mut report_thread = reports_channel
+        // .create_public_thread(ctx.discord(), msg, serenity::CreateThread::new(report_name))
+        .create_private_thread(ctx.discord(), serenity::CreateThread::new(report_name))
         .await?;
     // Prevent non-mods from unarchiving the thread and accidentally exposing themselves in audit log.
     report_thread
-        .edit_thread(ctx.discord(), |t| t.locked(true))
+        .edit_thread(ctx.discord(), serenity::EditThread::new().locked(true))
         .await?;
 
     let thread_message_content = format!(
         "Hey <@&{}>, <@{}> sent a report from channel {}: {}\n> {}",
-        ctx.data().mod_role_id.0,
-        ctx.author().id.0,
+        ctx.data().mod_role_id,
+        ctx.author().id,
         naughty_channel.name,
         latest_message_link(ctx).await,
         reason
     );
     report_thread
-        .send_message(ctx.discord(), |b| {
-            b.content(thread_message_content)
-                .allowed_mentions(|b| b.users(&[ctx.author().id]).roles(&[ctx.data().mod_role_id]))
-        })
+        .send_message(
+            ctx.discord(),
+            serenity::CreateMessage::new()
+                .content(thread_message_content)
+                .allowed_mentions(
+                    serenity::CreateAllowedMentions::new()
+                        .users(&[ctx.author().id])
+                        .roles(&[ctx.data().mod_role_id]),
+                ),
+        )
         .await?;
 
     ctx.say("Successfully sent report. Thanks for helping to make this community a better place!")
@@ -226,9 +232,12 @@ pub async fn move_(
     }
 
     // DON'T use GuildChannel::permissions_for_user - it requires member to be cached
-    let guild = ctx.guild().ok_or("Guild not in cache")?;
-    let member = guild.member(ctx.discord(), ctx.author().id).await?;
-    let permissions_in_target_channel = guild.user_permissions_in(&target_channel, &member)?;
+    let guild_id = ctx.guild_id().ok_or("Guild not in cache")?;
+    let member = guild_id.member(ctx.discord(), ctx.author().id).await?;
+    let permissions_in_target_channel = guild_id
+        .to_partial_guild(ctx.discord())
+        .await?
+        .user_permissions_in(&target_channel, &member)?;
     if !permissions_in_target_channel.send_messages() {
         return Err(format!(
             "You don't have permission to post in {}",
@@ -260,10 +269,12 @@ pub async fn move_(
 
     // let comefrom_message = target_channel.say(ctx.discord, comefrom_message).await?;
     let comefrom_message = target_channel
-        .send_message(ctx.discord(), |f| {
-            f.content(comefrom_message)
-                .allowed_mentions(|f| f.users(users_to_ping))
-        })
+        .send_message(
+            ctx.discord(),
+            serenity::CreateMessage::new()
+                .content(comefrom_message)
+                .allowed_mentions(serenity::CreateAllowedMentions::new().users(users_to_ping)),
+        )
         .await?;
 
     ctx.say(format!(

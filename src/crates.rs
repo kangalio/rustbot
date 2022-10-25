@@ -1,4 +1,4 @@
-use crate::{Context, Error};
+use crate::{serenity, Context, Error};
 
 use reqwest::header;
 use serde::Deserialize;
@@ -118,12 +118,13 @@ pub async fn crate_(
     }
 
     let crate_ = get_crate(&ctx.data().http, &crate_name).await?;
-    ctx.send(|m| {
-        m.embed(|e| {
-            e.title(&crate_.name)
+    ctx.send(
+        poise::CreateReply::new().embed(
+            serenity::CreateEmbed::new()
+                .title(&crate_.name)
                 .url(get_documentation(&crate_))
                 .description(
-                    &crate_
+                    crate_
                         .description
                         .as_deref()
                         .unwrap_or("_<no description available>_"),
@@ -137,10 +138,10 @@ pub async fn crate_(
                     true,
                 )
                 .field("Downloads", format_number(crate_.downloads), true)
-                .timestamp(crate_.updated_at.as_str())
-                .color(crate::EMBED_COLOR)
-        })
-    })
+                .timestamp(crate_.updated_at.parse::<serenity::Timestamp>()?)
+                .color(crate::EMBED_COLOR),
+        ),
+    )
     .await?;
 
     Ok(())

@@ -72,11 +72,7 @@ code here
     }
 }
 
-async fn listener(
-    ctx: &serenity::Context,
-    event: &poise::Event<'_>,
-    data: &Data,
-) -> Result<(), Error> {
+async fn listener(ctx: &serenity::Context, event: &poise::Event, data: &Data) -> Result<(), Error> {
     match event {
         poise::Event::MessageUpdate { event, .. } => {
             showcase::try_update_showcase_message(ctx, data, event.id).await?
@@ -93,9 +89,9 @@ async fn listener(
             let _: Result<_, _> = ctx
                 .http
                 .add_member_role(
-                    new_member.guild_id.0,
-                    new_member.user.id.0,
-                    data.rustacean_role.0,
+                    new_member.guild_id,
+                    new_member.user.id,
+                    data.rustacean_role,
                     Some(&format!(
                         "Automatically rustified after {} minutes",
                         RUSTIFICATION_DELAY
@@ -215,7 +211,7 @@ async fn app() -> Result<(), Error> {
                     .channel_id()
                     .name(&ctx.discord())
                     .await
-                    .unwrap_or_else(|| "<unknown>".to_owned());
+                    .unwrap_or_else(|_| "<unknown>".to_owned());
                 let author = ctx.author().tag();
 
                 match ctx {
@@ -280,8 +276,7 @@ async fn app() -> Result<(), Error> {
         .token(discord_token)
         .user_data_setup(move |ctx, bot, _framework| {
             Box::pin(async move {
-                ctx.set_activity(serenity::Activity::listening("?help"))
-                    .await;
+                ctx.set_activity(Some(serenity::ActivityData::listening("?help")));
                 Ok(Data {
                     bot_user_id: bot.user.id,
                     mod_role_id,

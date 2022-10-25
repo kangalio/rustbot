@@ -259,39 +259,38 @@ pub async fn send_reply(
 
     let custom_button_id = ctx.id().to_string();
     let response = ctx
-        .send(|b| {
+        .send({
+            let mut b = poise::CreateReply::new().content(text);
             if timeout {
-                b.components(|b| {
-                    b.create_action_row(|b| {
-                        b.create_button(|b| {
-                            b.label("Retry")
-                                .style(serenity::ButtonStyle::Primary)
-                                .custom_id(&custom_button_id)
-                        })
-                    })
-                });
+                b = b.components(vec![serenity::CreateActionRow::Buttons(vec![
+                    serenity::CreateButton::new(
+                        "Retry",
+                        serenity::ButtonStyle::Primary,
+                        &custom_button_id,
+                    ),
+                ])]);
             }
-            b.content(text)
+            b
         })
         .await?;
     if let Some(retry_pressed) = response
         .message()
         .await?
-        .await_component_interaction(&ctx.discord().shard)
-        .filter(move |x| x.data.custom_id == custom_button_id)
+        .component_interaction_collector(&ctx.discord().shard)
+        .filter(std::sync::Arc::new(move |x| {
+            x.data.custom_id == custom_button_id
+        }))
         .timeout(std::time::Duration::from_secs(600))
+        .collect_single()
         .await
     {
-        retry_pressed
-            .create_interaction_response(ctx.discord(), |b| {
-                // b.kind(serenity::InteractionResponseType::Pong)
-                b.kind(serenity::InteractionResponseType::DeferredUpdateMessage)
-            })
-            .await?;
+        retry_pressed.defer(ctx.discord()).await?;
         ctx.rerun().await?;
     } else {
         // If timed out, just remove the button
-        response.edit(ctx, |b| b.components(|b| b)).await?;
+        response
+            .edit(ctx, poise::CreateReply::new().components(vec![]))
+            .await?;
     }
 
     Ok(())

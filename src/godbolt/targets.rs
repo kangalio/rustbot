@@ -1,5 +1,5 @@
 use super::GodboltMode;
-use crate::{Context, Data, Error};
+use crate::{serenity, Context, Data, Error};
 
 #[derive(Debug, Clone, serde::Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -177,9 +177,9 @@ pub async fn targets(ctx: Context<'_>) -> Result<(), Error> {
         SemverRanking::from(&*lhs.semver).cmp(&SemverRanking::from(&*rhs.semver))
     });
 
-    ctx.send(|msg| {
-        msg.embed(|embed| {
-            embed
+    ctx.send(
+        poise::CreateReply::new().embed(
+            serenity::CreateEmbed::new()
                 .title("Godbolt Targets")
                 .fields(targets.into_iter().map(|target| {
                     (
@@ -187,9 +187,9 @@ pub async fn targets(ctx: Context<'_>) -> Result<(), Error> {
                         format!("{} (runs on {})", target.name, target.instruction_set),
                         true,
                     )
-                }))
-        })
-    })
+                })),
+        ),
+    )
     .await?;
 
     Ok(())

@@ -1,21 +1,22 @@
 use crate::{Context, Error};
 use poise::serenity_prelude as serenity;
 
-fn create_embed<'a>(
-    f: &'a mut serenity::CreateEmbed,
+fn create_embed(
     author: &serenity::User,
     name: &str,
     description: &str,
     links: &str,
-) -> &'a mut serenity::CreateEmbed {
-    f.title(&name)
-        .description(&description)
-        .field("Links", &links, false)
-        .author(|f| {
+) -> serenity::CreateEmbed {
+    serenity::CreateEmbed::new()
+        .title(name)
+        .description(description)
+        .field("Links", links, false)
+        .author({
+            let mut b = serenity::CreateEmbedAuthor::new(&author.name);
             if let Some(avatar_url) = author.avatar_url() {
-                f.icon_url(avatar_url);
+                b = b.icon_url(avatar_url);
             }
-            f.name(&author.name)
+            b
         })
         .color(crate::EMBED_COLOR)
 }
@@ -34,9 +35,10 @@ pub async fn showcase(ctx: Context<'_>) -> Result<(), Error> {
         ctx.say(format!("Please enter {}:", query)).await?;
         let user_input = ctx
             .author()
-            .await_reply(ctx.discord())
+            .reply_collector(&ctx.discord().shard)
             .channel_id(ctx.channel_id())
             .timeout(std::time::Duration::from_secs(10 * 60))
+            .collect_single()
             .await;
 
         let user_input = user_input.ok_or_else(|| {
@@ -72,29 +74,33 @@ pub async fn showcase(ctx: Context<'_>) -> Result<(), Error> {
     let showcase_msg = ctx
         .data()
         .showcase_channel
-        .send_message(ctx.discord(), |f| {
-            f.allowed_mentions(|f| f).embed(|f| {
-                create_embed(
-                    f,
+        .send_message(
+            ctx.discord(),
+            serenity::CreateMessage::new()
+                .allowed_mentions(serenity::CreateAllowedMentions::new())
+                .embed(create_embed(
                     ctx.author(),
                     &name.content,
                     &description.content,
                     &links.content,
-                )
-            })
-        })
+                )),
+        )
         .await?;
 
     match showcase_msg
         .channel_id
-        .create_public_thread(ctx.discord(), showcase_msg.id, |b| b.name(&name.content))
+        .create_public_thread(
+            ctx.discord(),
+            showcase_msg.id,
+            serenity::CreateThread::new(&name.content),
+        )
         .await
     {
         Ok(thread) => {
             if let Err(e) = ctx
                 .discord()
                 .http
-                .add_thread_channel_member(thread.id.0, ctx.author().id.0)
+                .add_thread_channel_member(thread.id, ctx.author().id)
                 .await
             {
                 log::warn!("Couldn't add member to showcase thread: {}", e);
@@ -107,12 +113,12 @@ pub async fn showcase(ctx: Context<'_>) -> Result<(), Error> {
     }
 
     {
-        let output_message = showcase_msg.id.0 as i64;
-        let output_channel = showcase_msg.channel_id.0 as i64;
-        let input_channel = ctx.channel_id().0 as i64;
-        let name_input_message = name.id.0 as i64;
-        let description_input_message = description.id.0 as i64;
-        let links_input_message = links.id.0 as i64;
+        let output_message = showcase_msg.id.get() as i64;
+        let output_channel = showcase_msg.channel_id.get() as i64;
+        let input_channel = ctx.channel_id().get() as i64;
+        let name_input_message = name.id.get() as i64;
+        let description_input_message = description.id.get() as i64;
+        let links_input_message = links.id.get() as i64;
         sqlx::query!(
             "INSERT INTO showcase (
                 output_message,
@@ -147,7 +153,7 @@ pub async fn try_update_showcase_message(
     data: &crate::Data,
     updated_message_id: serenity::MessageId,
 ) -> Result<(), Error> {
-    let man = updated_message_id.0 as i64;
+    let man = updated_message_id.get() as i64;
     if let Some(entry) = sqlx::query!(
         "SELECT
             output_message,
@@ -162,7 +168,7 @@ pub async fn try_update_showcase_message(
     .fetch_optional(&data.database)
     .await?
     {
-        let input_channel = serenity::ChannelId(entry.input_channel as u64);
+        let input_channel = serenity::ChannelId::new(entry.input_channel as u64);
         let name_msg = input_channel
             .message(ctx, entry.name_input_message as u64)
             .await?;
@@ -176,10 +182,10 @@ pub async fn try_update_showcase_message(
             .await?
             .content;
 
-        serenity::ChannelId(entry.output_channel as u64).edit_message(
+        serenity::ChannelId::new(entry.output_channel as u64).edit_message(
             ctx,
             entry.output_message as u64,
-            |f| f.embed(|f| create_embed(f, &name_msg.author, name, &description, &links)),
+            serenity::EditMessage::new().embed(create_embed(&name_msg.author, name, &description, &links)),
         ).await?;
     }
 
@@ -191,7 +197,7 @@ pub async fn try_delete_showcase_message(
     data: &crate::Data,
     deleted_message_id: serenity::MessageId,
 ) -> Result<(), Error> {
-    let deleted_message_id = deleted_message_id.0 as i64;
+    let deleted_message_id = deleted_message_id.get() as i64;
     if let Some(entry) = sqlx::query!(
         "SELECT
             output_message,
@@ -202,7 +208,7 @@ pub async fn try_delete_showcase_message(
     .fetch_optional(&data.database)
     .await?
     {
-        serenity::ChannelId(entry.output_channel as u64).delete_message(ctx, entry.output_message as u64).await?;
+        serenity::ChannelId::new(entry.output_channel as u64).delete_message(ctx, entry.output_message as u64).await?;
     }
 
     Ok(())

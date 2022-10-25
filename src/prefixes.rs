@@ -35,7 +35,7 @@ pub async fn prefix_add(
     #[rest]
     new_prefix: String,
 ) -> Result<(), Error> {
-    let user_id = ctx.author().id.0 as i64;
+    let user_id = ctx.author().id.get() as i64;
     sqlx::query!(
         "INSERT INTO prefix (string, user_id) VALUES (?, ?)",
         new_prefix,
@@ -51,7 +51,7 @@ pub async fn prefix_add(
 }
 
 async fn autocomplete_prefix(ctx: Context<'_>, partial: &str) -> Vec<String> {
-    let user_id = ctx.author().id.0 as i64;
+    let user_id = ctx.author().id.get() as i64;
     let prefixes = sqlx::query!("SELECT string FROM prefix WHERE user_id = ?", user_id)
         .fetch_many(&ctx.data().database);
 
@@ -73,7 +73,7 @@ pub async fn prefix_remove(
     #[autocomplete = "autocomplete_prefix"]
     prefix: String,
 ) -> Result<(), Error> {
-    let user_id = ctx.author().id.0 as i64;
+    let user_id = ctx.author().id.get() as i64;
     let num_deleted_rows = sqlx::query!(
         "DELETE FROM prefix WHERE user_id = ? AND string = ?",
         user_id,
@@ -96,7 +96,7 @@ pub async fn prefix_remove(
 /// Delete all of your user-specific prefixes
 #[poise::command(rename = "reset", prefix_command, slash_command)]
 pub async fn prefix_reset(ctx: Context<'_>) -> Result<(), Error> {
-    let user_id = ctx.author().id.0 as i64;
+    let user_id = ctx.author().id.get() as i64;
     let prefixes_deleted = sqlx::query!("DELETE FROM prefix WHERE user_id = ?", user_id)
         .execute(&ctx.data().database)
         .await?
@@ -117,7 +117,7 @@ pub async fn prefix_reset(ctx: Context<'_>) -> Result<(), Error> {
 /// List all prefixes you configured for yourself
 #[poise::command(rename = "list", prefix_command, slash_command)]
 pub async fn prefix_list(ctx: Context<'_>) -> Result<(), Error> {
-    let user_id = ctx.author().id.0 as i64;
+    let user_id = ctx.author().id.get() as i64;
     let mut prefixes = sqlx::query!("SELECT string FROM prefix WHERE user_id = ?", user_id)
         .fetch_many(&ctx.data().database);
 
@@ -138,7 +138,7 @@ pub async fn try_strip_prefix<'a>(
     msg: &'a serenity::Message,
     data: &'a crate::Data,
 ) -> Result<Option<(&'a str, &'a str)>, Error> {
-    let user_id = msg.author.id.0 as i64;
+    let user_id = msg.author.id.get() as i64;
     let mut prefixes = sqlx::query!("SELECT string FROM prefix WHERE user_id = ?", user_id)
         .fetch_many(&data.database);
 

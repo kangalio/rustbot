@@ -156,12 +156,10 @@ pub async fn conradluget(
         image::ImageOutputFormat::Png,
     )?;
 
-    ctx.send(|b| {
-        b.attachment(serenity::AttachmentType::Bytes {
-            data: img_bytes.into(),
-            filename: "unnamed.png".into(),
-        })
-    })
+    ctx.send(
+        poise::CreateReply::new()
+            .attachment(serenity::CreateAttachment::bytes(img_bytes, "unnamed.png")),
+    )
     .await?;
 
     Ok(())

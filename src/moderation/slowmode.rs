@@ -1,4 +1,4 @@
-use crate::{Context, Error};
+use crate::{serenity, Context, Error};
 
 async fn check_is_moderator(ctx: Context<'_>) -> Result<bool, Error> {
     // Retrieve via HTTP to make sure it's up-to-date
@@ -7,19 +7,19 @@ async fn check_is_moderator(ctx: Context<'_>) -> Result<bool, Error> {
         .http
         .get_member(
             ctx.guild_id()
-                .ok_or("This command only works inside guilds")?
-                .0,
-            ctx.author().id.0,
+                .ok_or("This command only works inside guilds")?,
+            ctx.author().id,
         )
         .await?;
 
     Ok(if author.roles.contains(&ctx.data().mod_role_id) {
         true
     } else {
-        ctx.send(|b| {
-            b.ephemeral(true)
+        ctx.send(
+            poise::CreateReply::new()
                 .content("This command is only available to moderators")
-        })
+                .ephemeral(true),
+        )
         .await?;
         false
     })
@@ -36,9 +36,11 @@ async fn immediately_lift_slowmode(ctx: Context<'_>) -> Result<(), Error> {
     match active_slowmode {
         Some(active_slowmode) => {
             ctx.channel_id()
-                .edit(ctx.discord(), |b| {
-                    b.rate_limit_per_user(active_slowmode.previous_slowmode_rate)
-                })
+                .edit(
+                    ctx.discord(),
+                    serenity::EditChannel::new()
+                        .rate_limit_per_user(active_slowmode.previous_slowmode_rate),
+                )
                 .await?;
             ctx.say("Restored slowmode to previous level").await?;
         }
@@ -120,9 +122,10 @@ async fn restore_slowmode_rate(ctx: Context<'_>) -> Result<(), Error> {
 
     log::info!("Restoring slowmode rate to {}", previous_slowmode_rate);
     ctx.channel_id()
-        .edit(ctx.discord(), |b| {
-            b.rate_limit_per_user(previous_slowmode_rate)
-        })
+        .edit(
+            ctx.discord(),
+            serenity::EditChannel::new().rate_limit_per_user(previous_slowmode_rate),
+        )
         .await?;
     ctx.data()
         .active_slowmodes
@@ -165,7 +168,10 @@ pub async fn slowmode(
 
     // Apply slowmode
     ctx.channel_id()
-        .edit(ctx.discord(), |b| b.rate_limit_per_user(rate))
+        .edit(
+            ctx.discord(),
+            serenity::EditChannel::new().rate_limit_per_user(rate),
+        )
         .await?;
 
     // Confirmation message
