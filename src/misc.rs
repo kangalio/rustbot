@@ -1,5 +1,4 @@
-use crate::{Context, Error};
-use poise::serenity_prelude as serenity;
+use crate::{serenity, Context, Error};
 
 /// Evaluates Go code
 #[poise::command(prefix_command, discard_spare_arguments, category = "Miscellaneous")]
@@ -163,4 +162,89 @@ pub async fn conradluget(
     .await?;
 
     Ok(())
+}
+
+/// Use this command to track various types of UB in the beginners help channel.
+///
+/// Example: /ub static_mut
+#[poise::command(slash_command, hide_in_help, category = "Miscellaneous")]
+pub async fn ub(
+    ctx: Context<'_>,
+    #[description = "What kind of UB has been used."] kind: UndefinedBehavior,
+) -> Result<(), Error> {
+    if ctx.channel_id() != ctx.data().beginner_channel {
+        // Ignore any uses outside of the beginner channel
+        ctx.send(poise::CreateReply::new().ephemeral(true).content(format!(
+            "/ub can only be used in <#{}>",
+            ctx.data().beginner_channel.0
+        )))
+        .await?;
+        return Ok(());
+    }
+    let channel_id = ctx.channel_id().0;
+
+    let now = std::time::SystemTime::now();
+    let db_time = humantime::format_rfc3339_seconds(now).to_string();
+    let db_channel_id = channel_id.get() as i64;
+
+    let db = &ctx.data().database;
+    let mut transaction = db.begin().await?;
+
+    let old_time = sqlx::query!(
+        "SELECT time FROM ub WHERE channel = ? AND kind = ?",
+        db_channel_id,
+        kind,
+    )
+    .fetch_optional(&mut transaction)
+    .await?;
+
+    sqlx::query!(
+        "INSERT OR REPLACE INTO ub(time, channel, kind) VALUES (?, ?, ?);",
+        db_time,
+        db_channel_id,
+        kind,
+    )
+    .execute(&mut transaction)
+    .await?;
+
+    transaction.commit().await?;
+
+    let msg = if let Some(old_time) = old_time {
+        let old_time = humantime::parse_rfc3339(&old_time.time)?;
+
+        match now.duration_since(old_time) {
+            Ok(duration) => format!(
+                "It has been {} since `{}` has been used in <#{}>.",
+                humantime::format_duration(std::time::Duration::from_secs(duration.as_secs())),
+                kind.name(),
+                channel_id
+            ),
+            Err(e) => format!(
+                "It has been -{} (clock drift?) since `{}` has been used in <#{}>.",
+                humantime::format_duration(std::time::Duration::from_secs(e.duration().as_secs())),
+                kind.name(),
+                channel_id
+            ),
+        }
+    } else {
+        format!(
+            "`{}` has not had a recorded use in <#{}> until now.",
+            kind.name(),
+            channel_id
+        )
+    };
+
+    ctx.send(poise::CreateReply::new().content(msg)).await?;
+
+    Ok(())
+}
+
+#[derive(sqlx::Type, Copy, Clone, poise::ChoiceParameter)]
+#[sqlx(type_name = "TEXT")]
+#[sqlx(rename_all = "lowercase")]
+pub enum UndefinedBehavior {
+    #[name = "transmute"]
+    Transmute,
+    #[name = "static_mut"]
+    StaticMut,
 }
