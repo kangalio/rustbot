@@ -2,6 +2,9 @@ on: [push, pull_request]
 
 name: CI
 
+env:
+  SQLX_OFFLINE: true
+
 jobs:
   test:
     name: Check Suite
