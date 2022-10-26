@@ -170,7 +170,7 @@ pub async fn conradluget(
 #[poise::command(slash_command, hide_in_help, category = "Miscellaneous")]
 pub async fn ub(
     ctx: Context<'_>,
-    #[description = "UB to record"] kind: UndefinedBehavior,
+    #[description = "What kind of UB has been used."] kind: UndefinedBehavior,
 ) -> Result<(), Error> {
     if ctx.channel_id() != ctx.data().beginner_channel {
         // Ignore any uses outside of the beginner channel
@@ -239,78 +239,12 @@ pub async fn ub(
     Ok(())
 }
 
-#[derive(sqlx::Type, Copy, Clone)]
+#[derive(sqlx::Type, Copy, Clone, poise::ChoiceParameter)]
 #[sqlx(type_name = "TEXT")]
 #[sqlx(rename_all = "lowercase")]
 pub enum UndefinedBehavior {
+    #[name = "transmute"]
     Transmute,
+    #[name = "static_mut"]
     StaticMut,
-}
-
-impl UndefinedBehavior {
-    const KINDS: [UndefinedBehavior; 2] =
-        [UndefinedBehavior::Transmute, UndefinedBehavior::StaticMut];
-
-    fn name(&self) -> &'static str {
-        match self {
-            UndefinedBehavior::Transmute => "transmute",
-            UndefinedBehavior::StaticMut => "static_mut",
-        }
-    }
-}
-
-impl std::str::FromStr for UndefinedBehavior {
-    type Err = ParseUbError;
-
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        match s {
-            "transmute" => Ok(UndefinedBehavior::Transmute),
-            "static_mut" => Ok(UndefinedBehavior::StaticMut),
-            _ => Err(ParseUbError),
-        }
-    }
-}
-
-#[derive(Debug, Copy, Clone)]
-pub struct ParseUbError;
-
-impl std::fmt::Display for ParseUbError {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.write_str("Could not parse input as `UndefinedBehavior`")
-    }
-}
-
-impl std::error::Error for ParseUbError {}
-
-#[poise::async_trait]
-impl poise::SlashArgument for UndefinedBehavior {
-    async fn extract(
-        _: &serenity::CacheAndHttp,
-        _: poise::CommandOrAutocompleteInteraction<'_>,
-        value: &serenity::ResolvedValue<'_>,
-    ) -> Result<Self, poise::SlashArgError> {
-        if let serenity::ResolvedValue::String(value) = value {
-            Ok(value.parse().map_err(|e| poise::SlashArgError::Parse {
-                error: Box::new(e),
-                input: value.to_string(),
-            })?)
-        } else {
-            Err(poise::SlashArgError::CommandStructureMismatch("kind"))
-        }
-    }
-
-    fn create(mut builder: serenity::CreateCommandOption) -> serenity::CreateCommandOption {
-        for choice in UndefinedBehavior::KINDS {
-            builder = builder.add_string_choice(choice.name(), choice.name());
-        }
-        builder
-            .name("kind")
-            .description("What kind of UB has been used.")
-            .required(true)
-            .kind(serenity::CommandOptionType::String)
-    }
-
-    fn choices() -> Vec<poise::CommandParameterChoice> {
-        vec![]
-    }
 }
