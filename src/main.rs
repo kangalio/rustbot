@@ -127,6 +127,7 @@ pub struct Data {
     rustacean_role: serenity::RoleId,
     reports_channel: Option<serenity::ChannelId>,
     showcase_channel: serenity::ChannelId,
+    beginner_channel: serenity::ChannelId,
     bot_start_time: std::time::Instant,
     http: reqwest::Client,
     database: sqlx::SqlitePool,
@@ -151,6 +152,7 @@ async fn app() -> Result<(), Error> {
     let rustacean_role = env_var("RUSTACEAN_ROLE_ID")?;
     let reports_channel = env_var("REPORTS_CHANNEL_ID").ok();
     let showcase_channel = env_var("SHOWCASE_CHANNEL_ID")?;
+    let beginner_channel = env_var("BEGINNER_CHANNEL_ID")?;
     let database_url = env_var::<String>("DATABASE_URL")?;
     let custom_prefixes = env_var("CUSTOM_PREFIXES")?;
 
@@ -185,6 +187,7 @@ async fn app() -> Result<(), Error> {
             misc::servers(),
             misc::revision(),
             misc::conradluget(),
+            misc::ub(),
         ],
         prefix_options: poise::PrefixFrameworkOptions {
             prefix: Some("?".into()),
@@ -288,6 +291,7 @@ async fn app() -> Result<(), Error> {
                     rustacean_role,
                     reports_channel,
                     showcase_channel,
+                    beginner_channel,
                     bot_start_time: std::time::Instant::now(),
                     http: reqwest::Client::new(),
                     database,

@@ -24,6 +24,7 @@ image = { version = "0.24", default-features = false, features = ["png"] } # get
 imageproc = { version = "0.23", default-features = false } # get a better computer meme rendering
 rusttype = { version = "0.9", default-features = false } # interact with imageproc
 once_cell = "1.13"
+humantime = "2.1.0"
 
 # [patch.crates-io]
 # poise = { git = "https://github.com/elkowar/poise", branch = "optimize-monomorphization" }

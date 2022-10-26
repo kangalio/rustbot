@@ -1,5 +1,15 @@
 {
   "db": "SQLite",
+  "0ae6a6ef7041fb2fe28d7885554d3fc3514073d03384dcad0f04ac586cd6a39d": {
+    "describe": {
+      "columns": [],
+      "nullable": [],
+      "parameters": {
+        "Right": 3
+      }
+    },
+    "query": "INSERT OR REPLACE INTO ub(time, channel, kind) VALUES (?, ?, ?);"
+  },
   "1b233c1da73a7067cca2640c75f06808943fb707af13a4118976eb6a80baa537": {
     "describe": {
       "columns": [
@@ -51,6 +61,24 @@
       }
     },
     "query": "SELECT\n            output_message,\n            output_channel\n        FROM showcase WHERE ? IN (name_input_message, description_input_message, links_input_message)"
+  },
+  "8a53904abe7b623a8c529ba66ea04a288d027a8695012d614a9271645d756dce": {
+    "describe": {
+      "columns": [
+        {
+          "name": "time",
+          "ordinal": 0,
+          "type_info": "Text"
+        }
+      ],
+      "nullable": [
+        false
+      ],
+      "parameters": {
+        "Right": 2
+      }
+    },
+    "query": "SELECT time FROM ub WHERE channel = ? AND kind = ?"
   },
   "b70bf2d0bd14a8a9a66269c28cb0346039f2e5acb1d682b6b6602baab18efe03": {
     "describe": {

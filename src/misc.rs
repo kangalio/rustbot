@@ -1,5 +1,14 @@
 use crate::{Context, Error};
-use poise::serenity_prelude as serenity;
+use poise::serenity_prelude::command::CommandOptionType;
+use poise::serenity_prelude::CreateApplicationCommandOption;
+use poise::{
+    serenity_prelude as serenity, ApplicationCommandOrAutocompleteInteraction, Autocompletable,
+    SlashArgError, SlashArgument,
+};
+use serde_json::Value;
+use std::fmt::{Display, Formatter};
+use std::str::FromStr;
+use std::time::{Duration, SystemTime};
 
 /// Evaluates Go code
 #[poise::command(prefix_command, discard_spare_arguments, category = "Miscellaneous")]
@@ -165,4 +174,179 @@ pub async fn conradluget(
     .await?;
 
     Ok(())
+}
+
+/// Use this command to track various types of UB in the beginners help channel.
+///
+/// Example: /ub static_mut
+#[poise::command(slash_command, hide_in_help, category = "Miscellaneous")]
+pub async fn ub(
+    ctx: Context<'_>,
+    #[description = "UB to record"] kind: UndefinedBehavior,
+) -> Result<(), Error> {
+    if ctx.channel_id() != ctx.data().beginner_channel {
+        // Ignore any uses outside of the beginner channel
+        ctx.send(|builder| {
+            builder.ephemeral(true).content(format!(
+                "/ub can only be used in <#{}>",
+                ctx.data().beginner_channel.0
+            ))
+        })
+        .await?;
+        return Ok(());
+    }
+    let channel_id = ctx.channel_id().0;
+
+    let now = SystemTime::now();
+    let db_time = humantime::format_rfc3339_seconds(now).to_string();
+    let db_channel_id = channel_id as i64;
+
+    let db = &ctx.data().database;
+    let mut transaction = db.begin().await?;
+
+    let old_time = sqlx::query!(
+        "SELECT time FROM ub WHERE channel = ? AND kind = ?",
+        db_channel_id,
+        kind,
+    )
+    .fetch_optional(&mut transaction)
+    .await?;
+
+    sqlx::query!(
+        "INSERT OR REPLACE INTO ub(time, channel, kind) VALUES (?, ?, ?);",
+        db_time,
+        db_channel_id,
+        kind,
+    )
+    .execute(&mut transaction)
+    .await?;
+
+    transaction.commit().await?;
+
+    let msg = if let Some(old_time) = old_time {
+        let old_time = humantime::parse_rfc3339(&old_time.time)?;
+
+        match now.duration_since(old_time) {
+            Ok(duration) => format!(
+                "It has been {} since `{}` has been used in <#{}>.",
+                humantime::format_duration(Duration::from_secs(duration.as_secs())),
+                kind.name(),
+                channel_id
+            ),
+            Err(e) => format!(
+                "It has been -{} (clock drift?) since `{}` has been used in <#{}>.",
+                humantime::format_duration(Duration::from_secs(e.duration().as_secs())),
+                kind.name(),
+                channel_id
+            ),
+        }
+    } else {
+        format!(
+            "`{}` has not had a recorded use in <#{}> until now.",
+            kind.name(),
+            channel_id
+        )
+    };
+
+    ctx.send(|b| b.content(msg)).await?;
+
+    Ok(())
+}
+
+#[derive(sqlx::Type, Copy, Clone)]
+#[sqlx(type_name = "TEXT")]
+#[sqlx(rename_all = "lowercase")]
+pub enum UndefinedBehavior {
+    Transmute,
+    StaticMut,
+}
+
+impl UndefinedBehavior {
+    const KINDS: [UndefinedBehavior; 2] =
+        [UndefinedBehavior::Transmute, UndefinedBehavior::StaticMut];
+
+    fn name(&self) -> &'static str {
+        match self {
+            UndefinedBehavior::Transmute => "transmute",
+            UndefinedBehavior::StaticMut => "static_mut",
+        }
+    }
+}
+
+impl FromStr for UndefinedBehavior {
+    type Err = ParseUbError;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s {
+            "transmute" => Ok(UndefinedBehavior::Transmute),
+            "static_mut" => Ok(UndefinedBehavior::StaticMut),
+            _ => Err(ParseUbError),
+        }
+    }
+}
+
+#[derive(Debug, Copy, Clone)]
+pub struct ParseUbError;
+
+impl Display for ParseUbError {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        f.write_str("Could not parse input as `UndefinedBehavior`")
+    }
+}
+
+impl std::error::Error for ParseUbError {}
+
+#[poise::async_trait]
+impl SlashArgument for UndefinedBehavior {
+    async fn extract(
+        _: &serenity::Context,
+        _: ApplicationCommandOrAutocompleteInteraction<'_>,
+        value: &Value,
+    ) -> Result<Self, SlashArgError> {
+        let value = value
+            .as_str()
+            .ok_or(SlashArgError::CommandStructureMismatch("kind"))?;
+        Ok(
+            UndefinedBehavior::from_str(value).map_err(|e| SlashArgError::Parse {
+                error: Box::new(e),
+                input: value.to_string(),
+            })?,
+        )
+    }
+
+    fn create(builder: &mut CreateApplicationCommandOption) {
+        for choice in UndefinedBehavior::KINDS {
+            builder.add_string_choice(choice.name(), choice.name());
+        }
+        builder
+            .name("kind")
+            .description("What kind of UB has been used.")
+            .required(true)
+            .kind(CommandOptionType::String);
+    }
+}
+
+impl Autocompletable for UndefinedBehavior {
+    type Partial = Self;
+
+    fn extract_partial(value: &Value) -> Result<Self::Partial, SlashArgError> {
+        let value = value
+            .as_str()
+            .ok_or(SlashArgError::CommandStructureMismatch("kind"))?;
+        ub_autocomplete(value)
+            .next()
+            .ok_or_else(|| SlashArgError::Parse {
+                error: Box::new(ParseUbError),
+                input: value.to_string(),
+            })
+    }
+
+    fn into_json(self) -> Value {
+        Value::String(self.name().to_string())
+    }
+}
+
+fn ub_autocomplete(partial: &str) -> impl Iterator<Item = UndefinedBehavior> + '_ {
+    IntoIterator::into_iter(UndefinedBehavior::KINDS)
+        .filter(move |s| s.name().starts_with(&partial))
 }
