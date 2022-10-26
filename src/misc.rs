@@ -1,11 +1,10 @@
 use crate::{Context, Error};
 use poise::serenity_prelude::command::CommandOptionType;
-use poise::serenity_prelude::CreateApplicationCommandOption;
+use poise::serenity_prelude::{CreateCommandOption, ResolvedValue};
 use poise::{
-    serenity_prelude as serenity, ApplicationCommandOrAutocompleteInteraction, Autocompletable,
-    SlashArgError, SlashArgument,
+    serenity_prelude as serenity, CommandOrAutocompleteInteraction, CommandParameterChoice,
+    CreateReply, SlashArgError, SlashArgument,
 };
-use serde_json::Value;
 use std::fmt::{Display, Formatter};
 use std::str::FromStr;
 use std::time::{Duration, SystemTime};
@@ -184,12 +183,10 @@ pub async fn ub(
 ) -> Result<(), Error> {
     if ctx.channel_id() != ctx.data().beginner_channel {
         // Ignore any uses outside of the beginner channel
-        ctx.send(|builder| {
-            builder.ephemeral(true).content(format!(
-                "/ub can only be used in <#{}>",
-                ctx.data().beginner_channel.0
-            ))
-        })
+        ctx.send(CreateReply::new().ephemeral(true).content(format!(
+            "/ub can only be used in <#{}>",
+            ctx.data().beginner_channel.0
+        )))
         .await?;
         return Ok(());
     }
@@ -197,7 +194,7 @@ pub async fn ub(
 
     let now = SystemTime::now();
     let db_time = humantime::format_rfc3339_seconds(now).to_string();
-    let db_channel_id = channel_id as i64;
+    let db_channel_id = channel_id.get() as i64;
 
     let db = &ctx.data().database;
     let mut transaction = db.begin().await?;
@@ -246,7 +243,7 @@ pub async fn ub(
         )
     };
 
-    ctx.send(|b| b.content(msg)).await?;
+    ctx.send(CreateReply::new().content(msg)).await?;
 
     Ok(())
 }
@@ -297,54 +294,34 @@ impl std::error::Error for ParseUbError {}
 #[poise::async_trait]
 impl SlashArgument for UndefinedBehavior {
     async fn extract(
-        _: &serenity::Context,
-        _: ApplicationCommandOrAutocompleteInteraction<'_>,
-        value: &Value,
+        _: &serenity::CacheAndHttp,
+        _: CommandOrAutocompleteInteraction<'_>,
+        value: &ResolvedValue<'_>,
     ) -> Result<Self, SlashArgError> {
-        let value = value
-            .as_str()
-            .ok_or(SlashArgError::CommandStructureMismatch("kind"))?;
-        Ok(
-            UndefinedBehavior::from_str(value).map_err(|e| SlashArgError::Parse {
-                error: Box::new(e),
-                input: value.to_string(),
-            })?,
-        )
+        if let ResolvedValue::String(value) = value {
+            Ok(
+                UndefinedBehavior::from_str(value).map_err(|e| SlashArgError::Parse {
+                    error: Box::new(e),
+                    input: value.to_string(),
+                })?,
+            )
+        } else {
+            Err(SlashArgError::CommandStructureMismatch("kind"))
+        }
     }
 
-    fn create(builder: &mut CreateApplicationCommandOption) {
+    fn create(mut builder: CreateCommandOption) -> CreateCommandOption {
         for choice in UndefinedBehavior::KINDS {
-            builder.add_string_choice(choice.name(), choice.name());
+            builder = builder.add_string_choice(choice.name(), choice.name());
         }
         builder
             .name("kind")
             .description("What kind of UB has been used.")
             .required(true)
-            .kind(CommandOptionType::String);
-    }
-}
-
-impl Autocompletable for UndefinedBehavior {
-    type Partial = Self;
-
-    fn extract_partial(value: &Value) -> Result<Self::Partial, SlashArgError> {
-        let value = value
-            .as_str()
-            .ok_or(SlashArgError::CommandStructureMismatch("kind"))?;
-        ub_autocomplete(value)
-            .next()
-            .ok_or_else(|| SlashArgError::Parse {
-                error: Box::new(ParseUbError),
-                input: value.to_string(),
-            })
+            .kind(CommandOptionType::String)
     }
 
-    fn into_json(self) -> Value {
-        Value::String(self.name().to_string())
+    fn choices() -> Vec<CommandParameterChoice> {
+        vec![]
     }
-}
-
-fn ub_autocomplete(partial: &str) -> impl Iterator<Item = UndefinedBehavior> + '_ {
-    IntoIterator::into_iter(UndefinedBehavior::KINDS)
-        .filter(move |s| s.name().starts_with(&partial))
 }
