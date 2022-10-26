@@ -1,13 +1,4 @@
-use crate::{Context, Error};
-use poise::serenity_prelude::command::CommandOptionType;
-use poise::serenity_prelude::{CreateCommandOption, ResolvedValue};
-use poise::{
-    serenity_prelude as serenity, CommandOrAutocompleteInteraction, CommandParameterChoice,
-    CreateReply, SlashArgError, SlashArgument,
-};
-use std::fmt::{Display, Formatter};
-use std::str::FromStr;
-use std::time::{Duration, SystemTime};
+use crate::{serenity, Context, Error};
 
 /// Evaluates Go code
 #[poise::command(prefix_command, discard_spare_arguments, category = "Miscellaneous")]
@@ -183,7 +174,7 @@ pub async fn ub(
 ) -> Result<(), Error> {
     if ctx.channel_id() != ctx.data().beginner_channel {
         // Ignore any uses outside of the beginner channel
-        ctx.send(CreateReply::new().ephemeral(true).content(format!(
+        ctx.send(poise::CreateReply::new().ephemeral(true).content(format!(
             "/ub can only be used in <#{}>",
             ctx.data().beginner_channel.0
         )))
@@ -192,7 +183,7 @@ pub async fn ub(
     }
     let channel_id = ctx.channel_id().0;
 
-    let now = SystemTime::now();
+    let now = std::time::SystemTime::now();
     let db_time = humantime::format_rfc3339_seconds(now).to_string();
     let db_channel_id = channel_id.get() as i64;
 
@@ -224,13 +215,13 @@ pub async fn ub(
         match now.duration_since(old_time) {
             Ok(duration) => format!(
                 "It has been {} since `{}` has been used in <#{}>.",
-                humantime::format_duration(Duration::from_secs(duration.as_secs())),
+                humantime::format_duration(std::time::Duration::from_secs(duration.as_secs())),
                 kind.name(),
                 channel_id
             ),
             Err(e) => format!(
                 "It has been -{} (clock drift?) since `{}` has been used in <#{}>.",
-                humantime::format_duration(Duration::from_secs(e.duration().as_secs())),
+                humantime::format_duration(std::time::Duration::from_secs(e.duration().as_secs())),
                 kind.name(),
                 channel_id
             ),
@@ -243,7 +234,7 @@ pub async fn ub(
         )
     };
 
-    ctx.send(CreateReply::new().content(msg)).await?;
+    ctx.send(poise::CreateReply::new().content(msg)).await?;
 
     Ok(())
 }
@@ -268,7 +259,7 @@ impl UndefinedBehavior {
     }
 }
 
-impl FromStr for UndefinedBehavior {
+impl std::str::FromStr for UndefinedBehavior {
     type Err = ParseUbError;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
@@ -283,8 +274,8 @@ impl FromStr for UndefinedBehavior {
 #[derive(Debug, Copy, Clone)]
 pub struct ParseUbError;
 
-impl Display for ParseUbError {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+impl std::fmt::Display for ParseUbError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.write_str("Could not parse input as `UndefinedBehavior`")
     }
 }
@@ -292,25 +283,23 @@ impl Display for ParseUbError {
 impl std::error::Error for ParseUbError {}
 
 #[poise::async_trait]
-impl SlashArgument for UndefinedBehavior {
+impl poise::SlashArgument for UndefinedBehavior {
     async fn extract(
         _: &serenity::CacheAndHttp,
-        _: CommandOrAutocompleteInteraction<'_>,
-        value: &ResolvedValue<'_>,
-    ) -> Result<Self, SlashArgError> {
-        if let ResolvedValue::String(value) = value {
-            Ok(
-                UndefinedBehavior::from_str(value).map_err(|e| SlashArgError::Parse {
-                    error: Box::new(e),
-                    input: value.to_string(),
-                })?,
-            )
+        _: poise::CommandOrAutocompleteInteraction<'_>,
+        value: &serenity::ResolvedValue<'_>,
+    ) -> Result<Self, poise::SlashArgError> {
+        if let serenity::ResolvedValue::String(value) = value {
+            Ok(value.parse().map_err(|e| poise::SlashArgError::Parse {
+                error: Box::new(e),
+                input: value.to_string(),
+            })?)
         } else {
-            Err(SlashArgError::CommandStructureMismatch("kind"))
+            Err(poise::SlashArgError::CommandStructureMismatch("kind"))
         }
     }
 
-    fn create(mut builder: CreateCommandOption) -> CreateCommandOption {
+    fn create(mut builder: serenity::CreateCommandOption) -> serenity::CreateCommandOption {
         for choice in UndefinedBehavior::KINDS {
             builder = builder.add_string_choice(choice.name(), choice.name());
         }
@@ -318,10 +307,10 @@ impl SlashArgument for UndefinedBehavior {
             .name("kind")
             .description("What kind of UB has been used.")
             .required(true)
-            .kind(CommandOptionType::String)
+            .kind(serenity::CommandOptionType::String)
     }
 
-    fn choices() -> Vec<CommandParameterChoice> {
+    fn choices() -> Vec<poise::CommandParameterChoice> {
         vec![]
     }
 }
