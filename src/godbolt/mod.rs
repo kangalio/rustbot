@@ -26,15 +26,13 @@ struct GodboltOutputSegment {
 struct GodboltOutput(Vec<GodboltOutputSegment>);
 
 impl GodboltOutput {
-    pub fn full_with_ansi_codes_stripped(&self) -> Result<String, Error> {
+    pub fn concatenate(&self) -> String {
         let mut complete_text = String::new();
         for segment in self.0.iter() {
             complete_text.push_str(&segment.text);
             complete_text.push('\n');
         }
-        Ok(String::from_utf8(strip_ansi_escapes::strip(
-            complete_text.trim(),
-        )?)?)
+        complete_text
     }
 }
 
@@ -84,7 +82,7 @@ async fn compile_rust_source(
         .json(&serde_json::json! { {
             "source": source_code,
             "options": {
-                "userArguments": flags,
+                "userArguments": format!("{} --color=never", flags),
                 "tools": tools,
             },
         } })
@@ -95,20 +93,20 @@ async fn compile_rust_source(
     // TODO: use the extract_relevant_lines utility to strip stderr nicely
     Ok(if response.code == 0 {
         Compilation::Success {
-            asm: response.asm.full_with_ansi_codes_stripped()?,
-            stderr: response.stderr.full_with_ansi_codes_stripped()?,
+            asm: response.asm.concatenate(),
+            stderr: response.stderr.concatenate(),
             llvm_mca: match response
                 .tools
                 .iter()
                 .find(|tool| tool.id == LLVM_MCA_TOOL_ID)
             {
-                Some(llvm_mca) => Some(llvm_mca.stdout.full_with_ansi_codes_stripped()?),
+                Some(llvm_mca) => Some(llvm_mca.stdout.concatenate()),
                 None => None,
             },
         }
     } else {
         Compilation::Error {
-            stderr: response.stderr.full_with_ansi_codes_stripped()?,
+            stderr: response.stderr.concatenate(),
         }
     })
 }

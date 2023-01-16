@@ -13,7 +13,6 @@ serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 log = "0.4.14"
 env_logger = "0.7.1"
-strip-ansi-escapes = "0.1.0" # To remove colors from rustc output from godbolt
 chrono = "0.4.0" # To interact with serenity
 # poise = { path = "../poise", features = ["collector"] }
 poise = "0.3.0"
