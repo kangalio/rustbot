@@ -58,7 +58,7 @@ async fn autocomplete_prefix(ctx: Context<'_>, partial: &str) -> Vec<String> {
     prefixes
         .filter_map(|result| async move { result.ok()?.right() })
         .map(|record| record.string)
-        .filter(move |prefix| std::future::ready(prefix.starts_with(&partial)))
+        .filter(move |prefix| std::future::ready(prefix.starts_with(partial)))
         .take(25)
         .collect()
         .await

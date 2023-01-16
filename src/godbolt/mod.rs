@@ -364,7 +364,7 @@ pub async fn asmdiff(
             tokio::fs::write(&path2, asm2).await?;
 
             let diff = tokio::process::Command::new("git")
-                .args(&["diff", "--no-index"])
+                .args(["diff", "--no-index"])
                 .arg(&path1)
                 .arg(&path2)
                 .output()

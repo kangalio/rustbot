@@ -9,7 +9,7 @@ fn main() {
 /// since this is only nice to have for the ?revision command and shouldn't fail builds.
 fn rev_parse() -> Option<String> {
     let output = std::process::Command::new("git")
-        .args(&["rev-parse", "--short=9", "HEAD"])
+        .args(["rev-parse", "--short=9", "HEAD"])
         .output()
         .ok()?;
     if !output.status.success() {

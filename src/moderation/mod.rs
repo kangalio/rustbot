@@ -200,8 +200,8 @@ pub async fn report(
                 .content(thread_message_content)
                 .allowed_mentions(
                     serenity::CreateAllowedMentions::new()
-                        .users(&[ctx.author().id])
-                        .roles(&[ctx.data().mod_role_id]),
+                        .users([ctx.author().id])
+                        .roles([ctx.data().mod_role_id]),
                 ),
         )
         .await?;
