@@ -7,8 +7,11 @@ use crate::{serenity, Context, Error};
 ///
 /// ?cleanup [limit]
 ///
+/// By default, only the most recent bot message is deleted (limit = 1).
+///
 /// Deletes the bot's messages for cleanup.
-/// You can specify how many messages to look for. Only messages from the last 24 hours can be deleted.
+/// You can specify how many messages to look for. Only the 20 most recent messages within the
+/// channel from the last 24 hours can be deleted.
 #[poise::command(
     prefix_command,
     on_error = "crate::acknowledge_fail",
@@ -19,11 +22,11 @@ pub async fn cleanup(
     ctx: Context<'_>,
     #[description = "Number of messages to delete"] num_messages: Option<usize>,
 ) -> Result<(), Error> {
-    let num_messages = num_messages.unwrap_or(5);
+    let num_messages = num_messages.unwrap_or(1);
 
     let messages_to_delete = ctx
         .channel_id()
-        .messages(ctx.discord(), serenity::GetMessages::new().limit(100))
+        .messages(ctx.discord(), serenity::GetMessages::new().limit(20))
         .await?
         .into_iter()
         .filter(|msg| {
