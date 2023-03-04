@@ -14,6 +14,18 @@ type Context<'a> = poise::Context<'a, Data, Error>;
 // const EMBED_COLOR: (u8, u8, u8) = (0xf7, 0x4c, 0x00);
 const EMBED_COLOR: (u8, u8, u8) = (0xb7, 0x47, 0x00); // slightly less saturated
 
+/// Used for playground stdout + stderr, or godbolt asm + stderr
+/// If the return value is empty, returns " " instead, because Discord displays those better in
+/// a code block than "".
+fn merge_output_and_errors<'a>(output: &'a str, errors: &'a str) -> std::borrow::Cow<'a, str> {
+    match (output.trim(), errors.trim()) {
+        ("", "") => " ".into(),
+        (output, "") => output.into(),
+        ("", errors) => errors.into(),
+        (output, errors) => format!("{}\n{}", errors, output).into(),
+    }
+}
+
 /// In prefix commands, react with a red cross emoji. In slash commands, respond with a short
 /// explanation.
 async fn acknowledge_fail(error: poise::FrameworkError<'_, Data, Error>) {

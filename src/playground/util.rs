@@ -223,13 +223,7 @@ pub async fn send_reply(
     flags: &api::CommandFlags,
     flag_parse_errors: &str,
 ) -> Result<(), Error> {
-    let result = if result.stderr.is_empty() {
-        result.stdout
-    } else if result.stdout.is_empty() {
-        result.stderr
-    } else {
-        format!("{}\n{}", result.stderr, result.stdout)
-    };
+    let result = crate::merge_output_and_errors(&result.stdout, &result.stderr);
 
     // Discord displays empty code blocks weirdly if they're not formatted in a specific style,
     // so we special-case empty code blocks

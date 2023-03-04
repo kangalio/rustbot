@@ -6,14 +6,8 @@ use crate::{Context, Error};
 const LLVM_MCA_TOOL_ID: &str = "llvm-mcatrunk";
 
 enum Compilation {
-    Success {
-        asm: String,
-        stderr: String,
-        llvm_mca: Option<String>,
-    },
-    Error {
-        stderr: String,
-    },
+    Success { output: String, stderr: String },
+    Error { stderr: String },
 }
 
 #[derive(Debug, serde::Deserialize)]
@@ -76,7 +70,7 @@ async fn compile_rust_source(
         }
     };
 
-    let request = http
+    let http_request = http
         .post(&format!(
             "https://godbolt.org/api/compiler/{}/compile",
             request.rustc
@@ -92,21 +86,22 @@ async fn compile_rust_source(
         } })
         .build()?;
 
-    let response: GodboltResponse = http.execute(request).await?.json().await?;
+    let response: GodboltResponse = http.execute(http_request).await?.json().await?;
 
     // TODO: use the extract_relevant_lines utility to strip stderr nicely
     Ok(if response.code == 0 {
         Compilation::Success {
-            asm: response.asm.concatenate(),
-            stderr: response.stderr.concatenate(),
-            llvm_mca: match response
-                .tools
-                .iter()
-                .find(|tool| tool.id == LLVM_MCA_TOOL_ID)
-            {
-                Some(llvm_mca) => Some(llvm_mca.stdout.concatenate()),
-                None => None,
+            output: if request.run_llvm_mca {
+                response
+                    .tools
+                    .iter()
+                    .find(|tool| tool.id == LLVM_MCA_TOOL_ID)
+                    .map(|llvm_mca| llvm_mca.stdout.concatenate())
+                    .ok_or("No llvm-mca result was sent by Godbolt")?
+            } else {
+                response.asm.concatenate()
             },
+            stderr: response.stderr.concatenate(),
         }
     } else {
         Compilation::Error {
@@ -172,8 +167,6 @@ async fn generic_godbolt(
     let run_llvm_mca = mode == GodboltMode::Mca;
 
     let (rustc, flags) = rustc_id_and_flags(ctx.data(), &params, mode).await?;
-
-    let (lang, text);
     let mut note = String::new();
 
     // &code.code, &rustc, &flags, run_llvm_mca
@@ -188,59 +181,39 @@ async fn generic_godbolt(
     )
     .await?;
 
-    match godbolt_result {
-        Compilation::Success {
-            asm,
-            stderr,
-            llvm_mca,
-        } => {
-            lang = match mode {
+    let (codeblock_lang, text) = match &godbolt_result {
+        Compilation::Success { output, stderr } => (
+            match mode {
                 GodboltMode::Asm => "x86asm",
                 GodboltMode::Mca => "rust",
                 GodboltMode::LlvmIr => "llvm",
-            };
-            text = match mode {
-                GodboltMode::Mca => {
-                    let llvm_mca = llvm_mca.ok_or("No llvm-mca result was sent by Godbolt")?;
-                    strip_llvm_mca_result(&llvm_mca).to_owned()
-                }
-                GodboltMode::Asm | GodboltMode::LlvmIr => asm,
-            };
-            if !stderr.is_empty() {
-                note += "Note: compilation produced warnings\n";
-            }
-        }
-        Compilation::Error { stderr } => {
-            lang = "rust";
-            text = stderr;
-        }
+            },
+            crate::merge_output_and_errors(&output, &stderr),
+        ),
+        Compilation::Error { stderr } => ("rust", stderr.into()),
     };
 
     if !code.code.contains("pub fn") {
         note += "Note: only public functions (`pub fn`) are shown\n";
     }
 
-    if text.trim().is_empty() {
-        ctx.say(format!("``` ```{}", note)).await?;
-    } else {
-        super::reply_potentially_long_text(
-            ctx,
-            &format!("```{}\n{}", lang, text),
-            &format!("\n```{}", note),
-            async {
-                format!(
-                    "Output too large. Godbolt link: <{}>",
-                    save_to_shortlink(&ctx.data().http, &code.code, &rustc, &flags, run_llvm_mca)
-                        .await
-                        .unwrap_or_else(|e| {
-                            log::warn!("failed to generate godbolt shortlink: {}", e);
-                            "failed to retrieve".to_owned()
-                        }),
-                )
-            },
-        )
-        .await?;
-    }
+    super::reply_potentially_long_text(
+        ctx,
+        &format!("```{}\n{}", codeblock_lang, text),
+        &format!("\n```{}", note),
+        async {
+            format!(
+                "Output too large. Godbolt link: <{}>",
+                save_to_shortlink(&ctx.data().http, &code.code, &rustc, &flags, run_llvm_mca)
+                    .await
+                    .unwrap_or_else(|e| {
+                        log::warn!("failed to generate godbolt shortlink: {}", e);
+                        "failed to retrieve".to_owned()
+                    }),
+            )
+        },
+    )
+    .await?;
 
     Ok(())
 }
@@ -369,7 +342,9 @@ pub async fn asmdiff(
         compile_rust_source(&ctx.data().http, req2),
     )?;
     let result = match (asm1, asm2) {
-        (Compilation::Success { asm: a, .. }, Compilation::Success { asm: b, .. }) => Ok((a, b)),
+        (Compilation::Success { output: a, .. }, Compilation::Success { output: b, .. }) => {
+            Ok((a, b))
+        }
         (Compilation::Error { stderr }, _) => Err(stderr),
         (_, Compilation::Error { stderr }) => Err(stderr),
     };
