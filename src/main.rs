@@ -22,7 +22,7 @@ fn merge_output_and_errors<'a>(output: &'a str, errors: &'a str) -> std::borrow:
         ("", "") => " ".into(),
         (output, "") => output.into(),
         ("", errors) => errors.into(),
-        (output, errors) => format!("{}\n{}", errors, output).into(),
+        (output, errors) => format!("{}\n\n{}", errors, output).into(), // one empty line of spacing
     }
 }
 
