@@ -127,7 +127,7 @@ pub struct Data {
     bot_start_time: std::time::Instant,
     http: reqwest::Client,
     database: sqlx::SqlitePool,
-    godbolt_targets: std::sync::Mutex<godbolt::GodboltTargets>,
+    godbolt_metadata: std::sync::Mutex<godbolt::GodboltMetadata>,
     active_slowmodes:
         std::sync::Mutex<std::collections::HashMap<serenity::ChannelId, ActiveSlowmode>>,
 }
@@ -291,7 +291,7 @@ async fn app() -> Result<(), Error> {
                     bot_start_time: std::time::Instant::now(),
                     http: reqwest::Client::new(),
                     database,
-                    godbolt_targets: std::sync::Mutex::new(godbolt::GodboltTargets::default()),
+                    godbolt_metadata: std::sync::Mutex::new(godbolt::GodboltMetadata::default()),
                     active_slowmodes: std::sync::Mutex::new(std::collections::HashMap::new()),
                 })
             })

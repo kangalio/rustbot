@@ -1,6 +1,5 @@
 mod targets;
-use targets::rustc_id_and_flags;
-pub use targets::{targets, GodboltTargets};
+pub use targets::*;
 
 use crate::{Context, Error};
 
@@ -53,17 +52,21 @@ struct GodboltTool {
     // stderr: GodboltOutput,
 }
 
+struct GodboltRequest<'a> {
+    source_code: &'a str,
+    rustc: &'a str,
+    flags: &'a str,
+    run_llvm_mca: bool,
+}
+
 /// Compile a given Rust source code file on Godbolt using the latest nightly compiler with
 /// full optimizations (-O3)
 /// Returns a multiline string with the pretty printed assembly
 async fn compile_rust_source(
     http: &reqwest::Client,
-    source_code: &str,
-    rustc: &str,
-    flags: &str,
-    run_llvm_mca: bool,
+    request: GodboltRequest<'_>,
 ) -> Result<Compilation, Error> {
-    let tools = if run_llvm_mca {
+    let tools = if request.run_llvm_mca {
         serde_json::json! {
             [{"id": LLVM_MCA_TOOL_ID}]
         }
@@ -76,14 +79,15 @@ async fn compile_rust_source(
     let request = http
         .post(&format!(
             "https://godbolt.org/api/compiler/{}/compile",
-            rustc
+            request.rustc
         ))
         .header(reqwest::header::ACCEPT, "application/json") // to make godbolt respond in JSON
         .json(&serde_json::json! { {
-            "source": source_code,
+            "source": request.source_code,
             "options": {
-                "userArguments": format!("{} --color=never", flags),
+                "userArguments": format!("{} --color=never", request.flags),
                 "tools": tools,
+                // "libraries": [{"id": "itoa", "version": "102"}],
             },
         } })
         .build()?;
@@ -172,8 +176,17 @@ async fn generic_godbolt(
     let (lang, text);
     let mut note = String::new();
 
-    let godbolt_result =
-        compile_rust_source(&ctx.data().http, &code.code, &rustc, &flags, run_llvm_mca).await?;
+    // &code.code, &rustc, &flags, run_llvm_mca
+    let godbolt_result = compile_rust_source(
+        &ctx.data().http,
+        GodboltRequest {
+            source_code: &code.code,
+            rustc: &rustc,
+            flags: &flags,
+            run_llvm_mca: mode == GodboltMode::Mca,
+        },
+    )
+    .await?;
 
     match godbolt_result {
         Compilation::Success {
@@ -341,9 +354,19 @@ pub async fn asmdiff(
 ) -> Result<(), Error> {
     let (rustc, flags) = rustc_id_and_flags(ctx.data(), &params, GodboltMode::Asm).await?;
 
+    let req1 = GodboltRequest {
+        source_code: &code1.code,
+        rustc: &rustc,
+        flags: &flags,
+        run_llvm_mca: false,
+    };
+    let req2 = GodboltRequest {
+        source_code: &code2.code,
+        ..req1
+    };
     let (asm1, asm2) = tokio::try_join!(
-        compile_rust_source(&ctx.data().http, &code1.code, &rustc, &flags, false),
-        compile_rust_source(&ctx.data().http, &code2.code, &rustc, &flags, false),
+        compile_rust_source(&ctx.data().http, req1),
+        compile_rust_source(&ctx.data().http, req2),
     )?;
     let result = match (asm1, asm2) {
         (Compilation::Success { asm: a, .. }, Compilation::Success { asm: b, .. }) => Ok((a, b)),

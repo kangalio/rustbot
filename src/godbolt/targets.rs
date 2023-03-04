@@ -10,9 +10,21 @@ struct GodboltTarget {
     instruction_set: String,
 }
 
+#[derive(Debug, Clone, serde::Deserialize)]
+struct GodboltLibraryVersion {
+    id: String,
+}
+
+#[derive(Debug, Clone, serde::Deserialize)]
+struct GodboltLibrary {
+    id: String,
+    versions: Vec<GodboltLibraryVersion>,
+}
+
 #[derive(Default, Debug)]
-pub struct GodboltTargets {
+pub struct GodboltMetadata {
     targets: Vec<GodboltTarget>,
+    libraries: Vec<GodboltLibrary>,
     last_update_time: Option<std::time::Instant>,
 }
 
@@ -28,10 +40,10 @@ impl GodboltTarget {
     }
 }
 
-async fn update_godbolt_targets(data: &Data) -> Result<(), Error> {
-    let last_update_time = data.godbolt_targets.lock().unwrap().last_update_time;
+async fn update_godbolt_metadata(data: &Data) -> Result<(), Error> {
+    let last_update_time = data.godbolt_metadata.lock().unwrap().last_update_time;
     let needs_update = if let Some(last_update_time) = last_update_time {
-        // Get the time to wait between each update of the godbolt targets list
+        // Get the time to wait between each update of the godbolt metadata
         let update_period = std::env::var("GODBOLT_UPDATE_DURATION")
             .ok()
             .and_then(|duration| duration.parse::<u64>().ok())
@@ -44,14 +56,14 @@ async fn update_godbolt_targets(data: &Data) -> Result<(), Error> {
         let needs_update = time_since_update >= update_period;
         if needs_update {
             log::info!(
-                "godbolt targets were last updated {:#?} ago, updating them",
+                "godbolt metadata was last updated {:#?} ago, updating it",
                 time_since_update,
             );
         }
 
         needs_update
     } else {
-        log::info!("godbolt targets haven't yet been updated, fetching them");
+        log::info!("godbolt metadata hasn't yet been updated, fetching it");
 
         true
     };
@@ -63,8 +75,6 @@ async fn update_godbolt_targets(data: &Data) -> Result<(), Error> {
             .get("https://godbolt.org/api/compilers/rust")
             .header(reqwest::header::ACCEPT, "application/json");
         let mut targets: Vec<GodboltTarget> = request.send().await?.json().await?;
-        log::info!("got {} godbolt targets", targets.len());
-
         // Clean up the data we've gotten from the request
         for target in &mut targets {
             target.clean_request_data();
@@ -73,23 +83,36 @@ async fn update_godbolt_targets(data: &Data) -> Result<(), Error> {
             }
         }
 
-        let mut godbolt_targets = data.godbolt_targets.lock().unwrap();
-        godbolt_targets.targets = targets;
-        godbolt_targets.last_update_time = Some(std::time::Instant::now());
+        let request = data
+            .http
+            .get("https://godbolt.org/api/libraries/rust")
+            .header(reqwest::header::ACCEPT, "application/json");
+        let libraries: Vec<GodboltLibrary> = request.send().await?.json().await?;
 
-        log::info!("finished updating godbolt targets list");
+        log::info!(
+            "updating godbolt metadata: {} targets, {} libraries",
+            targets.len(),
+            libraries.len()
+        );
+        *data.godbolt_metadata.lock().unwrap() = GodboltMetadata {
+            targets,
+            libraries,
+            last_update_time: Some(std::time::Instant::now()),
+        };
     }
 
     Ok(())
 }
 
-async fn fetch_godbolt_targets(data: &Data) -> Vec<GodboltTarget> {
+pub async fn fetch_godbolt_metadata(
+    data: &Data,
+) -> impl std::ops::Deref<Target = GodboltMetadata> + '_ {
     // If we encounter an error while updating the targets list, just log it
-    if let Err(error) = update_godbolt_targets(data).await {
-        log::error!("failed to update godbolt targets list: {:?}", error);
+    if let Err(error) = update_godbolt_metadata(data).await {
+        log::error!("failed to update godbolt metadata: {:?}", error);
     }
 
-    data.godbolt_targets.lock().unwrap().targets.clone()
+    data.godbolt_metadata.lock().unwrap()
 }
 
 // Generates godbolt-compatible rustc identifier and flags from command input
@@ -102,11 +125,12 @@ pub(super) async fn rustc_id_and_flags(
     mode: GodboltMode,
 ) -> Result<(String, String), Error> {
     let rustc = params.get("rustc").unwrap_or("nightly");
-    let targets = fetch_godbolt_targets(data).await;
-    let target = targets.into_iter().find(|target| target.semver == rustc.trim()).ok_or(
-        "the `rustc` argument should be a version specifier like `nightly` `beta` or `1.45.2`. \
-        Run ?targets for a full list",
-    )?;
+    let target = fetch_godbolt_metadata(data).await.targets
+        .iter().find(|target| target.semver == rustc.trim()).cloned()
+        .ok_or(
+            "the `rustc` argument should be a version specifier like `nightly` `beta` or `1.45.2`. \
+            Run ?targets for a full list",
+        )?;
 
     let mut flags = params
         .get("flags")
@@ -170,7 +194,7 @@ impl<'a> From<&'a str> for SemverRanking<'a> {
 /// Lists all available godbolt rustc targets
 #[poise::command(prefix_command, slash_command, broadcast_typing, category = "Godbolt")]
 pub async fn targets(ctx: Context<'_>) -> Result<(), Error> {
-    let mut targets = fetch_godbolt_targets(ctx.data()).await;
+    let mut targets = fetch_godbolt_metadata(ctx.data()).await.targets.clone();
 
     // Can't use sort_by_key because https://github.com/rust-lang/rust/issues/34162
     targets.sort_unstable_by(|lhs, rhs| {
