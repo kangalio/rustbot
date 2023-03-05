@@ -5,9 +5,10 @@ use crate::{Context, Error};
 
 const LLVM_MCA_TOOL_ID: &str = "llvm-mcatrunk";
 
-enum Compilation {
-    Success { output: String, stderr: String },
-    Error { stderr: String },
+struct Compilation {
+    output: String,
+    stderr: String,
+    success: bool,
 }
 
 #[derive(Debug, serde::Deserialize)]
@@ -58,7 +59,7 @@ struct GodboltRequest<'a> {
 /// Returns a multiline string with the pretty printed assembly
 async fn compile_rust_source(
     http: &reqwest::Client,
-    request: GodboltRequest<'_>,
+    request: &GodboltRequest<'_>,
 ) -> Result<Compilation, Error> {
     let tools = if request.run_llvm_mca {
         serde_json::json! {
@@ -89,44 +90,33 @@ async fn compile_rust_source(
     let response: GodboltResponse = http.execute(http_request).await?.json().await?;
 
     // TODO: use the extract_relevant_lines utility to strip stderr nicely
-    Ok(if response.code == 0 {
-        Compilation::Success {
-            output: if request.run_llvm_mca {
-                let text = response
-                    .tools
-                    .iter()
-                    .find(|tool| tool.id == LLVM_MCA_TOOL_ID)
-                    .map(|llvm_mca| llvm_mca.stdout.concatenate())
-                    .ok_or("No llvm-mca result was sent by Godbolt")?;
-                // Strip junk
-                text[..text.find("Instruction Info").unwrap_or(text.len())]
-                    .trim()
-                    .to_string()
-            } else {
-                response.asm.concatenate()
-            },
-            stderr: response.stderr.concatenate(),
-        }
-    } else {
-        Compilation::Error {
-            stderr: response.stderr.concatenate(),
-        }
+    Ok(Compilation {
+        output: if request.run_llvm_mca {
+            let text = response
+                .tools
+                .iter()
+                .find(|tool| tool.id == LLVM_MCA_TOOL_ID)
+                .map(|llvm_mca| llvm_mca.stdout.concatenate())
+                .ok_or("No llvm-mca result was sent by Godbolt")?;
+            // Strip junk
+            text[..text.find("Instruction Info").unwrap_or(text.len())]
+                .trim()
+                .to_string()
+        } else {
+            response.asm.concatenate()
+        },
+        stderr: response.stderr.concatenate(),
+        success: response.code == 0,
     })
 }
 
-async fn save_to_shortlink(
-    http: &reqwest::Client,
-    code: &str,
-    rustc: &str,
-    flags: &str,
-    run_llvm_mca: bool,
-) -> Result<String, Error> {
+async fn save_to_shortlink(http: &reqwest::Client, req: &GodboltRequest<'_>) -> String {
     #[derive(serde::Deserialize)]
     struct GodboltShortenerResponse {
         url: String,
     }
 
-    let tools = if run_llvm_mca {
+    let tools = if req.run_llvm_mca {
         serde_json::json! {
             [{"id": LLVM_MCA_TOOL_ID}]
         }
@@ -136,23 +126,35 @@ async fn save_to_shortlink(
         }
     };
 
-    let response = http
+    let request = http
         .post("https://godbolt.org/api/shortener")
         .json(&serde_json::json! { {
             "sessions": [{
                 "language": "rust",
-                "source": code,
+                "source": req.source_code,
                 "compilers": [{
-                    "id": rustc,
-                    "options": flags,
+                    "id": req.rustc,
+                    "options": req.flags,
                     "tools": tools,
                 }],
             }]
-        } })
-        .send()
-        .await?;
+        } });
 
-    Ok(response.json::<GodboltShortenerResponse>().await?.url)
+    // Try block substitute
+    let url = async move {
+        Ok::<_, crate::Error>(
+            request
+                .send()
+                .await?
+                .json::<GodboltShortenerResponse>()
+                .await?
+                .url,
+        )
+    };
+    url.await.unwrap_or_else(|e| {
+        log::warn!("failed to generate godbolt shortlink: {}", e);
+        "failed to retrieve".to_owned()
+    })
 }
 
 #[derive(PartialEq, Clone, Copy)]
@@ -162,63 +164,27 @@ enum GodboltMode {
     Mca,
 }
 
-async fn generic_godbolt(
+async fn respond_codeblock(
     ctx: Context<'_>,
-    params: poise::KeyValueArgs,
-    code: poise::CodeBlock,
-    mode: GodboltMode,
+    codeblock_lang: &str,
+    text: &str,
+    note: &str,
+    godbolt_request: &GodboltRequest<'_>,
 ) -> Result<(), Error> {
-    let run_llvm_mca = mode == GodboltMode::Mca;
-
-    let (rustc, flags) = rustc_id_and_flags(ctx.data(), &params, mode).await?;
-    let mut note = String::new();
-
-    // &code.code, &rustc, &flags, run_llvm_mca
-    let godbolt_result = compile_rust_source(
-        &ctx.data().http,
-        GodboltRequest {
-            source_code: &code.code,
-            rustc: &rustc,
-            flags: &flags,
-            run_llvm_mca: mode == GodboltMode::Mca,
-        },
-    )
-    .await?;
-
-    let (codeblock_lang, text) = match &godbolt_result {
-        Compilation::Success { output, stderr } => (
-            match mode {
-                GodboltMode::Asm => "x86asm",
-                GodboltMode::Mca => "rust",
-                GodboltMode::LlvmIr => "llvm",
+    ctx.say(
+        crate::trim_text(
+            &format!("```{}\n{}", codeblock_lang, text),
+            &format!("\n```{}", note),
+            async {
+                format!(
+                    "Output too large. Godbolt link: <{}>",
+                    save_to_shortlink(&ctx.data().http, &godbolt_request).await,
+                )
             },
-            crate::merge_output_and_errors(&output, &stderr),
-        ),
-        Compilation::Error { stderr } => ("rust", stderr.into()),
-    };
-
-    if !code.code.contains("pub fn") {
-        note += "Note: only public functions (`pub fn`) are shown\n";
-    }
-
-    super::reply_potentially_long_text(
-        ctx,
-        &format!("```{}\n{}", codeblock_lang, text),
-        &format!("\n```{}", note),
-        async {
-            format!(
-                "Output too large. Godbolt link: <{}>",
-                save_to_shortlink(&ctx.data().http, &code.code, &rustc, &flags, run_llvm_mca)
-                    .await
-                    .unwrap_or_else(|e| {
-                        log::warn!("failed to generate godbolt shortlink: {}", e);
-                        "failed to retrieve".to_owned()
-                    }),
-            )
-        },
+        )
+        .await,
     )
     .await?;
-
     Ok(())
 }
 
@@ -242,7 +208,29 @@ pub async fn godbolt(
     params: poise::KeyValueArgs,
     code: poise::CodeBlock,
 ) -> Result<(), Error> {
-    generic_godbolt(ctx, params, code, GodboltMode::Asm).await
+    let (rustc, flags) = rustc_id_and_flags(ctx.data(), &params).await?;
+    let godbolt_request = GodboltRequest {
+        source_code: &code.code,
+        rustc: &rustc,
+        flags: &flags,
+        run_llvm_mca: false,
+    };
+    let godbolt_result = compile_rust_source(&ctx.data().http, &godbolt_request).await?;
+
+    let text = crate::merge_output_and_errors(&godbolt_result.output, &godbolt_result.stderr);
+    let note = if code.code.contains("pub fn") {
+        "Note: only public functions (`pub fn`) are shown"
+    } else {
+        ""
+    };
+    let codeblock_lang = if godbolt_result.success {
+        "x86asm"
+    } else {
+        "rust"
+    };
+    respond_codeblock(ctx, codeblock_lang, &text, note, &godbolt_request).await?;
+
+    Ok(())
 }
 
 /// Run performance analysis using llvm-mca
@@ -265,7 +253,25 @@ pub async fn mca(
     params: poise::KeyValueArgs,
     code: poise::CodeBlock,
 ) -> Result<(), Error> {
-    generic_godbolt(ctx, params, code, GodboltMode::Mca).await
+    let (rustc, flags) = rustc_id_and_flags(ctx.data(), &params).await?;
+    let godbolt_request = GodboltRequest {
+        source_code: &code.code,
+        rustc: &rustc,
+        flags: &flags,
+        run_llvm_mca: true,
+    };
+
+    let godbolt_result = compile_rust_source(&ctx.data().http, &godbolt_request).await?;
+
+    let text = crate::merge_output_and_errors(&godbolt_result.output, &godbolt_result.stderr);
+    let note = if code.code.contains("pub fn") {
+        ""
+    } else {
+        "Note: only public functions (`pub fn`) are shown"
+    };
+    respond_codeblock(ctx, "rust", &text, note, &godbolt_request).await?;
+
+    Ok(())
 }
 
 /// View LLVM IR using Godbolt
@@ -290,5 +296,27 @@ pub async fn llvmir(
     params: poise::KeyValueArgs,
     code: poise::CodeBlock,
 ) -> Result<(), Error> {
-    generic_godbolt(ctx, params, code, GodboltMode::LlvmIr).await
+    let (rustc, flags) = rustc_id_and_flags(ctx.data(), &params).await?;
+    let godbolt_request = GodboltRequest {
+        source_code: &code.code,
+        rustc: &rustc,
+        flags: &(flags + " --emit=llvm-ir -Cdebuginfo=0"),
+        run_llvm_mca: false,
+    };
+    let godbolt_result = compile_rust_source(&ctx.data().http, &godbolt_request).await?;
+
+    let text = crate::merge_output_and_errors(&godbolt_result.output, &godbolt_result.stderr);
+    let codeblock_lang = if godbolt_result.success {
+        "llvm"
+    } else {
+        "rust"
+    };
+    let note = if code.code.contains("pub fn") {
+        ""
+    } else {
+        "Note: only public functions (`pub fn`) are shown"
+    };
+    respond_codeblock(ctx, codeblock_lang, &text, &note, &godbolt_request).await?;
+
+    Ok(())
 }

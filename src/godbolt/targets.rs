@@ -122,7 +122,6 @@ pub async fn fetch_godbolt_metadata(
 pub(super) async fn rustc_id_and_flags(
     data: &Data,
     params: &poise::KeyValueArgs,
-    mode: GodboltMode,
 ) -> Result<(String, String), Error> {
     let rustc = params.get("rustc").unwrap_or("nightly");
     let target = fetch_godbolt_metadata(data).await.targets
@@ -132,13 +131,10 @@ pub(super) async fn rustc_id_and_flags(
             Run ?targets for a full list",
         )?;
 
-    let mut flags = params
+    let flags = params
         .get("flags")
         .unwrap_or("-Copt-level=3 --edition=2021")
         .to_owned();
-    if mode == GodboltMode::LlvmIr {
-        flags += " --emit=llvm-ir -Cdebuginfo=0";
-    }
 
     Ok((target.id, flags))
 }
