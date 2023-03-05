@@ -92,12 +92,16 @@ async fn compile_rust_source(
     Ok(if response.code == 0 {
         Compilation::Success {
             output: if request.run_llvm_mca {
-                response
+                let text = response
                     .tools
                     .iter()
                     .find(|tool| tool.id == LLVM_MCA_TOOL_ID)
                     .map(|llvm_mca| llvm_mca.stdout.concatenate())
-                    .ok_or("No llvm-mca result was sent by Godbolt")?
+                    .ok_or("No llvm-mca result was sent by Godbolt")?;
+                // Strip junk
+                text[..text.find("Instruction Info").unwrap_or(text.len())]
+                    .trim()
+                    .to_string()
             } else {
                 response.asm.concatenate()
             },
@@ -239,10 +243,6 @@ pub async fn godbolt(
     code: poise::CodeBlock,
 ) -> Result<(), Error> {
     generic_godbolt(ctx, params, code, GodboltMode::Asm).await
-}
-
-fn strip_llvm_mca_result(text: &str) -> &str {
-    text[..text.find("Instruction Info").unwrap_or(text.len())].trim()
 }
 
 /// Run performance analysis using llvm-mca
