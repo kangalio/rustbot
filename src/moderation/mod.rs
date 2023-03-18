@@ -176,13 +176,9 @@ pub async fn report(
     let report_name = format!("Report {}", ctx.id() % 1000);
 
     // let msg = reports_channel.say(ctx.discord(), &report_name).await?;
-    let mut report_thread = reports_channel
+    let report_thread = reports_channel
         // .create_public_thread(ctx.discord(), msg, serenity::CreateThread::new(report_name))
         .create_private_thread(ctx.discord(), serenity::CreateThread::new(report_name))
-        .await?;
-    // Prevent non-mods from unarchiving the thread and accidentally exposing themselves in audit log.
-    report_thread
-        .edit_thread(ctx.discord(), serenity::EditThread::new().locked(true))
         .await?;
 
     let thread_message_content = format!(
