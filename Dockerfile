@@ -9,6 +9,7 @@ WORKDIR /rustbot
 
 COPY Cargo.toml .
 COPY Cargo.lock .
+COPY assets ./assets
 
 RUN cargo build --release
 RUN rm src/*.rs
@@ -19,7 +20,7 @@ RUN rm ./target/release/deps/rustbot*
 RUN cargo build --release
 
 
-FROM debian:buster-slim
+FROM debian:11-slim
 
 ARG APP=/usr/src/app
 
@@ -35,6 +36,7 @@ RUN apt-get update \
  && useradd -g $APP_USER $APP_USER
 
 COPY --from=builder /rustbot/target/release/rustbot .
+COPY assets ./assets
 
 RUN mkdir database
 RUN chown -R $APP_USER:$APP_USER .
