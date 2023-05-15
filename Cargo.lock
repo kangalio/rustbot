@@ -1520,6 +1520,7 @@ dependencies = [
  "log",
  "once_cell",
  "poise",
+ "rand 0.8.5",
  "reqwest",
  "rusttype",
  "serde",

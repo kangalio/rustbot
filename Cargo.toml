@@ -24,6 +24,7 @@ imageproc = { version = "0.23", default-features = false } # get a better comput
 rusttype = { version = "0.9", default-features = false } # interact with imageproc
 once_cell = "1.13"
 humantime = "2.1.0"
+rand = "0.8.5"
 
 [patch.crates-io]
 poise = { git = "https://github.com/kangalioo/poise", branch = "serenity-next" }
