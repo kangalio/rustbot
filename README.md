@@ -1,3 +1,5 @@
+# MOVED TO https://github.com/rust-community-discord/ferrisbot-for-discord
+
 # Rustbot
 
 ## Inviting the bot
